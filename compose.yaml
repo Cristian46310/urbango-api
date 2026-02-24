@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # Microservicio de Seguridad
+  ms-security:
+    build:
+      context: ./ms-security
+      dockerfile: DockerFile
+    container_name: ms-security-app
+    ports:
+      - "8080:8080"
+    environment:
+      # Configuración de MongoDB
+      SPRING_MONGODB_URI: mongodb+srv://juanmiranda41303:Juan2004%2A@backend-jmmg.w0dky7l.mongodb.net/?appName=backend-jmmg
+      SPRING_MONGODB_DATABASE: backend-jmmg
+      
+      # Configuración del servidor
+      SERVER_PORT: 8080
+      
+      # Configuración JWT
+      JWT_SECRET: ${JWT_SECRET:-fbc}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-3600000}
+    
+    # Reinicio automático
+    restart: unless-stopped
+    
+    # Logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Healthcheck
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    
+    networks:
+      - backend-network
+
+  # MongoDB local para desarrollo (opcional)
+  # Descomenta si quieres usar MongoDB local en lugar de Atlas
+  # mongodb:
+  #   image: mongo:7.0-alpine
+  #   container_name: mongodb-dev
+  #   ports:
+  #     - "27017:27017"
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-admin}
+  #     MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-admin123}
+  #     MONGO_INITDB_DATABASE: backend-jmmg
+  #   volumes:
+  #     - mongodb_data:/data/db
+  #     - mongodb_config:/data/configdb
+  #   restart: unless-stopped
+  #   networks:
+  #     - backend-network
+
+networks:
+  backend-network:
+    driver: bridge
+
+volumes:
+  # mongodb_data:
+  #   driver: local
+  # mongodb_config:
+  #   driver: local
