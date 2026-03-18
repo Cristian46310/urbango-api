@@ -1,8 +1,10 @@
 package com.jmmg.ms_security.controllers;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -46,6 +48,46 @@ public class UserController {
     @DeleteMapping("{id}")
     public void delete(@PathVariable String id) {
         this.userService.delete(id);
+    }
+
+    @PostMapping("{id}/profile/{profileID}")
+    public ResponseEntity<Map<String, String>> addProfile(@PathVariable String id, @PathVariable String profileID) {
+        boolean success = this.userService.addProfile(id, profileID);
+        if (success) {
+            return ResponseEntity.ok(Map.of("message", "Profile added successfully"));
+        } else {
+            return ResponseEntity.status(404).body(Map.of("message", "User or Profile not found"));
+        }
+    }
+
+    @DeleteMapping("{id}/profile/{profileID}")
+    public ResponseEntity<Map<String, String>> removeProfile(@PathVariable String id, @PathVariable String profileID) {
+        boolean success = this.userService.removeProfile(id, profileID);
+        if (success) {
+            return ResponseEntity.ok(Map.of("message", "Profile removed successfully"));
+        } else {
+            return ResponseEntity.status(404).body(Map.of("message", "User or Profile not found"));
+        }
+    }
+
+    @PostMapping("{id}/session/{sessionID}")
+    public ResponseEntity<Map<String, String>> addSession(@PathVariable String id, @PathVariable String sessionID) {
+        boolean success = this.userService.addSession(id, sessionID);
+        if (success) {
+            return ResponseEntity.ok(Map.of("message", "Session added successfully"));
+        } else {
+            return ResponseEntity.status(404).body(Map.of("message", "User or Session not found"));
+        }
+    }
+
+    @DeleteMapping("{id}/session/{sessionID}")
+    public ResponseEntity<Map<String, String>> removeSession(@PathVariable String id, @PathVariable String sessionID) {
+        boolean success = this.userService.removeSession(id, sessionID);
+        if (success) {
+            return ResponseEntity.ok(Map.of("message", "Session removed successfully"));
+        } else {
+            return ResponseEntity.status(404).body(Map.of("message", "User or Session not found"));
+        }
     }
 
 }
