@@ -4,7 +4,6 @@ import java.net.URI;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -74,7 +73,7 @@ public class UserController {
     }
 
     @DeleteMapping("{id}/profile/{profileID}")
-    public ResponseEntity<ResponseMessage> removeProfile(@PathVariable String id, @PathVariable String profileID) {
+    public ResponseEntity<Void> removeProfile(@PathVariable String id, @PathVariable String profileID) {
         boolean success = this.userService.removeProfile(id, profileID);
         if (success) {
             return ResponseEntity.noContent().build();
@@ -94,7 +93,7 @@ public class UserController {
     }
 
     @DeleteMapping("{id}/session/{sessionID}")
-    public ResponseEntity<ResponseMessage> removeSession(@PathVariable String id, @PathVariable String sessionID) {
+    public ResponseEntity<Void> removeSession(@PathVariable String id, @PathVariable String sessionID) {
         boolean success = this.userService.removeSession(id, sessionID);
         if (success) {
             return ResponseEntity.noContent().build();
