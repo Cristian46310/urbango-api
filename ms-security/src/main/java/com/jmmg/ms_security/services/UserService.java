@@ -5,6 +5,8 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.jmmg.ms_security.DTOs.GetUserDTO;
+import com.jmmg.ms_security.DTOs.PostUserDTO;
 import com.jmmg.ms_security.models.Profile;
 import com.jmmg.ms_security.models.Session;
 import com.jmmg.ms_security.models.User;
@@ -23,28 +25,28 @@ public class UserService {
     @Autowired
     private EncryptionService encryptionService;
 
-    public User save(String name, String email, String password) {
+    public GetUserDTO save(PostUserDTO postUserDTO) {
         // buscar si ya no existe ese usuario en la base de datos
-        User newUser = new User(name, email, password);
-        newUser.setPassword(encryptionService.convertSHA256(password));
-        return userRepository.save(newUser);
+        User newUser = new User(postUserDTO);
+        newUser.setPassword(encryptionService.convertSHA256(postUserDTO.password()));
+        return GetUserDTO.fromModel(userRepository.save(newUser));
     }
 
-    public List<User> getAll() {
-        return userRepository.findAll();
+    public List<GetUserDTO> getAll() {
+        return userRepository.findAll().stream()
+                .map(GetUserDTO::fromModel)
+                .collect(java.util.stream.Collectors.toList());
     }
 
-    public User getById(String id) {
-        return userRepository.findById(id).orElse(null);
+    public GetUserDTO getById(String id) {
+        return GetUserDTO.fromModel(userRepository.findById(id).orElse(null));
     }
 
-    public User update(String id, String name, String email, String password) {
+    public GetUserDTO update(String id, PostUserDTO newUser) {
         User user = userRepository.findById(id).orElse(null);
         if (user != null) {
-            user.setName(name);
-            user.setEmail(email);
-            user.setPassword(encryptionService.convertSHA256(password));
-            return userRepository.save(user);
+            user.updateFromDTO(newUser);
+            return GetUserDTO.fromModel(userRepository.save(user));
         }
         return null;
     }

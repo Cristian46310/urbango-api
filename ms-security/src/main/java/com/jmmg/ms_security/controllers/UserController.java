@@ -1,9 +1,10 @@
 package com.jmmg.ms_security.controllers;
 
+import java.net.URI;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.jmmg.ms_security.DTOs.ResponseMessage;
 import com.jmmg.ms_security.DTOs.GetUserDTO;
+import com.jmmg.ms_security.DTOs.PostUserDTO;
 import com.jmmg.ms_security.services.UserService;
 
 @CrossOrigin
@@ -27,13 +29,13 @@ public class UserController {
     private UserService userService;
 
     @GetMapping("")
-    public List<GetUserDTO> getAllUsers() {
-        return userService.getAll().stream().map(GetUserDTO::fromModel).collect(Collectors.toList());
+    public ResponseEntity<List<GetUserDTO>> getAllUsers() {
+        return ResponseEntity.ok(userService.getAll());
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<GetUserDTO> getById(@PathVariable String id) {
-        GetUserDTO user = GetUserDTO.fromModel(userService.getById(id));
+        GetUserDTO user = userService.getById(id);
         if (user != null) {
             return ResponseEntity.ok(user);
         }
@@ -41,14 +43,14 @@ public class UserController {
     }
 
     @PostMapping("")
-    public ResponseEntity<GetUserDTO> saveUser(@RequestBody GetUserDTO user) {
-        return ResponseEntity.status(201)
-                .body(GetUserDTO.fromModel(userService.save(user.name(), user.email(), user.password())));
+    public ResponseEntity<GetUserDTO> saveUser(@RequestBody PostUserDTO user) {
+        GetUserDTO createdUser = userService.save(user);
+        return ResponseEntity.created(URI.create("/users/" + createdUser.id())).body(createdUser);
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<GetUserDTO> update(@PathVariable String id, @RequestBody GetUserDTO newUser) {
-        GetUserDTO updated = GetUserDTO.fromModel(this.userService.update(id, newUser.name(), newUser.email(), newUser.password()));
+    public ResponseEntity<GetUserDTO> update(@PathVariable String id, @RequestBody PostUserDTO newUser) {
+        GetUserDTO updated = this.userService.update(id, newUser);
         if (updated != null) {
             return ResponseEntity.ok(updated);
         }
@@ -56,8 +58,9 @@ public class UserController {
     }
 
     @DeleteMapping("{id}")
-    public void delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable String id) {
         this.userService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("{id}/profile/{profileID}")
@@ -76,7 +79,7 @@ public class UserController {
         if (success) {
             return ResponseEntity.noContent().build();
         } else {
-            return ResponseEntity.status(404).body(new ResponseMessage("User or Profile not found"));
+            return ResponseEntity.notFound().build();
         }
     }
 
@@ -86,7 +89,7 @@ public class UserController {
         if (success) {
             return ResponseEntity.ok(new ResponseMessage("Session added successfully"));
         } else {
-            return ResponseEntity.status(404).body(new ResponseMessage("User or Session not found"));
+            return ResponseEntity.notFound().build();
         }
     }
 
@@ -96,7 +99,7 @@ public class UserController {
         if (success) {
             return ResponseEntity.noContent().build();
         } else {
-            return ResponseEntity.status(404).body(new ResponseMessage("User or Session not found"));
+            return ResponseEntity.notFound().build();
         }
     }
 

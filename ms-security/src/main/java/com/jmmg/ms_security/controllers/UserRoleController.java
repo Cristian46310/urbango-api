@@ -5,9 +5,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.jmmg.ms_security.DTOs.ResponseMessage;
 import com.jmmg.ms_security.services.UserRoleService;
-
-import java.util.Map;
 
 @CrossOrigin
 @RestController
@@ -17,30 +16,26 @@ public class UserRoleController {
     private UserRoleService userRoleService;
 
     @PostMapping("user/{userId}/role/{roleId}")
-    public ResponseEntity<Map<String, String>> addUserRole(
+    public ResponseEntity<ResponseMessage> addUserRole(
             @PathVariable String userId,
             @PathVariable String roleId) {
 
         boolean response = this.userRoleService.addUserRole(userId, roleId);
         if (response) {
-            return ResponseEntity.ok(Map.of("message", "Success"));
+            return ResponseEntity.ok(new ResponseMessage("Success"));
         } else {
-            return ResponseEntity
-                    .status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("message", "User or Role not found"));
+            return ResponseEntity.notFound().build();
         }
     }
     @DeleteMapping("{userRoleId}")
-    public ResponseEntity<Map<String, String>> removeUserRole(
+    public ResponseEntity<Void> removeUserRole(
             @PathVariable String userRoleId) {
 
         boolean response = this.userRoleService.removeUserRole(userRoleId);
         if (response) {
             return ResponseEntity.noContent().build();
         } else {
-            return ResponseEntity
-                    .status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("message", "User or Role not found"));
+            return ResponseEntity.notFound().build();
         }
     }
 }

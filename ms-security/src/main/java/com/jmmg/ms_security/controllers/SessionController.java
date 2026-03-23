@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
 import java.util.List;
 
 @CrossOrigin
@@ -36,7 +37,7 @@ public class SessionController {
     @PostMapping
     public ResponseEntity<GetSessionDTO> create(@RequestBody PostSessionDTO newSession) {
         GetSessionDTO createdSession = this.sessionService.create(newSession);
-        return ResponseEntity.status(201).body(createdSession);
+        return ResponseEntity.created(URI.create("/sessions/" + createdSession.id())).body(createdSession);
     }
 
     @PutMapping("{id}")
@@ -50,7 +51,7 @@ public class SessionController {
     }
 
     @DeleteMapping("{id}")
-    public ResponseEntity<GetSessionDTO> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable String id) {
         this.sessionService.delete(id);
         return ResponseEntity.noContent().build();
     }

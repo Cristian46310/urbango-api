@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
 import java.util.List;
 
 @CrossOrigin
@@ -36,7 +37,7 @@ public class RoleController {
     @PostMapping
     public ResponseEntity<GetRoleDTO> create(@RequestBody PostRoleDTO newRole) {
         GetRoleDTO createdRole = this.roleService.create(newRole);
-        return ResponseEntity.status(201).body(createdRole);
+        return ResponseEntity.created(URI.create("/roles/" + createdRole.id())).body(createdRole);
     }
 
     @PutMapping("{id}")
@@ -50,7 +51,7 @@ public class RoleController {
     }
 
     @DeleteMapping("{id}")
-    public ResponseEntity<GetRoleDTO> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable String id) {
         this.roleService.delete(id);
         return ResponseEntity.noContent().build();
     }

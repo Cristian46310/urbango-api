@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
 import java.util.List;
 
 @CrossOrigin
@@ -36,7 +37,7 @@ public class ProfileController {
     @PostMapping
     public ResponseEntity<GetProfileDTO> create(@RequestBody PostProfileDTO newProfile) {
         GetProfileDTO createdProfile = this.profileService.create(newProfile);
-        return ResponseEntity.status(201).body(createdProfile);
+        return ResponseEntity.created(URI.create("/profiles/" + createdProfile.id())).body(createdProfile);
     }
 
     @PutMapping("{id}")
@@ -50,7 +51,7 @@ public class ProfileController {
     }
 
     @DeleteMapping("{id}")
-    public ResponseEntity<GetProfileDTO> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable String id) {
         this.profileService.delete(id);
         return ResponseEntity.noContent().build();
     }

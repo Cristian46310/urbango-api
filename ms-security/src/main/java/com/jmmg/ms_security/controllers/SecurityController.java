@@ -4,6 +4,7 @@ import com.jmmg.ms_security.DTOs.LoginDTO;
 import com.jmmg.ms_security.DTOs.TokenDTO;
 import com.jmmg.ms_security.services.SecurityService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,7 +22,7 @@ public class SecurityController {
         if (token != null) {
             return ResponseEntity.ok(new TokenDTO(token));
         } else {
-            return ResponseEntity.status(401).build();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
 }
