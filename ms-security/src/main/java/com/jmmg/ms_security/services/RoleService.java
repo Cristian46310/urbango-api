@@ -1,5 +1,7 @@
 package com.jmmg.ms_security.services;
 
+import com.jmmg.ms_security.DTOs.GetRoleDTO;
+import com.jmmg.ms_security.DTOs.PostRoleDTO;
 import com.jmmg.ms_security.models.Role;
 import com.jmmg.ms_security.repositories.IRoleRepository;
 
@@ -14,34 +16,37 @@ public class RoleService {
     @Autowired
     private IRoleRepository roleRepository;
 
-    public List<Role> find(){
-        return this.roleRepository.findAll();
+    public List<GetRoleDTO> find() {
+        return this.roleRepository.findAll().stream().map(GetRoleDTO::fromModel)
+                .collect(java.util.stream.Collectors.toList());
     }
 
-    public Role findById(String id){
-        return this.roleRepository.findById(id).orElse(null);
+    public GetRoleDTO findById(String id) {
+        Role role = this.roleRepository.findById(id).orElse(null);
+        return GetRoleDTO.fromModel(role);
     }
 
-    public Role create(Role newRole){
-        return this.roleRepository.save(newRole);
+    public GetRoleDTO create(PostRoleDTO postRoleDTO) {
+        Role newRole = new Role(postRoleDTO);
+        Role savedRole = this.roleRepository.save(newRole);
+        return GetRoleDTO.fromModel(savedRole);
     }
 
-    public Role update(String id, Role newRole){
+    public GetRoleDTO update(String id, PostRoleDTO postRoleDTO) {
         Role actualRole = this.roleRepository.findById(id).orElse(null);
 
-        if(actualRole != null){
-            actualRole.setName(newRole.getName());
-            actualRole.setDescription(newRole.getDescription());
+        if (actualRole != null) {
+            actualRole.updateFromDTO(postRoleDTO);
             this.roleRepository.save(actualRole);
-            return actualRole;
+            return GetRoleDTO.fromModel(actualRole);
         } else {
             return null;
         }
     }
 
-    public void delete(String id){
+    public void delete(String id) {
         Role theRole = this.roleRepository.findById(id).orElse(null);
-        if(theRole != null){
+        if (theRole != null) {
             this.roleRepository.delete(theRole);
         }
     }

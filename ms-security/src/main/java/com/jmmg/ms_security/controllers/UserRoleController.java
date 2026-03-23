@@ -36,7 +36,7 @@ public class UserRoleController {
 
         boolean response = this.userRoleService.removeUserRole(userRoleId);
         if (response) {
-            return ResponseEntity.ok(Map.of("message", "Success"));
+            return ResponseEntity.noContent().build();
         } else {
             return ResponseEntity
                     .status(HttpStatus.NOT_FOUND)

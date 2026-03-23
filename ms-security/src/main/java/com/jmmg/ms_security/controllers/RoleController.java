@@ -1,9 +1,11 @@
 package com.jmmg.ms_security.controllers;
 
-import com.jmmg.ms_security.models.Role;
+import com.jmmg.ms_security.DTOs.GetRoleDTO;
+import com.jmmg.ms_security.DTOs.PostRoleDTO;
 import com.jmmg.ms_security.services.RoleService;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,27 +19,39 @@ public class RoleController {
     private RoleService roleService;
 
     @GetMapping("")
-    public List<Role> find() {
-        return this.roleService.find();
+    public ResponseEntity<List<GetRoleDTO>> find() {
+        return ResponseEntity.ok(this.roleService.find());
     }
 
     @GetMapping("{id}")
-    public Role findById(@PathVariable String id) {
-        return this.roleService.findById(id);
+    public ResponseEntity<GetRoleDTO> findById(@PathVariable String id) {
+        GetRoleDTO role = this.roleService.findById(id);
+        if (role != null) {
+            return ResponseEntity.ok(role);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @PostMapping
-    public Role create(@RequestBody Role newRole) {
-        return this.roleService.create(newRole);
+    public ResponseEntity<GetRoleDTO> create(@RequestBody PostRoleDTO newRole) {
+        GetRoleDTO createdRole = this.roleService.create(newRole);
+        return ResponseEntity.status(201).body(createdRole);
     }
 
     @PutMapping("{id}")
-    public Role update(@PathVariable String id, @RequestBody Role newRole) {
-        return this.roleService.update(id, newRole);
+    public ResponseEntity<GetRoleDTO> update(@PathVariable String id, @RequestBody PostRoleDTO newRole) {
+        GetRoleDTO updatedRole = this.roleService.update(id, newRole);
+        if (updatedRole != null) {
+            return ResponseEntity.ok(updatedRole);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @DeleteMapping("{id}")
-    public void delete(@PathVariable String id) {
+    public ResponseEntity<GetRoleDTO> delete(@PathVariable String id) {
         this.roleService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -1,5 +1,7 @@
 package com.jmmg.ms_security.services;
 
+import com.jmmg.ms_security.DTOs.GetSessionDTO;
+import com.jmmg.ms_security.DTOs.PostSessionDTO;
 import com.jmmg.ms_security.models.Session;
 import com.jmmg.ms_security.repositories.ISessionRepository;
 
@@ -14,35 +16,37 @@ public class SessionService {
     @Autowired
     private ISessionRepository sessionRepository;
 
-    public List<Session> find(){
-        return this.sessionRepository.findAll();
+    public List<GetSessionDTO> find() {
+        return this.sessionRepository.findAll().stream().map(GetSessionDTO::fromModel)
+                .collect(java.util.stream.Collectors.toList());
     }
 
-    public Session findById(String id){
-        return this.sessionRepository.findById(id).orElse(null);
+    public GetSessionDTO findById(String id) {
+        Session session = this.sessionRepository.findById(id).orElse(null);
+        return GetSessionDTO.fromModel(session);
     }
 
-    public Session create(Session newSession){
-        return this.sessionRepository.save(newSession);
+    public GetSessionDTO create(PostSessionDTO postSessionDTO) {
+        Session newSession = new Session(postSessionDTO);
+        Session savedSession = this.sessionRepository.save(newSession);
+        return GetSessionDTO.fromModel(savedSession);
     }
 
-    public Session update(String id, Session newSession){
+    public GetSessionDTO update(String id, PostSessionDTO postSessionDTO) {
         Session actualSession = this.sessionRepository.findById(id).orElse(null);
 
-        if(actualSession != null){
-            actualSession.setToken(newSession.getToken());
-            actualSession.setExpiration(newSession.getExpiration());
-            actualSession.setCode2FA(newSession.getCode2FA());
+        if (actualSession != null) {
+            actualSession.updateFromDTO(postSessionDTO);
             this.sessionRepository.save(actualSession);
-            return actualSession;
+            return GetSessionDTO.fromModel(actualSession);
         } else {
             return null;
         }
     }
 
-    public void delete(String id){
+    public void delete(String id) {
         Session theSession = this.sessionRepository.findById(id).orElse(null);
-        if(theSession != null){
+        if (theSession != null) {
             this.sessionRepository.delete(theSession);
         }
     }
