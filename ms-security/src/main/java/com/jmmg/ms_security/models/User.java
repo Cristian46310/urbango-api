@@ -1,6 +1,7 @@
 package com.jmmg.ms_security.models;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import com.jmmg.ms_security.DTOs.GetUserDTO;
@@ -10,6 +11,7 @@ import lombok.Data;
 
 @Data
 @Document
+@CompoundIndex(name = "email_unique_idx", def = "{'email': 1}", unique = true)
 public class User {
     @Id
     private String id;

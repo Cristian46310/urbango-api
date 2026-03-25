@@ -4,10 +4,12 @@ import com.jmmg.ms_security.DTOs.GetRoleDTO;
 import com.jmmg.ms_security.DTOs.PostRoleDTO;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 @Data
 @Document
+@CompoundIndex(name = "role_name_unique_idx", def = "{'name': 1}", unique = true)
 public class Role {
     @Id
     private String id;
