@@ -13,20 +13,25 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.jmmg.ms_security.models.User;
 import com.jmmg.ms_security.repositories.IUserRepository;
+import com.jmmg.ms_security.services.CustomUserDetailsService;
 import com.jmmg.ms_security.services.JwtService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.core.userdetails.UserDetails;
 
 @Component
 public class SecurityFilter extends OncePerRequestFilter {
 
     @Autowired
-    private JwtService jwtService; // Assuming you have a TokenService for token validation
+    private JwtService jwtService;
 
     @Autowired
-    private IUserRepository userRepository; // Assuming you have a UserRepository for user details
+    private IUserRepository userRepository;
+    
+    @Autowired
+    private CustomUserDetailsService customUserDetailsService;
 
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws IOException, ServletException {
@@ -39,9 +44,9 @@ public class SecurityFilter extends OncePerRequestFilter {
                     return;
                 }
                 User userJWT = jwtService.getUserFromToken(token);
-                UserDetails user = userRepository.getUserDetailsByEmail(userJWT.getEmail());
-                if (user != null) {
-                    var authentication = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+                UserDetails userDetails = customUserDetailsService.loadUserByUsername(userJWT.getEmail());
+                if (userDetails != null) {
+                    var authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 } else {
                     sendErrorResponse(response, HttpStatus.NOT_FOUND, "User not found");

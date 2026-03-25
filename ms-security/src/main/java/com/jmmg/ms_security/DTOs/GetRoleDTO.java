@@ -1,7 +1,7 @@
 package com.jmmg.ms_security.DTOs;
 
 import com.jmmg.ms_security.models.Role;
-
+																																																																							
 public record GetRoleDTO(
 	String id,
 	String name,

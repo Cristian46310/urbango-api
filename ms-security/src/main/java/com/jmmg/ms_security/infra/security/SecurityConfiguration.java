@@ -29,7 +29,11 @@ public class SecurityConfiguration {
                             "/swagger-ui.html",
                             "/swagger-ui/**",
                             "/v3/api-docs/**").permitAll();
-                    auth.requestMatchers(HttpMethod.POST, "/security/login").permitAll();
+                    auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll(); // permite cualqueir options
+                    auth.requestMatchers(HttpMethod.POST, "/security/login").permitAll(); // permite login
+                    auth.requestMatchers(HttpMethod.POST, "/users").permitAll(); // permite crear usuarios
+                    auth.requestMatchers("/roles/**").hasAuthority("ROLE_ADMIN");
+                    auth.requestMatchers("/user-roles/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_BUSINESS_ADMIN");
                     auth.anyRequest().authenticated();
                 })
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

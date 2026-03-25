@@ -40,16 +40,16 @@ public class SpringDocConfiguration {
 	 * @return a customized {@link OpenAPI} instance with JWT bearer security scheme and API info.
 	 */
 	@Bean
-	public OpenAPI customOpenAPI() {
+	OpenAPI customOpenAPI() {
 		return new OpenAPI()
 				.info(new Info()
-						.title("Hackathon 2026 - Bird Monitoring API")
-						.description("API para monitoreo y clasificación de pájaros mediante cámaras inteligentes")
+						.title("Micro Servicio de Seguridad")
+						.description("API para la gestion de autenticación y autorización utilizando JWT")
 						.version("1.0.0")
 						.contact(new Contact()
-								.name("Equipo Hackathon")
-								.email("support@hackathon.local")
-								.url("https://github.com/JuManoel/hackthon2026"))
+								.name("Los Tres Mosqueteros")
+								.email("cristian.grisales46310@ucaldas.edu.co")
+								.url("https://github.com/JuManoel/dev-backend-uc.git"))
 						.license(new License()
 								.name("MIT")
 								.url("https://opensource.org/licenses/MIT")))

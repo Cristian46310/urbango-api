@@ -13,7 +13,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 public class Role {
     @Id
     private String id;
-    private String name;
+    private String name; // ADMIN, BUSINESS_ADMIN, SUPERVISOR, DRIVER, CITEZEN
     private String description;
 
     public Role(){
