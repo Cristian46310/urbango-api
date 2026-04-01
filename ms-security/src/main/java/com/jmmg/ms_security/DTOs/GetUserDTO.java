@@ -5,19 +5,13 @@ import com.jmmg.ms_security.models.User;
 public record GetUserDTO(
 	String id,
 	String name,
-	String email,
-	String password
+	String email
 ) {
 	public static GetUserDTO fromModel(User user) {
 		if (user == null) {
 			return null;
 		}
-		return new GetUserDTO(user.getId(), user.getName(), user.getEmail(), user.getPassword());
+		return new GetUserDTO(user.getId(), user.getName(), user.getEmail());
 	}
 
-	public User toModel() {
-		User user = new User(name, email, password);
-		user.setId(id);
-		return user;
-	}
 }

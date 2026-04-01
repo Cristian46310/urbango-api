@@ -20,6 +20,8 @@ import com.jmmg.ms_security.DTOs.GetUserDTO;
 import com.jmmg.ms_security.DTOs.PostUserDTO;
 import com.jmmg.ms_security.services.UserService;
 
+import jakarta.validation.Valid;
+
 @CrossOrigin
 @RestController
 @RequestMapping("/users")
@@ -42,8 +44,8 @@ public class UserController {
     }
 
     @PostMapping("")
-    public ResponseEntity<GetUserDTO> saveUser(@RequestBody PostUserDTO user) {
-        GetUserDTO createdUser = userService.save(user);
+    public ResponseEntity<GetUserDTO> createUser(@Valid @RequestBody PostUserDTO user) {
+        GetUserDTO createdUser = userService.create(user);
         return ResponseEntity.created(URI.create("/users/" + createdUser.id())).body(createdUser);
     }
 

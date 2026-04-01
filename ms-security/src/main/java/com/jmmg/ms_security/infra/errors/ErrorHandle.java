@@ -12,9 +12,7 @@ import com.jmmg.ms_security.DTOs.ErrorDTO;
 import com.jmmg.ms_security.DTOs.FieldErrorDTO;
 import com.jmmg.ms_security.infra.exception.DataNotFound;
 import com.jmmg.ms_security.infra.exception.EntityAlreadyExists;
-import com.jmmg.ms_security.infra.exception.ErrorToken;
 import com.jmmg.ms_security.infra.exception.MissingData;
-import com.jmmg.ms_security.infra.exception.MissingToken;
 import com.jmmg.ms_security.infra.exception.NotPermitted;
 
 @RestControllerAdvice
@@ -25,11 +23,6 @@ public class ErrorHandle {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorDTO(e.getMessage(), "404"));
     }
 
-    @ExceptionHandler({ ErrorToken.class, MissingToken.class,
-            org.springframework.security.core.AuthenticationException.class })
-    public ResponseEntity<ErrorDTO> handleErrorToken(RuntimeException e) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorDTO(e.getMessage(), "401"));
-    }
 
     @ExceptionHandler(NotPermitted.class)
     public ResponseEntity<ErrorDTO> handleNotPermitted(NotPermitted e) {

@@ -25,7 +25,7 @@ public class UserService {
     @Autowired
     private EncryptionService encryptionService;
 
-    public GetUserDTO save(PostUserDTO postUserDTO) {
+    public GetUserDTO create(PostUserDTO postUserDTO) {
         // buscar si ya no existe ese usuario en la base de datos
         User newUser = new User(postUserDTO);
         newUser.setPassword(encryptionService.convertSHA256(postUserDTO.password()));

@@ -4,7 +4,6 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import com.jmmg.ms_security.DTOs.GetUserDTO;
 import com.jmmg.ms_security.DTOs.PostUserDTO;
 
 import lombok.Data;
@@ -26,13 +25,6 @@ public class User {
         this.name = name;
         this.email = email;
         this.password = password;
-    }
-
-    public User(GetUserDTO getUserDTO) {
-        this.id = getUserDTO.id();
-        this.name = getUserDTO.name();
-        this.email = getUserDTO.email();
-        this.password = getUserDTO.password();
     }
 
     public User(PostUserDTO postUserDTO) {
