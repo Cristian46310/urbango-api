@@ -2,12 +2,12 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routes.email import router as email_router
+from app.routes import email_router
 
 app = FastAPI(
     title="MS Notifications",
     description="Microservicio de notificaciones por email",
-    version="1.0.0"
+    version="1.1.0"
 )
 
 # Configurar CORS

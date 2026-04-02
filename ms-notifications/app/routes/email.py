@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
-from app.DTOs.EmailDTO import EmailDTO
-from app.DTOs.ResponseDTO import EmailResponseDTO
-from app.services.EmailService import EmailService
+from app.DTOs import EmailDTO
+from app.DTOs import EmailResponseDTO
+from app.services import EmailService
 
 router = APIRouter(prefix="/api/email", tags=["Email"])
 email_service = EmailService()

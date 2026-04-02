@@ -17,7 +17,7 @@ from googleapiclient.errors import HttpError
 
 from dotenv import load_dotenv
 
-from app.DTOs.EmailDTO import EmailDTO
+from app.DTOs import EmailDTO
 
 load_dotenv()
 

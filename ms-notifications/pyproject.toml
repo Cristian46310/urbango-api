@@ -12,3 +12,10 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "telethon>=1.42.0",
 ]
+[tool.fastapi]
+entrypoint = "main:app"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.9",
+]
