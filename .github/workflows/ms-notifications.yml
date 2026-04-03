@@ -1,0 +1,38 @@
+name: MS Notifications
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+        working-directory: ./ms-notifications
+
+      - name: Run Ruff Lint
+        run: ruff check .
+        working-directory: ./ms-notifications
+
+      - name: Run Linting with Ruff Format Check
+        run: ruff format --check .
+        working-directory: ./ms-notifications

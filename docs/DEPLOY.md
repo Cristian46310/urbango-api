@@ -1,282 +1,148 @@
-# Guía de Despliegue con Docker Compose
+# Guía de Despliegue con Docker y Docker Compose
 
-Este documento proporciona instrucciones detalladas sobre cómo utilizar Docker Compose para desplegar el microservicio `ms-security`.
+Este documento cubre la forma recomendada de ejecutar el proyecto completo en producción o en desarrollo local usando Docker.
 
-## 📋 Requisitos Previos
+## Requisitos Previos
 
-- Docker instalado (versión 20.10+)
-- Docker Compose instalado (versión 2.0+)
-- Git para clonar/trabajar con el repositorio
-- Acceso a MongoDB Atlas (credenciales configuradas)
+- Docker instalado
+- Docker Compose v2 instalado
+- Un archivo `.env` para cada servicio
+- La carpeta `ms-notifications/secrets/` con el JSON de Google OAuth
 
 Verifica la instalación:
+
 ```bash
 docker --version
 docker compose version
 ```
 
----
+## Estructura Esperada
 
-## 🚀 Iniciar el Servicio
+```text
+dev-backend-uc/
+├── docker-compose.yml
+├── ms-security/
+│   └── DockerFile
+└── ms-notifications/
+    ├── Dockerfile
+    ├── .env
+    └── secrets/
+        └── client_secret_xxx.json
+```
 
-### Opción 1: Variables de Entorno Predeterminadas
+## Variables de Entorno
 
-Para iniciar el servicio con las configuraciones predeterminadas:
+### ms-security
+
+Crear un `.env` en la raíz del repositorio o exportar las variables antes de levantar Compose:
 
 ```bash
-docker compose up -d
-```
-
-**Flags útiles:**
-- `-d`: Ejecutar en modo desapegado (background)
-- `--build`: Reconstruir las imágenes antes de iniciar
-- `--scale ms-security=3`: Escalar el servicio a N instancias
-
-### Opción 2: Especificar Variables de Entorno
-
-Si quieres sobrescribir las variables de entorno (como el secreto JWT):
-
-```bash
-docker compose up -d \
-  -e JWT_SECRET="tu-secreto-seguro" \
-  -e JWT_EXPIRATION="7200000"
-```
-
-O crear un archivo `.env` en la raíz del proyecto:
-
-```bash
-# .env
-JWT_SECRET=tu-secreto-seguro-aqui
-JWT_EXPIRATION=7200000
-```
-
-Luego ejecutar:
-```bash
-docker compose up -d
-```
-
----
-
-## 📦 Construir la Imagen
-
-Para reconstruir la imagen Docker (útil después de cambios en el código):
-
-```bash
-docker compose build --no-cache
-```
-
----
-
-## 🛑 Detener el Servicio
-
-```bash
-# Detener los contenedores pero mantener los datos
-docker compose stop
-
-# Detener y remover los contenedores
-docker compose down
-
-# Detener y remover contenedores + volúmenes
-docker compose down -v
-```
-
----
-
-## 📊 Monitorear el Servicio
-
-### Ver logs en tiempo real:
-```bash
-docker compose logs -f ms-security
-```
-
-### Ver solo los últimos N líneas:
-```bash
-docker compose logs --tail=50 ms-security
-```
-
-### Ver logs con timestamps:
-```bash
-docker compose logs -f --timestamps ms-security
-```
-
-### Ver estado de los contenedores:
-```bash
-docker compose ps
-```
-
----
-
-## 🔍 Acceso a la Aplicación
-
-Una vez iniciado el servicio, la aplicación estará disponible en:
-
-```
-http://localhost:8080
-```
-
-### Endpoints principales:
-- **Health Check**: `http://localhost:8080/actuator/health`
-- **Info de la App**: `http://localhost:8080/actuator/info`
-
----
-
-## 🔐 Seguridad
-
-### Gestión de Secretos
-
-**⚠️ IMPORTANTE**: Las credenciales en `compose.yaml` son solo para demostración. En producción:
-
-1. **No commits credenciales** al repositorio
-2. **Usa variables de entorno** desde un archivo `.env` (agregado a `.gitignore`)
-3. **Considera usar** Docker Secrets o herramientas como HashiCorp Vault
-
-Ejemplo de `.env` recomendado:
-```bash
-JWT_SECRET=cambiar-en-produccion-abc123xyz
+JWT_SECRET=tu-secreto-seguro
 JWT_EXPIRATION=3600000
 SPRING_MONGODB_URI=mongodb+srv://usuario:password@cluster.mongodb.net/?appName=app
+SPRING_MONGODB_DATABASE=backend-jmmg
 ```
 
----
+### ms-notifications
 
-## 🗄️ Base de Datos
+Crear `ms-notifications/.env` con estas variables:
 
-### Usando MongoDB Atlas (Configuración Actual)
-
-La aplicación está configurada para conectarse a MongoDB Atlas. Las credenciales se definen en `compose.yaml`.
-
-**Estado**: Remoto (en la nube)
-
-### Cambiar a MongoDB Local (Desarrollo)
-
-Si prefieres usar MongoDB localmente para desarrollo:
-
-1. Descomenta la sección `mongodb` en `compose.yaml`:
-
-```yaml
-mongodb:
-  image: mongo:7.0-alpine
-  container_name: mongodb-dev
-  ports:
-    - "27017:27017"
-  environment:
-    MONGO_INITDB_ROOT_USERNAME: admin
-    MONGO_INITDB_ROOT_PASSWORD: admin123
-    MONGO_INITDB_DATABASE: backend-jmmg
-  volumes:
-    - mongodb_data:/data/db
-  restart: unless-stopped
-  networks:
-    - backend-network
+```bash
+SCOPES=https://www.googleapis.com/auth/gmail.send
+SECRETS_LOCATION=/run/secrets
+EMAIL=tu-email@gmail.com
+CLIENT_SECRET=client_secret_xxx.apps.googleusercontent.com.json
 ```
 
-2. Actualiza la variable de entorno en la sección `ms-security`:
+Importante: `CLIENT_SECRET` debe ser solo el nombre del archivo, no una ruta completa.
 
-```yaml
-SPRING_MONGODB_URI: mongodb://admin:admin123@mongodb:27017/backend-jmmg?authSource=admin
+## Ejecutar con Docker Run
+
+### ms-security
+
+```bash
+docker build -t ms-security:prod -f ms-security/DockerFile ms-security
+docker run -d --name ms-security-app \
+  -p 8080:8080 \
+  --env-file .env \
+  ms-security:prod
 ```
 
-3. Descomenta los volúmenes al final:
+### ms-notifications
 
-```yaml
-volumes:
-  mongodb_data:
-    driver: local
+```bash
+docker build -t ms-notifications:prod -f ms-notifications/Dockerfile ms-notifications
+docker run -d --name ms-notifications-app \
+  -p 8000:8000 \
+  --env-file ms-notifications/.env \
+  -v "$PWD/ms-notifications/secrets:/run/secrets:ro" \
+  ms-notifications:prod
 ```
 
-4. Reconstruye y reinicia:
+## Ejecutar con Docker Compose
+
+El archivo de Compose está en la raíz del repositorio: [docker-compose.yml](../docker-compose.yml).
+
+### Levantar todos los servicios
+
+```bash
+docker compose up -d --build
+```
+
+### Levantar solo un servicio
+
+```bash
+docker compose up -d --build ms-security
+docker compose up -d --build ms-notifications
+```
+
+### Detener los servicios
 
 ```bash
 docker compose down
-docker compose up -d --build
 ```
 
----
+### Detener y borrar volúmenes
 
-## 🐛 Solucionar Problemas
-
-### El contenedor no inicia
-```bash
-# Ver logs detallados
-docker compose logs ms-security
-
-# Verificar recursos disponibles
-docker stats
-```
-
-### Problemas de conectividad con MongoDB
-```bash
-# Verificar si el contenedor puede resolver el host
-docker compose exec ms-security ping mongodb
-```
-
-### Puerto 8080 ya está en uso
-```bash
-# Cambiar el puerto en compose.yaml
-# De:  - "8080:8080"
-# A:   - "8081:8080"
-
-docker compose restart
-```
-
-### Limpiar todo y comenzar de nuevo
 ```bash
 docker compose down -v
-docker system prune -a
-docker compose up -d --build
 ```
 
----
+## Puertos
 
-## 📈 Comandos Útiles
+- ms-security: `http://localhost:8080`
+- ms-notifications: `http://localhost:8000`
 
-| Comando | Descripción |
-|---------|-------------|
-| `docker compose up -d` | Iniciar en background |
-| `docker compose down` | Detener y remover |
-| `docker compose restart` | Reiniciar servicios |
-| `docker compose logs -f` | Ver logs en tiempo real |
-| `docker compose exec ms-security bash` | Acceder al contenedor |
-| `docker compose ps` | Ver estado de contenedores |
-| `docker compose build` | Reconstruir imagen |
-| `docker compose pull` | Descargar imágenes de registry |
-
----
-
-## 🔄 Actualizar la Aplicación
-
-Cuando hagas cambios en el código:
+## Logs
 
 ```bash
-# Reconstruir la imagen
-docker compose build --no-cache
-
-# Reiniciar el servicio
-docker compose up -d
-
-# O en un solo comando
-docker compose up -d --build
+docker compose logs -f ms-security
+docker compose logs -f ms-notifications
 ```
 
----
+## Notas de Producción
 
-## 📝 Notas Importantes
+- No copies la carpeta `secrets/` dentro de la imagen.
+- Usa `.dockerignore` para excluir secretos y artefactos locales.
+- Mantén las credenciales de Google montadas como volumen de solo lectura.
+- Si cambias el archivo JSON, reinicia el contenedor.
 
-- El Dockerfile utiliza **multi-stage build** para optimizar el tamaño final
-- La aplicación ejecuta con un **usuario no-root** por seguridad
-- Incluye **healthcheck** para monitoreo automático
-- Los logs se rotan automáticamente a **10MB máximo**
+## Solución de Problemas
 
----
+### ms-notifications no encuentra el archivo JSON
 
-## 🆘 Soporte
+Revisa que estas tres cosas coincidan:
 
-Para más información:
-- [Documentación Docker Compose](https://docs.docker.com/compose/)
-- [Documentación Docker](https://docs.docker.com/)
-- [Spring Boot Documentation](https://spring.io/projects/spring-boot)
+1. El volumen monta `ms-notifications/secrets` en `/run/secrets`
+2. `SECRETS_LOCATION=/run/secrets`
+3. `CLIENT_SECRET` contiene solo el nombre del archivo JSON
 
----
+### Puerto ocupado
 
-**Última actualización**: 2026-02-23  
-**Versión**: 1.0
+Si el puerto 8000 o 8080 ya está ocupado, cambia el mapeo en `docker-compose.yml` o usa otro puerto en `docker run`.
+
+## Actualizar la Aplicación
+
+```bash
+docker compose up -d --build
+```
