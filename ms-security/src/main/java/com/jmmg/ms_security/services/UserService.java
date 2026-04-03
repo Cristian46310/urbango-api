@@ -7,21 +7,27 @@ import org.springframework.stereotype.Service;
 
 import com.jmmg.ms_security.DTOs.GetUserDTO;
 import com.jmmg.ms_security.DTOs.PostUserDTO;
+import com.jmmg.ms_security.DTOs.UserRoleDTO;
 import com.jmmg.ms_security.models.Profile;
 import com.jmmg.ms_security.models.Session;
 import com.jmmg.ms_security.models.User;
+import com.jmmg.ms_security.models.UserRole;
 import com.jmmg.ms_security.repositories.IProfileRepository;
 import com.jmmg.ms_security.repositories.ISessionRepository;
 import com.jmmg.ms_security.repositories.IUserRepository;
+import com.jmmg.ms_security.repositories.IUserRoleRepository;
 
 @Service
 public class UserService {
+
     @Autowired
     private IUserRepository userRepository;
     @Autowired
     private IProfileRepository profileRepository;
     @Autowired
     private ISessionRepository sessionRepository;
+    @Autowired
+    private IUserRoleRepository userRoleRepository;
     @Autowired
     private EncryptionService encryptionService;
 
@@ -34,7 +40,10 @@ public class UserService {
 
     public List<GetUserDTO> getAll() {
         return userRepository.findAll().stream()
-                .map(GetUserDTO::fromModel)
+                .map(user -> {
+                    List<UserRole> userRoles = userRoleRepository.findByUserId(user.getId());
+                    return GetUserDTO.fromModelWithRoles(user, userRoles);
+                })
                 .collect(java.util.stream.Collectors.toList());
     }
 

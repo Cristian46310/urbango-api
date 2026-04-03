@@ -9,8 +9,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.web.bind.annotation.RequestBody;
+
+import com.jmmg.ms_security.DTOs.AssignRolesDTO;
 import com.jmmg.ms_security.DTOs.ResponseMessage;
 import com.jmmg.ms_security.services.UserRoleService;
+
+import jakarta.validation.Valid;
 
 @CrossOrigin
 @RestController
@@ -40,6 +45,16 @@ public class UserRoleController {
             return ResponseEntity.noContent().build();
         } else {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PostMapping("/assign-multiple")
+    public ResponseEntity<ResponseMessage> assignMultipleRoles(@Valid @RequestBody AssignRolesDTO assignRolesDTO) {
+        boolean response = this.userRoleService.assignMultipleRoles(assignRolesDTO);
+        if (response) {
+            return ResponseEntity.ok(new ResponseMessage("Roles assigned successfully"));
+        } else {
+            return ResponseEntity.badRequest().body(new ResponseMessage("Failed to assign roles"));
         }
     }
 }
