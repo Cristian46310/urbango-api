@@ -7,7 +7,7 @@ from app.routes import email_router
 app = FastAPI(
     title="MS Notifications",
     description="Microservicio de notificaciones por email",
-    version="1.1.0"
+    version="1.1.0",
 )
 
 # Configurar CORS
@@ -25,18 +25,8 @@ app.include_router(email_router)
 
 @app.get("/")
 async def root():
-    return {
-        "service": "MS Notifications",
-        "version": "1.0.0",
-        "status": "running"
-    }
+    return {"service": "MS Notifications", "version": "1.0.0", "status": "running"}
 
 
 if __name__ == "__main__":
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True
-    )
-
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

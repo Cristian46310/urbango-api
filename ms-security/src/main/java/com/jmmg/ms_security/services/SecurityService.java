@@ -15,12 +15,12 @@ public class SecurityService {
     @Autowired
     private JwtService theJwtService;
 
-    public String login(User theNewUser){
+    public String login(User loginUser){
         String token=null;
-        User theActualUser=this.userRepository.findByEmail(theNewUser.getEmail());
-        if(theActualUser!=null &&
-                theActualUser.getPassword().equals(theEncryptionService.convertSHA256(theNewUser.getPassword()))){
-            token=theJwtService.generateToken(theActualUser);
+        User user=this.userRepository.findByEmail(loginUser.getEmail());
+        if(user!=null &&
+                user.getPassword().equals(theEncryptionService.convertSHA256(loginUser.getPassword()))){
+            token=theJwtService.generateToken(user);
             return token;
         }else{
             return  token;

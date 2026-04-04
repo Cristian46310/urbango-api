@@ -8,6 +8,9 @@ import com.jmmg.ms_security.models.User;
 public interface IUserRepository extends MongoRepository<User, String> {
 
     @Query("{'email': ?0}")
-    public User findByEmail(String email);
+    User findByEmail(String email);
+
+
+    
 
 }

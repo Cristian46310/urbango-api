@@ -1,11 +1,21 @@
 package com.jmmg.ms_security.controllers;
 
-import com.jmmg.ms_security.models.Profile;
+import com.jmmg.ms_security.DTOs.Profile.GetProfileDTO;
+import com.jmmg.ms_security.DTOs.Profile.PostProfileDTO;
 import com.jmmg.ms_security.services.ProfileService;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
-
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import java.net.URI;
 import java.util.List;
 
 @CrossOrigin
@@ -17,28 +27,40 @@ public class ProfileController {
     private ProfileService profileService;
 
     @GetMapping("")
-    public List<Profile> find() {
-        return this.profileService.find();
+    public ResponseEntity<List<GetProfileDTO>> find() {
+        return ResponseEntity.ok(this.profileService.find());
     }
 
     @GetMapping("{id}")
-    public Profile findById(@PathVariable String id) {
-        return this.profileService.findById(id);
+    public ResponseEntity<GetProfileDTO> findById(@PathVariable String id) {
+        GetProfileDTO profile = this.profileService.findById(id);
+        if (profile != null) {
+            return ResponseEntity.ok(profile);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @PostMapping
-    public Profile create(@RequestBody Profile newProfile) {
-        return this.profileService.create(newProfile);
+    public ResponseEntity<GetProfileDTO> create(@RequestBody PostProfileDTO newProfile) {
+        GetProfileDTO createdProfile = this.profileService.create(newProfile);
+        return ResponseEntity.created(URI.create("/profiles/" + createdProfile.id())).body(createdProfile);
     }
 
     @PutMapping("{id}")
-    public Profile update(@PathVariable String id, @RequestBody Profile newProfile) {
-        return this.profileService.update(id, newProfile);
+    public ResponseEntity<GetProfileDTO> update(@PathVariable String id, @RequestBody PostProfileDTO newProfile) {
+        GetProfileDTO updatedProfile = this.profileService.update(id, newProfile);
+        if (updatedProfile != null) {
+            return ResponseEntity.ok(updatedProfile);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @DeleteMapping("{id}")
-    public void delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable String id) {
         this.profileService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 
 }
