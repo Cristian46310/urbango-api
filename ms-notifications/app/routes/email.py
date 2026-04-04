@@ -23,12 +23,12 @@ async def send_email(email_dto: EmailDTO) -> EmailResponseDTO:
         return EmailResponseDTO(
             success=True,
             message_id=result.get("message_id"),
-            message="Correo enviado exitosamente"
+            message="Correo enviado exitosamente",
         )
     else:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=result.get("error", "Error desconocido al enviar el correo")
+            detail=result.get("error", "Error desconocido al enviar el correo"),
         )
 
 

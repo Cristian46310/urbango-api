@@ -1,4 +1,3 @@
-
 import asyncio
 import base64
 import mimetypes
@@ -110,9 +109,16 @@ class EmailService:
                         file_data = fp.read()
 
                     filename = os.path.basename(file_path)
-                    message.add_attachment(file_data, maintype=main_type, subtype=sub_type, filename=filename)
+                    message.add_attachment(
+                        file_data,
+                        maintype=main_type,
+                        subtype=sub_type,
+                        filename=filename,
+                    )
                 except FileNotFoundError as e:
-                    raise FileNotFoundError(f"Archivo no encontrado: {file_path}") from e
+                    raise FileNotFoundError(
+                        f"Archivo no encontrado: {file_path}"
+                    ) from e
 
         # Codificar el mensaje en base64
         encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
@@ -136,10 +142,7 @@ class EmailService:
             message = self._create_message(email_dto)
 
             sent_message = (
-                service.users()
-                .messages()
-                .send(userId="me", body=message)
-                .execute()
+                service.users().messages().send(userId="me", body=message).execute()
             )
 
             print(f"Correo enviado exitosamente. Message Id: {sent_message['id']}")
