@@ -6,6 +6,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.jmmg.ms_security.infra.config.JwtProperties;
@@ -21,14 +22,9 @@ import io.jsonwebtoken.security.SignatureException;
 @Service
 public class JwtService {
 
-    private final JwtProperties jwtProperties;
-    private final Key secretKey;
-
-    public JwtService(JwtProperties jwtProperties) {
-        this.jwtProperties = jwtProperties;
-        // Crear la llave secreta a partir de la cadena proporcionada
-        this.secretKey = Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
-    }
+    @Autowired
+    private JwtProperties jwtProperties;
+    private final Key secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS512);;
 
     public String generateToken(User theUser) {
         Date now = new Date();
@@ -45,23 +41,6 @@ public class JwtService {
                 .setExpiration(expiryDate)
                 .signWith(secretKey, SignatureAlgorithm.HS512)
                 .compact();
-    }
-
-    public boolean validateToken(String token) {
-        try {
-            Jws<Claims> claimsJws = Jwts.parserBuilder()
-                    .setSigningKey(secretKey)
-                    .build()
-                    .parseClaimsJws(token);
-
-            return true;
-        } catch (SignatureException ex) {
-            // La firma del token es inválida
-            return false;
-        } catch (Exception e) {
-            // Otra excepción
-            return false;
-        }
     }
 
     public User getUserFromToken(String token) {

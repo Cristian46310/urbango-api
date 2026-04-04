@@ -8,8 +8,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import com.jmmg.ms_security.DTOs.ErrorDTO;
-import com.jmmg.ms_security.DTOs.FieldErrorDTO;
+import com.jmmg.ms_security.DTOs.errors.ErrorDTO;
+import com.jmmg.ms_security.DTOs.errors.FieldErrorDTO;
 import com.jmmg.ms_security.infra.exception.DataNotFound;
 import com.jmmg.ms_security.infra.exception.EntityAlreadyExists;
 import com.jmmg.ms_security.infra.exception.MissingData;

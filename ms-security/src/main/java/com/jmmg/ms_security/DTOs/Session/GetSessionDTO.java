@@ -1,4 +1,4 @@
-package com.jmmg.ms_security.DTOs;
+package com.jmmg.ms_security.DTOs.Session;
 
 import com.jmmg.ms_security.models.Session;
 import com.jmmg.ms_security.models.User;

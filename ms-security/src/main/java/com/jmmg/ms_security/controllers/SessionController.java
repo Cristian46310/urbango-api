@@ -1,7 +1,7 @@
 package com.jmmg.ms_security.controllers;
 
-import com.jmmg.ms_security.DTOs.GetSessionDTO;
-import com.jmmg.ms_security.DTOs.PostSessionDTO;
+import com.jmmg.ms_security.DTOs.Session.GetSessionDTO;
+import com.jmmg.ms_security.DTOs.Session.PostSessionDTO;
 import com.jmmg.ms_security.services.SessionService;
 
 

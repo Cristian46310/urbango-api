@@ -1,11 +1,12 @@
 package com.jmmg.ms_security.models;
 
-import com.jmmg.ms_security.DTOs.GetRoleDTO;
-import com.jmmg.ms_security.DTOs.PostRoleDTO;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
+
+import com.jmmg.ms_security.DTOs.Role.GetRoleDTO;
+import com.jmmg.ms_security.DTOs.Role.PostRoleDTO;
 
 @Data
 @Document

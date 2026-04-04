@@ -5,8 +5,8 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import com.jmmg.ms_security.DTOs.GetProfileDTO;
-import com.jmmg.ms_security.DTOs.PostProfileDTO;
+import com.jmmg.ms_security.DTOs.Profile.GetProfileDTO;
+import com.jmmg.ms_security.DTOs.Profile.PostProfileDTO;
 
 @Data
 @Document

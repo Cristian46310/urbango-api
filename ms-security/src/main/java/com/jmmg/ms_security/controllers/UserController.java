@@ -15,9 +15,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.jmmg.ms_security.DTOs.ResponseMessage;
-import com.jmmg.ms_security.DTOs.GetUserDTO;
-import com.jmmg.ms_security.DTOs.PostUserDTO;
+import com.jmmg.ms_security.DTOs.message.ResponseMessage;
+import com.jmmg.ms_security.DTOs.user.GetUserDTO;
+import com.jmmg.ms_security.DTOs.user.PostUserDTO;
 import com.jmmg.ms_security.services.UserService;
 
 import jakarta.validation.Valid;

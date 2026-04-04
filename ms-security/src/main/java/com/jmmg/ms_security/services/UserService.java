@@ -5,9 +5,9 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.jmmg.ms_security.DTOs.GetUserDTO;
-import com.jmmg.ms_security.DTOs.PostUserDTO;
-import com.jmmg.ms_security.DTOs.UserRoleDTO;
+import com.jmmg.ms_security.DTOs.user.GetUserDTO;
+import com.jmmg.ms_security.DTOs.user.PostUserDTO;
+import com.jmmg.ms_security.DTOs.user_role.UserRoleDTO;
 import com.jmmg.ms_security.models.Profile;
 import com.jmmg.ms_security.models.Session;
 import com.jmmg.ms_security.models.User;

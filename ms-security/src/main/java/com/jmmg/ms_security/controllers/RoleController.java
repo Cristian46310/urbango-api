@@ -1,7 +1,7 @@
 package com.jmmg.ms_security.controllers;
 
-import com.jmmg.ms_security.DTOs.GetRoleDTO;
-import com.jmmg.ms_security.DTOs.PostRoleDTO;
+import com.jmmg.ms_security.DTOs.Role.GetRoleDTO;
+import com.jmmg.ms_security.DTOs.Role.PostRoleDTO;
 import com.jmmg.ms_security.services.RoleService;
 
 import org.springframework.beans.factory.annotation.Autowired;

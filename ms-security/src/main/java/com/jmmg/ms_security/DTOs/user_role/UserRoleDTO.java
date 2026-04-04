@@ -1,4 +1,4 @@
-package com.jmmg.ms_security.DTOs;
+package com.jmmg.ms_security.DTOs.user_role;
 
 import com.jmmg.ms_security.models.Role;
 import com.jmmg.ms_security.models.User;

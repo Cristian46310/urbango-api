@@ -1,40 +1,44 @@
 package com.jmmg.ms_security.services;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import com.jmmg.ms_security.DTOs.email.EmailSendBody;
+import com.jmmg.ms_security.DTOs.email.EmailSendResponse;
+import com.jmmg.ms_security.infra.config.EmailProperties;
 
 @Service
 public class EmailService {
 
-    private static final Logger logger = LoggerFactory.getLogger(EmailService.class);
+    @Autowired
+    private EmailProperties emailProperties;
 
-    @Autowired(required = false)
-    private JavaMailSender mailSender;
+    @Autowired
+    private RestTemplate restTemplate;
+
 
     public void sendRoleAssignmentNotification(String userEmail, String userName, String roleNames) {
         try {
-            if (mailSender == null) {
-                logger.warn("JavaMailSender no configurado. Logueando notificación:");
-                logger.info("NOTIFICACIÓN DE ASIGNACIÓN DE ROL:");
-                logger.info("Usuario: {} ({})", userName, userEmail);
-                logger.info("Roles asignados: {}", roleNames);
-                return;
+            String emailContent = buildEmailContent(userName, roleNames);
+            EmailSendBody emailBody = new EmailSendBody(
+                userEmail,
+                "Notificación de Asignación de Roles",
+                emailContent
+            );
+            
+            EmailSendResponse response = restTemplate.postForObject(
+                emailProperties.getUrl(),
+                emailBody,
+                EmailSendResponse.class
+            );
+            
+            if (response != null && !response.success()) {
+                System.err.println("Error al enviar email: " + response.error());
             }
-
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo(userEmail);
-            message.setSubject("Cambio en tus roles/permisos del sistema");
-            message.setText(buildEmailContent(userName, roleNames));
-            message.setFrom("noreply@ms-security.com");
-
-            mailSender.send(message);
-            logger.info("Email enviado exitosamente a: {}", userEmail);
         } catch (Exception e) {
-            logger.error("Error al enviar email a {}: {}", userEmail, e.getMessage());
+            System.err.println("Excepción al enviar notificación de email: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 

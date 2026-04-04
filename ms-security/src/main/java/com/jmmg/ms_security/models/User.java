@@ -4,7 +4,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import com.jmmg.ms_security.DTOs.PostUserDTO;
+import com.jmmg.ms_security.DTOs.user.PostUserDTO;
 
 import lombok.Data;
 

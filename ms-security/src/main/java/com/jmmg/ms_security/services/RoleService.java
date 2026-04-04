@@ -1,7 +1,7 @@
 package com.jmmg.ms_security.services;
 
-import com.jmmg.ms_security.DTOs.GetRoleDTO;
-import com.jmmg.ms_security.DTOs.PostRoleDTO;
+import com.jmmg.ms_security.DTOs.Role.GetRoleDTO;
+import com.jmmg.ms_security.DTOs.Role.PostRoleDTO;
 import com.jmmg.ms_security.models.Role;
 import com.jmmg.ms_security.repositories.IRoleRepository;
 

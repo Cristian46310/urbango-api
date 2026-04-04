@@ -1,10 +1,11 @@
 package com.jmmg.ms_security.models;
 
-import com.jmmg.ms_security.DTOs.GetSessionDTO;
-import com.jmmg.ms_security.DTOs.PostSessionDTO;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+
+import com.jmmg.ms_security.DTOs.Session.GetSessionDTO;
+import com.jmmg.ms_security.DTOs.Session.PostSessionDTO;
 
 import java.util.Date;
 

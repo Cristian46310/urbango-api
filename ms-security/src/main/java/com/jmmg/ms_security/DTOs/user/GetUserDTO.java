@@ -1,5 +1,6 @@
-package com.jmmg.ms_security.DTOs;
+package com.jmmg.ms_security.DTOs.user;
 
+import com.jmmg.ms_security.DTOs.user_role.UserRoleDTO;
 import com.jmmg.ms_security.models.User;
 import com.jmmg.ms_security.models.UserRole;
 import java.util.List;

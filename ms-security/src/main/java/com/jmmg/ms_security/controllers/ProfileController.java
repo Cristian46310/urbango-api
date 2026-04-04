@@ -1,7 +1,7 @@
 package com.jmmg.ms_security.controllers;
 
-import com.jmmg.ms_security.DTOs.GetProfileDTO;
-import com.jmmg.ms_security.DTOs.PostProfileDTO;
+import com.jmmg.ms_security.DTOs.Profile.GetProfileDTO;
+import com.jmmg.ms_security.DTOs.Profile.PostProfileDTO;
 import com.jmmg.ms_security.services.ProfileService;
 
 import org.springframework.beans.factory.annotation.Autowired;

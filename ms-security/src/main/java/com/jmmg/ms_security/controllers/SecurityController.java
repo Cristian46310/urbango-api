@@ -1,7 +1,7 @@
 package com.jmmg.ms_security.controllers;
 
-import com.jmmg.ms_security.DTOs.LoginDTO;
-import com.jmmg.ms_security.DTOs.TokenDTO;
+import com.jmmg.ms_security.DTOs.login.LoginDTO;
+import com.jmmg.ms_security.DTOs.login.TokenDTO;
 import com.jmmg.ms_security.services.SecurityService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;

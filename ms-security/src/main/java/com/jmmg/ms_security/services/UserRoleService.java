@@ -3,7 +3,7 @@ package com.jmmg.ms_security.services;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.jmmg.ms_security.DTOs.AssignRolesDTO;
+import com.jmmg.ms_security.DTOs.Role.AssignRolesDTO;
 import com.jmmg.ms_security.models.Role;
 import com.jmmg.ms_security.models.User;
 import com.jmmg.ms_security.models.UserRole;
