@@ -17,16 +17,8 @@ public class EmailService {
     @Autowired
     private RestTemplate restTemplate;
 
-
-    public void sendRoleAssignmentNotification(String userEmail, String userName, String roleNames) {
+    public void sendEmail(EmailSendBody emailBody) {
         try {
-            String emailContent = buildEmailContent(userName, roleNames);
-            EmailSendBody emailBody = new EmailSendBody(
-                userEmail,
-                "Notificación de Asignación de Roles",
-                emailContent
-            );
-            
             EmailSendResponse response = restTemplate.postForObject(
                 emailProperties.getUrl(),
                 emailBody,
@@ -37,20 +29,8 @@ public class EmailService {
                 System.err.println("Error al enviar email: " + response.error());
             }
         } catch (Exception e) {
-            System.err.println("Excepción al enviar notificación de email: " + e.getMessage());
+            System.err.println("Excepcion al enviar email: " + e.getMessage());
             e.printStackTrace();
         }
-    }
-
-    private String buildEmailContent(String userName, String roleNames) {
-        return String.format(
-                "Hola %s,\n\n"
-                + "Te informamos que tus roles/permisos en el sistema han sido actualizados.\n\n"
-                + "Roles asignados: %s\n\n"
-                + "Si tienes dudas, contacta al administrador.\n\n"
-                + "Saludos,\n"
-                + "Sistema de Seguridad",
-                userName, roleNames
-        );
     }
 }

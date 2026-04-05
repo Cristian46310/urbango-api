@@ -1,6 +1,7 @@
 package com.jmmg.ms_security.DTOs.user;
 
 import com.jmmg.ms_security.models.User;
+import com.jmmg.ms_security.models.User;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Email;

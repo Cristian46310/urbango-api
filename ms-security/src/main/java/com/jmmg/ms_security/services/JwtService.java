@@ -17,14 +17,16 @@ import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
-import io.jsonwebtoken.security.SignatureException;
 
 @Service
 public class JwtService {
 
     @Autowired
     private JwtProperties jwtProperties;
-    private final Key secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS512);;
+
+    private Key getSecretKey() {
+        return Keys.hmacShaKeyFor(this.jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
+    }
 
     public String generateToken(User theUser) {
         Date now = new Date();
@@ -39,14 +41,14 @@ public class JwtService {
                 .setSubject(theUser.getId())
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
-                .signWith(secretKey, SignatureAlgorithm.HS512)
+                .signWith(this.getSecretKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
     public User getUserFromToken(String token) {
         try {
             Jws<Claims> claimsJws = Jwts.parserBuilder()
-                    .setSigningKey(secretKey)
+                    .setSigningKey(this.getSecretKey())
                     .build()
                     .parseClaimsJws(token);
 

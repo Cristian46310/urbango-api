@@ -3,6 +3,7 @@ package com.jmmg.ms_security.services;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.jmmg.ms_security.DTOs.email.EmailSendBody;
 import com.jmmg.ms_security.DTOs.Role.AssignRolesDTO;
 import com.jmmg.ms_security.models.Role;
 import com.jmmg.ms_security.models.User;
@@ -74,12 +75,20 @@ public class UserRoleService {
             }
         }
 
-        // Enviar notificación por email
-        this.emailService.sendRoleAssignmentNotification(
-            user.getEmail(),
-            user.getName(),
-            roleNames.toString()
-        );
+        // Construir y enviar notificación por email
+        String emailContent = String.format(
+                "Hola %s,\n\n"
+                        + "Te informamos que tus roles/permisos en el sistema han sido actualizados.\n\n"
+                        + "Roles asignados: %s\n\n"
+                        + "Si tienes dudas, contacta al administrador.\n\n"
+                        + "Saludos,\n"
+                        + "Sistema de Seguridad",
+                user.getName(), roleNames);
+
+        this.emailService.sendEmail(new EmailSendBody(
+                user.getEmail(),
+                "Notificacion de Asignacion de Roles",
+                emailContent));
 
         return true;
     }
