@@ -50,7 +50,7 @@ public class UserController {
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<GetUserDTO> update(@PathVariable String id, @RequestBody PostUserDTO newUser) {
+    public ResponseEntity<GetUserDTO> update(@PathVariable String id, @Valid @RequestBody PostUserDTO newUser) {
         GetUserDTO updated = this.userService.update(id, newUser);
         if (updated != null) {
             return ResponseEntity.ok(updated);

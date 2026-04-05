@@ -4,6 +4,8 @@ import com.jmmg.ms_security.DTOs.Role.GetRoleDTO;
 import com.jmmg.ms_security.DTOs.Role.PostRoleDTO;
 import com.jmmg.ms_security.services.RoleService;
 
+import jakarta.validation.Valid;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -42,13 +44,13 @@ public class RoleController {
     }
 
     @PostMapping
-    public ResponseEntity<GetRoleDTO> create(@RequestBody PostRoleDTO newRole) {
+    public ResponseEntity<GetRoleDTO> create(@Valid @RequestBody PostRoleDTO newRole) {
         GetRoleDTO createdRole = this.roleService.create(newRole);
         return ResponseEntity.created(URI.create("/roles/" + createdRole.id())).body(createdRole);
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<GetRoleDTO> update(@PathVariable String id, @RequestBody PostRoleDTO newRole) {
+    public ResponseEntity<GetRoleDTO> update(@PathVariable String id, @Valid @RequestBody PostRoleDTO newRole) {
         GetRoleDTO updatedRole = this.roleService.update(id, newRole);
         if (updatedRole != null) {
             return ResponseEntity.ok(updatedRole);

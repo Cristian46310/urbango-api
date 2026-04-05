@@ -4,6 +4,8 @@ import com.jmmg.ms_security.DTOs.Profile.GetProfileDTO;
 import com.jmmg.ms_security.DTOs.Profile.PostProfileDTO;
 import com.jmmg.ms_security.services.ProfileService;
 
+import jakarta.validation.Valid;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -42,13 +44,13 @@ public class ProfileController {
     }
 
     @PostMapping
-    public ResponseEntity<GetProfileDTO> create(@RequestBody PostProfileDTO newProfile) {
+    public ResponseEntity<GetProfileDTO> create(@Valid @RequestBody PostProfileDTO newProfile) {
         GetProfileDTO createdProfile = this.profileService.create(newProfile);
         return ResponseEntity.created(URI.create("/profiles/" + createdProfile.id())).body(createdProfile);
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<GetProfileDTO> update(@PathVariable String id, @RequestBody PostProfileDTO newProfile) {
+    public ResponseEntity<GetProfileDTO> update(@PathVariable String id, @Valid @RequestBody PostProfileDTO newProfile) {
         GetProfileDTO updatedProfile = this.profileService.update(id, newProfile);
         if (updatedProfile != null) {
             return ResponseEntity.ok(updatedProfile);

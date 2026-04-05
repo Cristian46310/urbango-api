@@ -14,12 +14,12 @@ public class Permission {
     private String id;
 
     private String url;
-    private String method;
+    private Method method;
 
     public Permission() {
     }
 
-    public Permission(String url, String method) {
+    public Permission(String url, Method method) {
         this.url = url;
         this.method = method;
     }

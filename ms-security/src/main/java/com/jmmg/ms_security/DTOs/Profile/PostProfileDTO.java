@@ -1,18 +1,12 @@
 package com.jmmg.ms_security.DTOs.Profile;
 
-import com.jmmg.ms_security.models.Profile;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 public record PostProfileDTO(
-        String phone,
-        String photo,
-        String userId) {
-    public static PostProfileDTO fromModel(Profile profile) {
-        if (profile == null) {
-            return null;
-        }
-        return new PostProfileDTO(
-                profile.getPhone(),
-                profile.getPhoto(),
-                profile.getUser() != null ? profile.getUser().getId() : null);
-    }
+        @NotBlank(message = "Phone number is required") @Size(min = 10, max = 10, message = "Phone number must be exactly 10 digits") @Pattern(regexp = "^[0-9]+$", message = "Phone number must contain only digits") String phone,
+        @NotBlank(message = "Photo URL is required") String photo,
+        @NotBlank(message = "User ID is required") String userId) {
+
 }
