@@ -1,7 +1,8 @@
 package com.jmmg.ms_security.services;
 
-import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -17,14 +18,23 @@ import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
-import io.jsonwebtoken.security.SignatureException;
 
 @Service
 public class JwtService {
 
     @Autowired
     private JwtProperties jwtProperties;
-    private final Key secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS512);;
+
+    // Crea una clave de firma determinista a partir de la configuración para que los tokens sigan siendo válidos durante los reinicios.
+    private Key getSecretKey() {
+        try {
+            byte[] keyBytes = MessageDigest.getInstance("SHA-512")
+                    .digest(jwtProperties.getSecret().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return Keys.hmacShaKeyFor(keyBytes);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("Unable to initialize JWT signing key", e);
+        }
+    }
 
     public String generateToken(User theUser) {
         Date now = new Date();
@@ -39,14 +49,14 @@ public class JwtService {
                 .setSubject(theUser.getId())
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
-                .signWith(secretKey, SignatureAlgorithm.HS512)
+            .signWith(getSecretKey(), SignatureAlgorithm.HS512)
                 .compact();
     }
 
     public User getUserFromToken(String token) {
         try {
             Jws<Claims> claimsJws = Jwts.parserBuilder()
-                    .setSigningKey(secretKey)
+                    .setSigningKey(getSecretKey())
                     .build()
                     .parseClaimsJws(token);
 
