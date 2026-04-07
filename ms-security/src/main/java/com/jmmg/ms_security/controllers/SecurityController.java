@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @CrossOrigin
 @RestController
-@RequestMapping("/security")
+@RequestMapping("/api/public/security")
 public class SecurityController {
 
     @Autowired

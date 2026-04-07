@@ -19,7 +19,7 @@ import jakarta.validation.Valid;
 
 @CrossOrigin
 @RestController
-@RequestMapping("/user-role")
+@RequestMapping("/api/public/user-role")
 public class UserRoleController {
     @Autowired
     private UserRoleService userRoleService;

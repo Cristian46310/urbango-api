@@ -11,6 +11,9 @@ public record PostUserDTO(
         @NotBlank(message = "Email is required")
         String email,
         @NotBlank(message = "Password is required")
-        @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{8,}$", message = "Password must be at least 8 characters long and contain both letters and numbers")
+        @Pattern(
+                regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z\\d]).{8,}$",
+                message = "Password must be at least 8 characters long and include uppercase, lowercase, number, and special character"
+        )
         String password) {
 }

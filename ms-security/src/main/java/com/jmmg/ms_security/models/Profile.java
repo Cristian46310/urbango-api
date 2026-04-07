@@ -43,20 +43,10 @@ public class Profile {
     public Profile(PostProfileDTO postProfileDTO) {
         this.phone = postProfileDTO.phone();
         this.photo = postProfileDTO.photo();
-        if (postProfileDTO.userId() != null) {
-            User user = new User();
-            user.setId(postProfileDTO.userId());
-            this.user = user;
-        }
     }
 
     public void updateFromDTO(PostProfileDTO postProfileDTO) {
         this.phone = postProfileDTO.phone();
         this.photo = postProfileDTO.photo();
-        if (postProfileDTO.userId() != null) {
-            User user = new User();
-            user.setId(postProfileDTO.userId());
-            this.user = user;
-        }
     }
 }
