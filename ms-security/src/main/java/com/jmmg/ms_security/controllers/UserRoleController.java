@@ -16,7 +16,7 @@ import com.jmmg.ms_security.services.UserRoleService;
 
 @CrossOrigin
 @RestController
-@RequestMapping("/user-role")
+@RequestMapping("/api/public/user-role")
 public class UserRoleController {
     @Autowired
     private UserRoleService userRoleService;
@@ -42,6 +42,16 @@ public class UserRoleController {
             return ResponseEntity.noContent().build();
         } else {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PostMapping("/assign-multiple")
+    public ResponseEntity<ResponseMessage> assignMultipleRoles(@Valid @RequestBody AssignRolesDTO assignRolesDTO) {
+        boolean response = this.userRoleService.assignMultipleRoles(assignRolesDTO);
+        if (response) {
+            return ResponseEntity.ok(new ResponseMessage("Roles assigned successfully"));
+        } else {
+            return ResponseEntity.badRequest().body(new ResponseMessage("Failed to assign roles"));
         }
     }
 }

@@ -25,15 +25,8 @@ public class JwtService {
     @Autowired
     private JwtProperties jwtProperties;
 
-    // Crea una clave de firma determinista a partir de la configuración para que los tokens sigan siendo válidos durante los reinicios.
     private Key getSecretKey() {
-        try {
-            byte[] keyBytes = MessageDigest.getInstance("SHA-512")
-                    .digest(jwtProperties.getSecret().getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            return Keys.hmacShaKeyFor(keyBytes);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("Unable to initialize JWT signing key", e);
-        }
+        return Keys.hmacShaKeyFor(this.jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
     }
 
     public String generateToken(User theUser) {
@@ -49,14 +42,14 @@ public class JwtService {
                 .setSubject(theUser.getId())
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
-            .signWith(getSecretKey(), SignatureAlgorithm.HS512)
+                .signWith(this.getSecretKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
     public User getUserFromToken(String token) {
         try {
             Jws<Claims> claimsJws = Jwts.parserBuilder()
-                    .setSigningKey(getSecretKey())
+                    .setSigningKey(this.getSecretKey())
                     .build()
                     .parseClaimsJws(token);
 

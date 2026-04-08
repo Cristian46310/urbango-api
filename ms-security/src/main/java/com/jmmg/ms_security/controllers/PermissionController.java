@@ -4,6 +4,8 @@ import com.jmmg.ms_security.DTOs.permission.GetPermissionDTO;
 import com.jmmg.ms_security.DTOs.permission.PostPermissionDTO;
 import com.jmmg.ms_security.services.PermissionService;
 
+import jakarta.validation.Valid;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -20,7 +22,7 @@ import java.util.List;
 
 @CrossOrigin
 @RestController
-@RequestMapping("/permissions")
+@RequestMapping("/api/permissions")
 public class PermissionController {
 
     @Autowired
@@ -42,13 +44,13 @@ public class PermissionController {
     }
 
     @PostMapping
-    public ResponseEntity<GetPermissionDTO> create(@RequestBody PostPermissionDTO newPermission) {
+    public ResponseEntity<GetPermissionDTO> create(@Valid @RequestBody PostPermissionDTO newPermission) {
         GetPermissionDTO createdPermission = this.permissionService.create(newPermission);
         return ResponseEntity.created(URI.create("/permissions/" + createdPermission.id())).body(createdPermission);
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<GetPermissionDTO> update(@PathVariable String id, @RequestBody PostPermissionDTO newPermission) {
+    public ResponseEntity<GetPermissionDTO> update(@PathVariable String id, @Valid @RequestBody PostPermissionDTO newPermission) {
         GetPermissionDTO updatedPermission = this.permissionService.update(id, newPermission);
         if (updatedPermission != null) {
             return ResponseEntity.ok(updatedPermission);
