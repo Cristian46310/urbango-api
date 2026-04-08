@@ -7,8 +7,6 @@ import com.jmmg.ms_security.DTOs.login.GoogleTokenDTO;
 import com.jmmg.ms_security.DTOs.login.Verify2FADTO;
 import com.jmmg.ms_security.services.SecurityService;
 
-import jakarta.validation.Valid;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -49,6 +47,7 @@ public class SecurityController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
+    }
 
     @PostMapping("verify-2fa")
     public ResponseEntity<TokenDTO> verifyTwoFactor(@Valid @RequestBody Verify2FADTO verify2FADTO) {
