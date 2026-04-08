@@ -20,19 +20,4 @@ public record UserRoleDTO(
 		);
 	}
 
-	public UserRole toModel() {
-		User user = null;
-		Role role = null;
-		if (userId != null) {
-			user = new User();
-			user.setId(userId);
-		}
-		if (roleId != null) {
-			role = new Role();
-			role.setId(roleId);
-		}
-		UserRole userRole = new UserRole(user, role);
-		userRole.setId(id);
-		return userRole;
-	}
 }

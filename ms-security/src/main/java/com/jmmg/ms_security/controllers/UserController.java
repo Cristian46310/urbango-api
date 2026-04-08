@@ -24,7 +24,7 @@ import jakarta.validation.Valid;
 
 @CrossOrigin
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/api/public/users")
 public class UserController {
     @Autowired
     private UserService userService;
@@ -50,7 +50,7 @@ public class UserController {
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<GetUserDTO> update(@PathVariable String id, @RequestBody PostUserDTO newUser) {
+    public ResponseEntity<GetUserDTO> update(@PathVariable String id, @Valid @RequestBody PostUserDTO newUser) {
         GetUserDTO updated = this.userService.update(id, newUser);
         if (updated != null) {
             return ResponseEntity.ok(updated);
@@ -77,26 +77,6 @@ public class UserController {
     @DeleteMapping("{id}/profile/{profileID}")
     public ResponseEntity<Void> removeProfile(@PathVariable String id, @PathVariable String profileID) {
         boolean success = this.userService.removeProfile(id, profileID);
-        if (success) {
-            return ResponseEntity.noContent().build();
-        } else {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    @PostMapping("{id}/session/{sessionID}")
-    public ResponseEntity<ResponseMessage> addSession(@PathVariable String id, @PathVariable String sessionID) {
-        boolean success = this.userService.addSession(id, sessionID);
-        if (success) {
-            return ResponseEntity.ok(new ResponseMessage("Session added successfully"));
-        } else {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    @DeleteMapping("{id}/session/{sessionID}")
-    public ResponseEntity<Void> removeSession(@PathVariable String id, @PathVariable String sessionID) {
-        boolean success = this.userService.removeSession(id, sessionID);
         if (success) {
             return ResponseEntity.noContent().build();
         } else {

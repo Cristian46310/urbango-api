@@ -14,7 +14,7 @@ import com.jmmg.ms_security.services.RolePermissionService;
 
 @CrossOrigin
 @RestController
-@RequestMapping("/role-permission")
+@RequestMapping("/api/role-permission")
 public class RolePermissionController {
     @Autowired
     private RolePermissionService rolePermissionService;
