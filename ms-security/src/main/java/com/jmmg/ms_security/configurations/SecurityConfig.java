@@ -19,29 +19,27 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // Deshabilitar CSRF debido a que usamos JWT
-            .csrf(csrf -> csrf.disable())
-            
-            // Configurar CORS
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            
-            // Definir permisos por ruta
-            .authorizeHttpRequests(authz -> authz
-                // Rutas públicas - sin autenticación requerida
-                .requestMatchers("/api/public/**").permitAll()
-                .requestMatchers("/swagger-ui/**").permitAll()
-                .requestMatchers("/v3/api-docs/**").permitAll()
-                
-                // Rutas protegidas - requieren autenticación
-                .requestMatchers("/api/**").authenticated()
-                .anyRequest().permitAll()
-            )
-            
-            // Configurar política de sesiones sin estado (stateless)
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            
-            // Deshabilitar el flujo de OAuth2 login automático
-            .oauth2Client(oauth2 -> oauth2.disable());
+                // Deshabilitar CSRF debido a que usamos JWT
+                .csrf(csrf -> csrf.disable())
+
+                // Configurar CORS
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                // Definir permisos por ruta
+                .authorizeHttpRequests(authz -> authz
+                        // Rutas públicas - sin autenticación requerida
+                        // Rutas protegidas - permitir en Spring Security, validar en Interceptor
+                        .requestMatchers("/api/**").permitAll()
+                        .requestMatchers("/swagger-ui/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**").permitAll()
+
+                        .anyRequest().permitAll())
+
+                // Configurar política de sesiones sin estado (stateless)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                // Deshabilitar el flujo de OAuth2 login automático
+                .oauth2Client(oauth2 -> oauth2.disable());
 
         return http.build();
     }
@@ -53,7 +51,7 @@ public class SecurityConfig {
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(false);
-        
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
