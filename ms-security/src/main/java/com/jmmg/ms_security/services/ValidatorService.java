@@ -14,6 +14,7 @@ import com.jmmg.ms_security.repositories.IPermissionRepository;
 import com.jmmg.ms_security.repositories.IRolePermissionRepository;
 import com.jmmg.ms_security.repositories.IUserRepository;
 import com.jmmg.ms_security.repositories.IUserRoleRepository;
+
 import jakarta.servlet.http.HttpServletRequest;
 
 @Service
@@ -40,6 +41,7 @@ public class ValidatorService {
         User user = this.getUserFromRequest(request);
 
         if (user != null) {
+            url = url.replaceFirst("^/api/public", "").replaceFirst("^/api", "");
             url = url.replaceAll("[0-9a-fA-F]{24}|\\d+", "?");
             Permission permission = this.permissionRepository.getPermission(url, method);
 
