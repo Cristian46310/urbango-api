@@ -35,6 +35,7 @@ public class JwtService {
         claims.put("id", theUser.getId());
         claims.put("name", theUser.getName());
         claims.put("email", theUser.getEmail());
+        claims.put("createdAt", now.getTime());  // Timestamp de creación en milisegundos
 
         return Jwts.builder()
                 .setClaims(claims)
