@@ -28,12 +28,10 @@ public class SecurityController {
 
     @PostMapping("login")
     public ResponseEntity<LoginChallengeDTO> login(@Valid @RequestBody LoginDTO loginDTO) {
-        LoginChallengeDTO challenge = this.theSecurityService.login(loginDTO);
-        if (challenge != null) {
-            return ResponseEntity.ok(challenge);
-        } else {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
+        return this.theSecurityService.login(loginDTO)
+            .map(ResponseEntity::ok)
+            .defaultIfEmpty(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build())
+            .block();
     }
 
     @PostMapping("login/google")

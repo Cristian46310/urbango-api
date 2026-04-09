@@ -10,6 +10,9 @@ import com.jmmg.ms_security.DTOs.login.Verify2FADTO;
 import com.jmmg.ms_security.models.AuthFactor;
 import com.jmmg.ms_security.models.User;
 import com.jmmg.ms_security.repositories.IUserRepository;
+
+import reactor.core.publisher.Mono;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -24,39 +27,50 @@ public class SecurityService {
     private JwtService theJwtService;
     @Autowired
     private GoogleTokenVerifierService theGoogleTokenVerifierService;
+    @Autowired
     private AuthFactorService authFactorService;
     @Autowired
     private EmailService emailService;
+    @Autowired
+    private RecaptchaService recaptchaService;
 
-    public LoginChallengeDTO login(LoginDTO loginUser) {
-        var user = new User(loginUser);
-        user = this.userRepository.findByEmail(user.getEmail());
+    public Mono<LoginChallengeDTO> login(LoginDTO loginUser) {
+        //validacion captcha
+        return recaptchaService.verifyToken(loginUser.recaptchaToken())
+                .flatMap(isValid -> {
+                    if (!isValid) {
+                        return Mono.error(new IllegalArgumentException("Token de reCAPTCHA inválido"));
+                    }
+                    var user = new User(loginUser);
+                    user = this.userRepository.findByEmail(user.getEmail());
 
-        if (user != null && user.getPassword().equals(theEncryptionService.convertSHA256(loginUser.password()))) {
-            AuthFactor authFactor = this.authFactorService.createPendingFactor(user);
+                    if (user != null && user.getPassword().equals(theEncryptionService.convertSHA256(loginUser.password()))) {
+                        AuthFactor authFactor = this.authFactorService.createPendingFactor(user);
 
-            String emailContent = String.format(
-                    "Hola %s,\n\n"
-                            + "Tu codigo de autenticacion para iniciar sesion es: %s\n\n"
-                            + "Si no solicitaste este acceso, ignora este mensaje.\n\n"
-                            + "Saludos,\n"
-                            + "Sistema de Seguridad",
-                    user.getName(),
-                    authFactor.getCode());
+                        String emailContent = String.format(
+                                "Hola %s,\n\n"
+                                        + "Tu codigo de autenticacion para iniciar sesion es: %s\n\n"
+                                        + "Si no solicitaste este acceso, ignora este mensaje.\n\n"
+                                        + "Saludos,\n"
+                                        + "Sistema de Seguridad",
+                                user.getName(),
+                                authFactor.getCode());
 
-            this.emailService.sendEmail(new EmailSendBody(
-                    user.getEmail(),
-                    "Codigo de autenticacion",
-                    emailContent));
+                        this.emailService.sendEmail(new EmailSendBody(
+                                user.getEmail(),
+                                "Codigo de autenticacion",
+                                emailContent));
 
-            return new LoginChallengeDTO(
-                    authFactor.getToken(),
-                    authFactor.getExpiration(),
-                    "Authentication code sent to your email");
-        }
+                        return Mono.just(new LoginChallengeDTO(
+                                authFactor.getToken(),
+                                authFactor.getExpiration(),
+                                "Authentication code sent to your email"));
+                    }
 
-        return null;
+                    return Mono.error(new IllegalArgumentException("Invalid credentials"));
+                });
     }
+    
 
     public String verifyTwoFactor(Verify2FADTO verify2FADTO) {
         User user = this.authFactorService.validateFactor(verify2FADTO.challengeToken(), verify2FADTO.code());
