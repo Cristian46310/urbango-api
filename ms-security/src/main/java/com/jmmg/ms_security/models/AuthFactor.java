@@ -11,6 +11,7 @@ import lombok.Data;
 @Data
 @Document
 public class AuthFactor {
+
     @Id
     private String id;
     @DBRef
@@ -19,6 +20,7 @@ public class AuthFactor {
     private Date expiration;
     private String token;
     private AuthFactorStatus status;
+    private AuthFactorType type;
     private Date createdAt;
     private Date updatedAt;
 }

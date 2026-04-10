@@ -1,0 +1,4 @@
+MONGO_URI=mongodb+srv://juanmiranda41303:Juan2004%2A@backend-jmmg.w0dky7l.mongodb.net/?appName=backend-jmmg
+MONGO_DATABASE=backend-jmmg
+MS_NOTIFICATION_URL=http://127.0.0.1:8000/api/email/send
+JWT_SECRET=5e335c7a-b1a2-4b10-b980-8d2981b1d757
