@@ -1,5 +1,12 @@
 package com.jmmg.ms_security.controllers;
 
+import com.jmmg.ms_security.DTOs.login.LoginChallengeDTO;
+import com.jmmg.ms_security.DTOs.login.LoginDTO;
+import com.jmmg.ms_security.DTOs.login.TokenDTO;
+import com.jmmg.ms_security.DTOs.login.GoogleTokenDTO;
+import com.jmmg.ms_security.DTOs.login.Verify2FADTO;
+import com.jmmg.ms_security.services.SecurityService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -8,15 +15,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.jmmg.ms_security.DTOs.login.LoginChallengeDTO;
-import com.jmmg.ms_security.DTOs.login.LoginDTO;
-import com.jmmg.ms_security.DTOs.login.TokenDTO;
-import com.jmmg.ms_security.DTOs.login.Verify2FADTO;
 import com.jmmg.ms_security.DTOs.message.ResponseMessage;
 import com.jmmg.ms_security.DTOs.password.ForgotPasswordDTO;
 import com.jmmg.ms_security.DTOs.password.ResetPasswordDTO;
-import com.jmmg.ms_security.services.SecurityService;
 
 import jakarta.validation.Valid;
 
@@ -30,10 +31,21 @@ public class SecurityController {
 
     @PostMapping("login")
     public ResponseEntity<LoginChallengeDTO> login(@Valid @RequestBody LoginDTO loginDTO) {
-        LoginChallengeDTO challenge = this.theSecurityService.login(loginDTO);
-        if (challenge != null) {
-            return ResponseEntity.ok(challenge);
-        } else {
+        return this.theSecurityService.login(loginDTO)
+            .map(ResponseEntity::ok)
+            .defaultIfEmpty(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build())
+            .block();
+    }
+
+    @PostMapping("login/google")
+    public ResponseEntity<TokenDTO> loginWithGoogle(@Valid @RequestBody GoogleTokenDTO googleTokenDTO) {
+        try {
+            String token = this.theSecurityService.loginWithGoogle(googleTokenDTO.idToken());
+            if (token == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            return ResponseEntity.ok(new TokenDTO(token));
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
