@@ -1,5 +1,8 @@
 package com.jmmg.ms_security.services;
 
+import java.util.UUID;
+
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.jmmg.ms_security.DTOs.email.EmailSendBody;
 import com.jmmg.ms_security.DTOs.login.LoginChallengeDTO;
 import com.jmmg.ms_security.DTOs.login.LoginDTO;
@@ -20,6 +23,7 @@ public class SecurityService {
     @Autowired
     private JwtService theJwtService;
     @Autowired
+    private GoogleTokenVerifierService theGoogleTokenVerifierService;
     private AuthFactorService authFactorService;
     @Autowired
     private EmailService emailService;
@@ -64,12 +68,26 @@ public class SecurityService {
         this.authFactorService.consumeFactor(verify2FADTO.challengeToken());
         return this.theJwtService.generateToken(user);
     }
-    /*
-    public boolean permissionsValidation(final HttpServletRequest request,
-                                         @RequestBody Permission thePermission) {
-        boolean success=this.theValidatorsService.validationRolePermission(request,thePermission.getUrl(),thePermission.getMethod());
-        return success;
-    }
-    */
 
+    public String loginWithGoogle(String idTokenString) {
+        // Valida el token frente a Google antes de confiar en cualquier dato del usuario.
+        GoogleIdToken.Payload payload = theGoogleTokenVerifierService.verify(idTokenString);
+        if (payload == null) {
+            return null;
+        }
+
+        String email= payload.getEmail();
+        String name= (String)payload.get("name");
+
+        User user=this.userRepository.findByEmail(email);
+        if(user==null){
+            user=new User();
+            user.setEmail(email);
+            user.setName(name);
+            // Los usuarios de Google no se autentican con contraseña local, pero el modelo requiere una. Se asigna un valor aleatorio que no se podrá usar para iniciar sesión tradicionalmente.
+            user.setPassword(theEncryptionService.convertSHA256(UUID.randomUUID().toString()));
+            this.userRepository.save(user);
+        }
+        return theJwtService.generateToken(user);
+    }
 }
