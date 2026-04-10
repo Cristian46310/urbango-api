@@ -36,7 +36,13 @@ public class WebConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(securityInterceptor)
                 .addPathPatterns("/api/**")
-                .excludePathPatterns("/api/public/**")
+                .excludePathPatterns(
+                    "/api/public/**",    // Rutas públicas: login, registro
+                    "/api/health",       // Health check
+                    "/api/docs/**",      // Swagger/OpenAPI
+                    "/swagger-ui/**",
+                    "/v3/api-docs/**"
+                )
                 .excludeHttpMethods(HttpMethod.OPTIONS);
     }
 
