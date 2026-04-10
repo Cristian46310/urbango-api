@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.jmmg.ms_security.DTOs.login.CompleteGitHubRegistrationDTO;
+import com.jmmg.ms_security.DTOs.login.GitHubCallbackDTO;
 import com.jmmg.ms_security.DTOs.login.GitHubAuthResultDTO;
 import com.jmmg.ms_security.DTOs.login.GitHubAuthorizeDTO;
 import com.jmmg.ms_security.DTOs.message.ResponseMessage;
@@ -47,6 +48,11 @@ public class GitHubAuthController {
         return new ResponseEntity<>(headers, HttpStatus.FOUND);
     }
 
+    @PostMapping("authorize")
+    public ResponseEntity<GitHubAuthorizeDTO> authorizePost() {
+        return ResponseEntity.ok(this.gitHubOAuthService.createAuthorization(GitHubAuthMode.LOGIN, null));
+    }
+
     @GetMapping("link/authorize")
     public ResponseEntity<Void> authorizeLink(HttpServletRequest request) {
         User user = this.authenticatedUserService.getAuthenticatedUser(request);
@@ -60,11 +66,29 @@ public class GitHubAuthController {
         return new ResponseEntity<>(headers, HttpStatus.FOUND);
     }
 
+    @PostMapping("link/authorize")
+    public ResponseEntity<GitHubAuthorizeDTO> authorizeLinkPost(HttpServletRequest request) {
+        User user = this.authenticatedUserService.getAuthenticatedUser(request);
+        if (user == null) {
+            throw new NotPermitted("Authentication is required to link a GitHub account.");
+        }
+
+        return ResponseEntity.ok(this.gitHubOAuthService.createAuthorization(GitHubAuthMode.LINK, user.getId()));
+    }
+
     @GetMapping("callback")
     public ResponseEntity<GitHubAuthResultDTO> callback(
             @RequestParam String code,
             @RequestParam String state) {
         return ResponseEntity.ok(this.gitHubOAuthService.handleCallback(code, state));
+    }
+
+    @PostMapping("callback")
+    public ResponseEntity<GitHubAuthResultDTO> callbackPost(
+            @Valid @RequestBody GitHubCallbackDTO gitHubCallbackDTO) {
+        return ResponseEntity.ok(this.gitHubOAuthService.handleCallback(
+                gitHubCallbackDTO.code(),
+                gitHubCallbackDTO.state()));
     }
 
     @PostMapping("complete-registration")
