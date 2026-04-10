@@ -5,9 +5,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jmmg.ms_security.Interceptors.SecurityInterceptor;
 
 @Configuration
@@ -18,6 +20,16 @@ public class WebConfig implements WebMvcConfigurer {
     @Bean
     RestTemplate restTemplate() {
         return new RestTemplate();
+    }
+
+    @Bean
+    WebClient.Builder webClientBuilder() {
+        return WebClient.builder();
+    }
+
+    @Bean
+    ObjectMapper objectMapper() {
+        return new ObjectMapper();
     }
 
     @Override

@@ -2,20 +2,22 @@ package com.jmmg.ms_security.services;
 
 import java.util.Collections;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
+import com.jmmg.ms_security.infra.config.GoogleProperties;
 
 @Service
 public class GoogleTokenVerifierService {
 
-    // Client ID registrado en Google Cloud Console para validar que el token fue emitido para esta app.
-    @Value("${spring.security.oauth2.client.registration.google.client-id}")
-    private String googleClientId;
+    private final GoogleProperties googleProperties;
+
+    public GoogleTokenVerifierService(GoogleProperties googleProperties) {
+        this.googleProperties = googleProperties;
+    }
 
     public GoogleIdToken.Payload verify(String idTokenString) {
         try {
@@ -23,7 +25,7 @@ public class GoogleTokenVerifierService {
             GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
                     new NetHttpTransport(),
                     GsonFactory.getDefaultInstance())
-                    .setAudience(Collections.singletonList(googleClientId))
+                    .setAudience(Collections.singletonList(googleProperties.getClientId()))
                     .build();
 
             // Verifica firma, expiración y validez general del token.
