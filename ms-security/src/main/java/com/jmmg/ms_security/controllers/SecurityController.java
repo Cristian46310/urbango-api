@@ -8,6 +8,7 @@ import com.jmmg.ms_security.DTOs.login.GitHubAuthResultDTO;
 import com.jmmg.ms_security.DTOs.login.GitHubAuthorizeDTO;
 import com.jmmg.ms_security.DTOs.login.GitHubCallbackDTO;
 import com.jmmg.ms_security.DTOs.login.GoogleTokenDTO;
+import com.jmmg.ms_security.DTOs.user.GetUserDetailDTO;
 import com.jmmg.ms_security.DTOs.login.Verify2FADTO;
 import com.jmmg.ms_security.models.GitHubAuthMode;
 import com.jmmg.ms_security.services.GitHubOAuthService;
@@ -17,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,6 +27,7 @@ import com.jmmg.ms_security.DTOs.message.ResponseMessage;
 import com.jmmg.ms_security.DTOs.password.ForgotPasswordDTO;
 import com.jmmg.ms_security.DTOs.password.ResetPasswordDTO;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 @CrossOrigin
@@ -102,5 +105,14 @@ public class SecurityController {
         }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ResponseMessage("El token es inválido o ha expirado"));
+    }
+
+    @GetMapping("me")
+    public ResponseEntity<GetUserDetailDTO> me(HttpServletRequest request) {
+        GetUserDetailDTO me = this.theSecurityService.me(request);
+        if (me == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        return ResponseEntity.ok(me);
     }
 }

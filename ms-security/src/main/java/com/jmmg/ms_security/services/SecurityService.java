@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.jmmg.ms_security.DTOs.email.EmailSendBody;
+import com.jmmg.ms_security.DTOs.user.GetUserDetailDTO;
 import com.jmmg.ms_security.DTOs.login.LoginChallengeDTO;
 import com.jmmg.ms_security.DTOs.login.LoginDTO;
 import com.jmmg.ms_security.DTOs.login.Verify2FADTO;
@@ -16,6 +17,7 @@ import com.jmmg.ms_security.models.AuthFactor;
 import com.jmmg.ms_security.models.User;
 import com.jmmg.ms_security.repositories.IUserRepository;
 
+import jakarta.servlet.http.HttpServletRequest;
 import reactor.core.publisher.Mono;
 
 
@@ -37,7 +39,10 @@ public class SecurityService {
     private EmailService emailService;
     @Autowired
     private UserService userService;
+    @Autowired
     private RecaptchaService recaptchaService;
+    @Autowired
+    private AuthenticatedUserService authenticatedUserService;
 
     public Mono<LoginChallengeDTO> login(LoginDTO loginUser) {
         //validacion captcha
@@ -86,6 +91,14 @@ public class SecurityService {
 
         this.authFactorService.consumeFactor(verify2FADTO.challengeToken());
         return this.theJwtService.generateToken(user);
+    }
+
+    public GetUserDetailDTO me(HttpServletRequest request) {
+        User user = this.authenticatedUserService.getAuthenticatedUser(request);
+        if (user == null) {
+            return null;
+        }
+        return this.userService.getDetailById(user.getId());
     }
 
     /**

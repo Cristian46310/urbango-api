@@ -1,8 +1,9 @@
 package com.jmmg.ms_security.controllers;
 
 import java.net.URI;
-import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.jmmg.ms_security.DTOs.message.ResponseMessage;
+import com.jmmg.ms_security.DTOs.user.GetUserListDTO;
 import com.jmmg.ms_security.DTOs.user.GetUserDTO;
 import com.jmmg.ms_security.DTOs.user.PostUserDTO;
 import com.jmmg.ms_security.services.UserService;
@@ -30,8 +32,8 @@ public class UserController {
     private UserService userService;
 
     @GetMapping("")
-    public ResponseEntity<List<GetUserDTO>> getAllUsers() {
-        return ResponseEntity.ok(userService.getAll());
+    public ResponseEntity<Page<GetUserListDTO>> getAllUsers(Pageable pageable) {
+        return ResponseEntity.ok(userService.getAll(pageable));
     }
 
     @GetMapping("/{id}")

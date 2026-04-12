@@ -1,7 +1,7 @@
 package com.jmmg.ms_security.services;
 
-import java.util.List;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -16,9 +16,9 @@ public class PermissionService {
     @Autowired
     private IPermissionRepository permissionRepository;
 
-    public List<GetPermissionDTO> find() {
-        return this.permissionRepository.findAll().stream().map(GetPermissionDTO::fromModel)
-                .collect(java.util.stream.Collectors.toList());
+    public Page<GetPermissionDTO> find(Pageable pageable) {
+        return this.permissionRepository.findAll(pageable)
+                .map(GetPermissionDTO::fromModel);
     }
 
     public GetPermissionDTO findById(String id) {

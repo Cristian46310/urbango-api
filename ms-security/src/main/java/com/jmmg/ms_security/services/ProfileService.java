@@ -5,19 +5,19 @@ import com.jmmg.ms_security.DTOs.Profile.PostProfileDTO;
 import com.jmmg.ms_security.models.Profile;
 import com.jmmg.ms_security.repositories.IProfileRepository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 public class ProfileService {
     @Autowired
     private IProfileRepository profileRepository;
 
-    public List<GetProfileDTO> find() {
-        return this.profileRepository.findAll().stream().map(GetProfileDTO::fromModel)
-                .collect(java.util.stream.Collectors.toList());
+    public Page<GetProfileDTO> find(Pageable pageable) {
+        return this.profileRepository.findAll(pageable)
+                .map(GetProfileDTO::fromModel);
     }
 
     public GetProfileDTO findById(String id) {

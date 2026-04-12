@@ -6,11 +6,15 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.jmmg.ms_security.DTOs.message.ResponseMessage;
+import com.jmmg.ms_security.DTOs.permission.AssignPermissionsDTO;
 import com.jmmg.ms_security.services.RolePermissionService;
+
+import jakarta.validation.Valid;
 
 @CrossOrigin
 @RestController
@@ -29,6 +33,17 @@ public class RolePermissionController {
             return ResponseEntity.ok(new ResponseMessage("Success"));
         } else {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PostMapping("/assign-multiple")
+    public ResponseEntity<ResponseMessage> assignMultiplePermissions(
+            @Valid @RequestBody AssignPermissionsDTO assignPermissionsDTO) {
+        boolean response = this.rolePermissionService.assignMultiplePermissions(assignPermissionsDTO);
+        if (response) {
+            return ResponseEntity.ok(new ResponseMessage("Permissions assigned successfully"));
+        } else {
+            return ResponseEntity.badRequest().body(new ResponseMessage("Failed to assign permissions"));
         }
     }
 

@@ -248,10 +248,7 @@ public class GitHubOAuthService {
     }
 
     private GetUserDTO buildUserDTO(User user) {
-        return GetUserDTO.fromModelWithGitHub(
-                user,
-                this.gitHubAccountRepository.findByUserId(user.getId()).orElse(null),
-                null);
+        return GetUserDTO.fromModelWithRoles(user, null);
     }
 
     private void upsertGitHubAccount(String userId, GitHubAuthRequest authRequest) {
