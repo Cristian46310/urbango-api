@@ -1,6 +1,7 @@
 package com.jmmg.ms_security.services;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -10,6 +11,7 @@ import com.jmmg.ms_security.DTOs.email.EmailSendBody;
 import com.jmmg.ms_security.DTOs.user.GetUserDetailDTO;
 import com.jmmg.ms_security.DTOs.login.LoginChallengeDTO;
 import com.jmmg.ms_security.DTOs.login.LoginDTO;
+import com.jmmg.ms_security.DTOs.login.RegisterUserDTO;
 import com.jmmg.ms_security.DTOs.login.Verify2FADTO;
 import com.jmmg.ms_security.DTOs.password.ForgotPasswordDTO;
 import com.jmmg.ms_security.DTOs.password.ResetPasswordDTO;
@@ -91,6 +93,45 @@ public class SecurityService {
 
         this.authFactorService.consumeFactor(verify2FADTO.challengeToken());
         return this.theJwtService.generateToken(user);
+    }
+
+    public String register(RegisterUserDTO registerUserDTO) {
+        if (!registerUserDTO.password().equals(registerUserDTO.confirmPassword())) {
+            throw new IllegalArgumentException("Password and confirmation do not match");
+        }
+
+        String normalizedEmail = registerUserDTO.email().trim().toLowerCase();
+        User existingUser = this.userRepository.findByEmail(normalizedEmail);
+        if (existingUser != null) {
+            throw new IllegalArgumentException("Email is already registered");
+        }
+
+        User newUser = new User();
+        newUser.setName((registerUserDTO.name().trim() + " " + registerUserDTO.lastName().trim()).trim());
+        newUser.setEmail(normalizedEmail);
+        newUser.setPassword(this.theEncryptionService.convertSHA256(registerUserDTO.password()));
+
+        try {
+            this.userRepository.save(newUser);
+        } catch (DuplicateKeyException e) {
+            throw new IllegalArgumentException("Email is already registered");
+        }
+
+        String emailContent = String.format(
+                "Hola %s,\n\n"
+                        + "Tu cuenta ha sido creada exitosamente en el Sistema de Seguridad.\n"
+                        + "Ya puedes iniciar sesion con tu correo registrado.\n\n"
+                        + "Si no realizaste este registro, contacta al administrador.\n\n"
+                        + "Saludos,\n"
+                        + "Sistema de Seguridad",
+                newUser.getName());
+
+        this.emailService.sendEmail(new EmailSendBody(
+                newUser.getEmail(),
+                "Confirmacion de creacion de cuenta",
+                emailContent));
+
+        return "Cuenta creada exitosamente. Revisa tu correo para confirmar el registro";
     }
 
     public GetUserDetailDTO me(HttpServletRequest request) {

@@ -8,6 +8,7 @@ import com.jmmg.ms_security.models.RolePermission;
 import com.jmmg.ms_security.models.Role;
 import com.jmmg.ms_security.repositories.IRolePermissionRepository;
 import com.jmmg.ms_security.repositories.IRoleRepository;
+import com.jmmg.ms_security.repositories.IUserRoleRepository;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,6 +24,8 @@ public class RoleService {
     private IRoleRepository roleRepository;
     @Autowired
     private IRolePermissionRepository rolePermissionRepository;
+    @Autowired
+    private IUserRoleRepository userRoleRepository;
 
     public Page<GetRoleListDTO> find(Pageable pageable) {
         return this.roleRepository.findAll(pageable)
@@ -54,7 +57,8 @@ public class RoleService {
 
     public void delete(String id) {
         Role theRole = this.roleRepository.findById(id).orElse(null);
-        if (theRole != null) {
+        boolean hasUserRoles = this.userRoleRepository.existsByRoleId(id);
+        if (theRole != null && !hasUserRoles) {
             this.roleRepository.delete(theRole);
         }
     }

@@ -4,14 +4,21 @@ import com.jmmg.ms_security.DTOs.login.LoginChallengeDTO;
 import com.jmmg.ms_security.DTOs.login.LoginDTO;
 import com.jmmg.ms_security.DTOs.login.TokenDTO;
 import com.jmmg.ms_security.DTOs.login.CompleteGitHubRegistrationDTO;
+import com.jmmg.ms_security.DTOs.login.CompleteMicrosoftRegistrationDTO;
 import com.jmmg.ms_security.DTOs.login.GitHubAuthResultDTO;
 import com.jmmg.ms_security.DTOs.login.GitHubAuthorizeDTO;
 import com.jmmg.ms_security.DTOs.login.GitHubCallbackDTO;
 import com.jmmg.ms_security.DTOs.login.GoogleTokenDTO;
+import com.jmmg.ms_security.DTOs.login.MicrosoftAuthResultDTO;
+import com.jmmg.ms_security.DTOs.login.MicrosoftAuthorizeDTO;
+import com.jmmg.ms_security.DTOs.login.MicrosoftCallbackDTO;
+import com.jmmg.ms_security.DTOs.login.RegisterUserDTO;
 import com.jmmg.ms_security.DTOs.user.GetUserDetailDTO;
 import com.jmmg.ms_security.DTOs.login.Verify2FADTO;
 import com.jmmg.ms_security.models.GitHubAuthMode;
+import com.jmmg.ms_security.models.MicrosoftAuthMode;
 import com.jmmg.ms_security.services.GitHubOAuthService;
+import com.jmmg.ms_security.services.MicrosoftOAuthService;
 import com.jmmg.ms_security.services.SecurityService;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +47,9 @@ public class SecurityController {
 
     @Autowired
     private GitHubOAuthService gitHubOAuthService;
+
+    @Autowired
+    private MicrosoftOAuthService microsoftOAuthService;
 
     @PostMapping("login")
     public ResponseEntity<LoginChallengeDTO> login(@Valid @RequestBody LoginDTO loginDTO) {
@@ -82,6 +92,27 @@ public class SecurityController {
                 completeGitHubRegistrationDTO.email()));
     }
 
+    @PostMapping("login/microsoft/authorize")
+    public ResponseEntity<MicrosoftAuthorizeDTO> authorizeMicrosoftLogin() {
+        return ResponseEntity.ok(this.microsoftOAuthService.createAuthorization(MicrosoftAuthMode.LOGIN, null));
+    }
+
+    @PostMapping("login/microsoft")
+    public ResponseEntity<MicrosoftAuthResultDTO> loginWithMicrosoft(
+            @Valid @RequestBody MicrosoftCallbackDTO microsoftCallbackDTO) {
+        return ResponseEntity.ok(this.microsoftOAuthService.handleCallback(
+                microsoftCallbackDTO.code(),
+                microsoftCallbackDTO.state()));
+    }
+
+    @PostMapping("login/microsoft/complete")
+    public ResponseEntity<MicrosoftAuthResultDTO> completeMicrosoftLogin(
+            @Valid @RequestBody CompleteMicrosoftRegistrationDTO completeMicrosoftRegistrationDTO) {
+        return ResponseEntity.ok(this.microsoftOAuthService.completeRegistration(
+                completeMicrosoftRegistrationDTO.registrationToken(),
+                completeMicrosoftRegistrationDTO.email()));
+    }
+
     @PostMapping("verify-2fa")
     public ResponseEntity<TokenDTO> verifyTwoFactor(@Valid @RequestBody Verify2FADTO verify2FADTO) {
         String token = this.theSecurityService.verifyTwoFactor(verify2FADTO);
@@ -89,6 +120,12 @@ public class SecurityController {
             return ResponseEntity.ok(new TokenDTO(token));
         }
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
+    @PostMapping("register")
+    public ResponseEntity<ResponseMessage> register(@Valid @RequestBody RegisterUserDTO registerUserDTO) {
+        String message = this.theSecurityService.register(registerUserDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ResponseMessage(message));
     }
 
     @PostMapping("forgot-password")
