@@ -1,5 +1,8 @@
 package com.jmmg.ms_security.repositories;
 
+import java.util.List;
+import org.bson.types.ObjectId;
+
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 
@@ -9,4 +12,10 @@ public interface IRolePermissionRepository extends MongoRepository<RolePermissio
 
     @Query("{'role.$id': ObjectId(?0), 'permission.$id': ObjectId(?1)}")
     RolePermission getRolePermission(String roleId, String permissionId);
+
+    @Query("{'role.$id': ObjectId(?0)}")
+    List<RolePermission> findByRoleId(String roleId);
+
+    @Query(value = "{'role.$id': {'$in': ?0}, 'permission.$id': ObjectId(?1)}", exists = true)
+    boolean existsByRoleIdsAndPermissionId(List<ObjectId> roleIds, String permissionId);
 }

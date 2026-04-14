@@ -6,6 +6,8 @@ import com.jmmg.ms_security.services.PermissionService;
 
 import jakarta.validation.Valid;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -18,7 +20,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import java.net.URI;
-import java.util.List;
 
 @CrossOrigin
 @RestController
@@ -29,8 +30,8 @@ public class PermissionController {
     private PermissionService permissionService;
 
     @GetMapping("")
-    public ResponseEntity<List<GetPermissionDTO>> find() {
-        return ResponseEntity.ok(this.permissionService.find());
+    public ResponseEntity<Page<GetPermissionDTO>> find(Pageable pageable) {
+        return ResponseEntity.ok(this.permissionService.find(pageable));
     }
 
     @GetMapping("{id}")

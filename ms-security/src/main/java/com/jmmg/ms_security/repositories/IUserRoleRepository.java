@@ -11,4 +11,6 @@ public interface IUserRoleRepository extends MongoRepository<UserRole, String> {
 
     @Query("{'user.$id': ObjectId(?0)}")
     public List<UserRole> findByUserId(String userId);
+
+    public boolean existsByRoleId(String roleId);
 }

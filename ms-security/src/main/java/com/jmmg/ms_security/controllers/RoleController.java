@@ -1,11 +1,14 @@
 package com.jmmg.ms_security.controllers;
 
 import com.jmmg.ms_security.DTOs.Role.GetRoleDTO;
+import com.jmmg.ms_security.DTOs.Role.GetRoleListDTO;
 import com.jmmg.ms_security.DTOs.Role.PostRoleDTO;
 import com.jmmg.ms_security.services.RoleService;
 
 import jakarta.validation.Valid;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -18,8 +21,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import java.net.URI;
-import java.util.List;
-
 @CrossOrigin
 @RestController
 @RequestMapping("/api/roles")
@@ -29,8 +30,8 @@ public class RoleController {
     private RoleService roleService;
 
     @GetMapping("")
-    public ResponseEntity<List<GetRoleDTO>> find() {
-        return ResponseEntity.ok(this.roleService.find());
+    public ResponseEntity<Page<GetRoleListDTO>> find(Pageable pageable) {
+        return ResponseEntity.ok(this.roleService.find(pageable));
     }
 
     @GetMapping("{id}")

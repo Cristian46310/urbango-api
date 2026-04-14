@@ -1,6 +1,7 @@
 package com.jmmg.ms_security.services;
 
 import java.util.List;
+import org.bson.types.ObjectId;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -9,8 +10,6 @@ import com.jmmg.ms_security.DTOs.TokenValidationResult;
 import com.jmmg.ms_security.DTOs.ValidationErrorType;
 import com.jmmg.ms_security.DTOs.ValidationResult;
 import com.jmmg.ms_security.models.Permission;
-import com.jmmg.ms_security.models.Role;
-import com.jmmg.ms_security.models.RolePermission;
 import com.jmmg.ms_security.models.User;
 import com.jmmg.ms_security.models.UserRole;
 import com.jmmg.ms_security.repositories.IPermissionRepository;
@@ -140,15 +139,18 @@ public class ValidatorService {
             return false; // URL/método no configurado, denegar acceso
         }
         
-        List<UserRole> userRoles = this.userRoleRepository.findByUserId(user.getId());
-        return userRoles.stream().anyMatch(userRole -> {
-            Role role = userRole.getRole();
-            if (role != null) {
-                RolePermission rolePermission = this.rolePermissionRepository
-                    .getRolePermission(role.getId(), permission.getId());
-                return rolePermission != null;
-            }
+        List<ObjectId> roleIds = this.userRoleRepository.findByUserId(user.getId()).stream()
+                .map(UserRole::getRole)
+                .filter(java.util.Objects::nonNull)
+                .map(role -> role.getId())
+                .filter(ObjectId::isValid)
+                .map(ObjectId::new)
+                .toList();
+
+        if (roleIds.isEmpty()) {
             return false;
-        });
+        }
+
+        return this.rolePermissionRepository.existsByRoleIdsAndPermissionId(roleIds, permission.getId());
     }
 }

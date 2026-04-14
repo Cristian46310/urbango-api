@@ -13,6 +13,11 @@ import com.jmmg.ms_security.repositories.IUserRepository;
 import com.jmmg.ms_security.repositories.IUserRoleRepository;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.LinkedHashSet;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class UserRoleService {
@@ -57,23 +62,45 @@ public class UserRoleService {
             return false;
         }
 
-        // Primero eliminamos todos los roles existentes del usuario
-        List<UserRole> existingRoles = this.userRoleRepository.findByUserId(assignRolesDTO.userId());
-        this.userRoleRepository.deleteAll(existingRoles);
+        Set<String> requestedRoleIds = assignRolesDTO.roleIds().stream()
+                .filter(roleId -> roleId != null && !roleId.isBlank())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (requestedRoleIds.isEmpty()) {
+            return false;
+        }
 
-        // Luego asignamos los nuevos roles
-        StringBuilder roleNames = new StringBuilder();
-        for (String roleId : assignRolesDTO.roleIds()) {
-            Role role = this.roleRepository.findById(roleId).orElse(null);
-            if (role != null) {
-                UserRole userRole = new UserRole(user, role);
-                this.userRoleRepository.save(userRole);
-                if (roleNames.length() > 0) {
-                    roleNames.append(", ");
-                }
-                roleNames.append(role.getName());
+        List<Role> requestedRoles = this.roleRepository.findAllById(requestedRoleIds);
+        if (requestedRoles.size() != requestedRoleIds.size()) {
+            return false;
+        }
+
+        Map<String, Role> requestedRolesById = requestedRoles.stream()
+                .collect(Collectors.toMap(Role::getId, Function.identity()));
+
+        List<UserRole> existingRoles = this.userRoleRepository.findByUserId(assignRolesDTO.userId());
+        Set<String> existingRoleIds = existingRoles.stream()
+                .map(UserRole::getRole)
+                .filter(java.util.Objects::nonNull)
+                .map(Role::getId)
+                .collect(Collectors.toSet());
+
+        List<UserRole> rolesToRemove = existingRoles.stream()
+                .filter(userRole -> userRole.getRole() == null || !requestedRoleIds.contains(userRole.getRole().getId()))
+                .collect(Collectors.toList());
+        if (!rolesToRemove.isEmpty()) {
+            this.userRoleRepository.deleteAll(rolesToRemove);
+        }
+
+        for (String roleId : requestedRoleIds) {
+            if (!existingRoleIds.contains(roleId)) {
+                Role role = requestedRolesById.get(roleId);
+                this.userRoleRepository.save(new UserRole(user, role));
             }
         }
+
+        String roleNames = requestedRoles.stream()
+                .map(Role::getName)
+                .collect(Collectors.joining(", "));
 
         // Construir y enviar notificación por email
         String emailContent = String.format(

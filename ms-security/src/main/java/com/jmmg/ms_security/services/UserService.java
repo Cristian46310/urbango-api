@@ -1,20 +1,28 @@
 package com.jmmg.ms_security.services;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.jmmg.ms_security.DTOs.Profile.GetProfileDTO;
+import com.jmmg.ms_security.DTOs.permission.GetPermissionDTO;
+import com.jmmg.ms_security.DTOs.user.GetUserDetailDTO;
+import com.jmmg.ms_security.DTOs.user.GetUserListDTO;
 import com.jmmg.ms_security.DTOs.user.GetUserDTO;
 import com.jmmg.ms_security.DTOs.user.PostUserDTO;
-import com.jmmg.ms_security.DTOs.user_role.UserRoleDTO;
-import com.jmmg.ms_security.models.GitHubAccount;
+import com.jmmg.ms_security.DTOs.user.RoleSummaryDTO;
+import com.jmmg.ms_security.models.Permission;
 import com.jmmg.ms_security.models.Profile;
+import com.jmmg.ms_security.models.RolePermission;
 import com.jmmg.ms_security.models.Session;
 import com.jmmg.ms_security.models.User;
 import com.jmmg.ms_security.models.UserRole;
-import com.jmmg.ms_security.repositories.IGitHubAccountRepository;
 import com.jmmg.ms_security.repositories.IProfileRepository;
+import com.jmmg.ms_security.repositories.IRolePermissionRepository;
 import com.jmmg.ms_security.repositories.ISessionRepository;
 import com.jmmg.ms_security.repositories.IUserRepository;
 import com.jmmg.ms_security.repositories.IUserRoleRepository;
@@ -31,7 +39,7 @@ public class UserService {
     @Autowired
     private IUserRoleRepository userRoleRepository;
     @Autowired
-    private IGitHubAccountRepository gitHubAccountRepository;
+    private IRolePermissionRepository rolePermissionRepository;
     @Autowired
     private EncryptionService encryptionService;
 
@@ -42,28 +50,50 @@ public class UserService {
         return GetUserDTO.fromModel(userRepository.save(newUser));
     }
 
-    public List<GetUserDTO> getAll() {
-        List<User> users = userRepository.findAll();
-        List<String> userIds = users.stream().map(User::getId).toList();
-        java.util.Map<String, GitHubAccount> gitHubAccountsByUserId = this.gitHubAccountRepository.findByUserIdIn(userIds)
-                .stream()
-                .collect(java.util.stream.Collectors.toMap(GitHubAccount::getUserId, account -> account));
-
-        return users.stream()
-                .map(user -> {
-                    List<UserRole> userRoles = userRoleRepository.findByUserId(user.getId());
-                    List<UserRoleDTO> roles = userRoles.stream()
-                            .map(UserRoleDTO::fromModel)
-                            .collect(java.util.stream.Collectors.toList());
-                    return GetUserDTO.fromModelWithGitHub(user, gitHubAccountsByUserId.get(user.getId()), roles);
-                })
-                .collect(java.util.stream.Collectors.toList());
+    public Page<GetUserListDTO> getAll(Pageable pageable) {
+        return this.userRepository.findAll(pageable)
+                .map(GetUserListDTO::fromModel);
     }
 
     public GetUserDTO getById(String id) {
         User user = userRepository.findById(id).orElse(null);
-        GitHubAccount gitHubAccount = user != null ? this.gitHubAccountRepository.findByUserId(user.getId()).orElse(null) : null;
-        return GetUserDTO.fromModelWithGitHub(user, gitHubAccount, null);
+        List<RoleSummaryDTO> roles = user != null ? this.getRoleSummariesByUserId(user.getId()) : null;
+        return GetUserDTO.fromModelWithRoles(user, roles);
+    }
+
+    public GetUserDetailDTO getDetailById(String id) {
+        User user = this.userRepository.findById(id).orElse(null);
+        if (user == null) {
+            return null;
+        }
+
+        Profile profile = this.profileRepository.findByUserId(user.getId()).orElse(null);
+        List<UserRole> userRoles = this.userRoleRepository.findByUserId(user.getId());
+
+        List<RoleSummaryDTO> roles = userRoles.stream()
+                .map(UserRole::getRole)
+                .filter(java.util.Objects::nonNull)
+            .map(RoleSummaryDTO::fromModel)
+                .collect(Collectors.toList());
+
+        List<GetPermissionDTO> permissions = userRoles.stream()
+                .map(UserRole::getRole)
+                .filter(java.util.Objects::nonNull)
+                .flatMap(role -> this.rolePermissionRepository.findByRoleId(role.getId()).stream())
+                .map(RolePermission::getPermission)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toMap(Permission::getId, permission -> permission, (existing, replacement) -> existing))
+                .values().stream()
+                .map(GetPermissionDTO::fromModel)
+                .collect(Collectors.toList());
+
+        return new GetUserDetailDTO(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                GetProfileDTO.fromModel(profile),
+                roles,
+                permissions);
     }
 
     public GetUserDTO update(String id, PostUserDTO newUser) {
@@ -72,10 +102,19 @@ public class UserService {
             user.updateFromDTO(newUser);
             user.setPassword(encryptionService.convertSHA256(newUser.password()));
             User savedUser = userRepository.save(user);
-            GitHubAccount gitHubAccount = this.gitHubAccountRepository.findByUserId(savedUser.getId()).orElse(null);
-            return GetUserDTO.fromModelWithGitHub(savedUser, gitHubAccount, null);
+            List<RoleSummaryDTO> roles = this.getRoleSummariesByUserId(savedUser.getId());
+            return GetUserDTO.fromModelWithRoles(savedUser, roles);
         }
         return null;
+    }
+
+    private List<RoleSummaryDTO> getRoleSummariesByUserId(String userId) {
+        List<UserRole> userRoles = this.userRoleRepository.findByUserId(userId);
+        return userRoles.stream()
+                .map(UserRole::getRole)
+                .filter(java.util.Objects::nonNull)
+                .map(RoleSummaryDTO::fromModel)
+                .collect(Collectors.toList());
     }
 
     public void delete(String id) {

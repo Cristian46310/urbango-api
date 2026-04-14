@@ -1,10 +1,17 @@
 package com.jmmg.ms_security.services;
 
+import com.jmmg.ms_security.DTOs.permission.GetPermissionDTO;
 import com.jmmg.ms_security.DTOs.Role.GetRoleDTO;
+import com.jmmg.ms_security.DTOs.Role.GetRoleListDTO;
 import com.jmmg.ms_security.DTOs.Role.PostRoleDTO;
+import com.jmmg.ms_security.models.RolePermission;
 import com.jmmg.ms_security.models.Role;
+import com.jmmg.ms_security.repositories.IRolePermissionRepository;
 import com.jmmg.ms_security.repositories.IRoleRepository;
+import com.jmmg.ms_security.repositories.IUserRoleRepository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -15,21 +22,25 @@ public class RoleService {
 
     @Autowired
     private IRoleRepository roleRepository;
+    @Autowired
+    private IRolePermissionRepository rolePermissionRepository;
+    @Autowired
+    private IUserRoleRepository userRoleRepository;
 
-    public List<GetRoleDTO> find() {
-        return this.roleRepository.findAll().stream().map(GetRoleDTO::fromModel)
-                .collect(java.util.stream.Collectors.toList());
+    public Page<GetRoleListDTO> find(Pageable pageable) {
+        return this.roleRepository.findAll(pageable)
+                .map(GetRoleListDTO::fromModel);
     }
 
     public GetRoleDTO findById(String id) {
         Role role = this.roleRepository.findById(id).orElse(null);
-        return GetRoleDTO.fromModel(role);
+        return this.toGetRoleDTO(role);
     }
 
     public GetRoleDTO create(PostRoleDTO postRoleDTO) {
         Role newRole = new Role(postRoleDTO);
         Role savedRole = this.roleRepository.save(newRole);
-        return GetRoleDTO.fromModel(savedRole);
+        return this.toGetRoleDTO(savedRole);
     }
 
     public GetRoleDTO update(String id, PostRoleDTO postRoleDTO) {
@@ -38,7 +49,7 @@ public class RoleService {
         if (actualRole != null) {
             actualRole.updateFromDTO(postRoleDTO);
             this.roleRepository.save(actualRole);
-            return GetRoleDTO.fromModel(actualRole);
+            return this.toGetRoleDTO(actualRole);
         } else {
             return null;
         }
@@ -46,8 +57,24 @@ public class RoleService {
 
     public void delete(String id) {
         Role theRole = this.roleRepository.findById(id).orElse(null);
-        if (theRole != null) {
+        boolean hasUserRoles = this.userRoleRepository.existsByRoleId(id);
+        if (theRole != null && !hasUserRoles) {
             this.roleRepository.delete(theRole);
         }
+    }
+
+    private GetRoleDTO toGetRoleDTO(Role role) {
+        if (role == null) {
+            return null;
+        }
+
+        List<GetPermissionDTO> permissions = this.rolePermissionRepository.findByRoleId(role.getId())
+                .stream()
+                .map(RolePermission::getPermission)
+                .filter(java.util.Objects::nonNull)
+                .map(GetPermissionDTO::fromModel)
+                .collect(java.util.stream.Collectors.toList());
+
+        return GetRoleDTO.fromModel(role, permissions);
     }
 }
