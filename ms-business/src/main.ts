@@ -24,9 +24,19 @@ async function bootstrap() {
     .setTitle('MS Business API')
     .setDescription('Documentacion de endpoints para rutas, paradas y nodos')
     .setVersion('1.0')
+    .addServer('http://localhost:3000', 'Local')
     .build();
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('docs', app, swaggerDocument);
+  SwaggerModule.setup('docs', app, swaggerDocument, {
+    swaggerOptions: {
+      persistAuthorization: true,
+      displayRequestDuration: true,
+      docExpansion: 'none',
+      tagsSorter: 'alpha',
+      operationsSorter: 'alpha',
+    },
+    customSiteTitle: 'MS Business API Docs',
+  });
 
   await app.listen(process.env.PORT ?? 3000);
 }
