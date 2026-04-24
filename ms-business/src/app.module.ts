@@ -15,13 +15,10 @@ import { NodeModule } from './node/node.module';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
-        url: config.get<string>('DATABASE_URL'),
+        url: config.get<string>('DB_URL'),
         autoLoadEntities: true,
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: false,
-        ssl: {
-          rejectUnauthorized: false,
-        },
+        synchronize: false, // Usaremos migraciones
       }),
     }),
     RouteModule,

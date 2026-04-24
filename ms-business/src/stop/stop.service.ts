@@ -1,26 +1,46 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateStopDto } from './dto/create-stop.dto';
 import { UpdateStopDto } from './dto/update-stop.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Stop } from './entities/stop.entity';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class StopService {
-  create(createStopDto: CreateStopDto) {
-    return 'This action adds a new stop';
+  constructor(
+    @InjectRepository(Stop)
+    private readonly stopRepository: Repository<Stop>,
+  ) {}
+  async create(createStopDto: CreateStopDto) {
+    const stop = this.stopRepository.create(createStopDto);
+    return await this.stopRepository.save(stop);
   }
 
-  findAll() {
-    return `This action returns all stop`;
+  async findAll() {
+    return await this.stopRepository.find();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} stop`;
+  async findOne(id: string) {
+    const stop = await this.stopRepository.findOne({ where: { id } });
+    if (!stop) {
+      throw new NotFoundException(`Stop with id ${id} not found`);
+    }
+    return stop;
   }
 
-  update(id: number, updateStopDto: UpdateStopDto) {
-    return `This action updates a #${id} stop`;
+  async update(id: string, updateStopDto: UpdateStopDto) {
+    const stop = await this.stopRepository.findOne({ where: { id } });
+    if (!stop) {
+      throw new NotFoundException(`Stop with id ${id} not found`);
+    }
+    return await this.stopRepository.update(id, updateStopDto);
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} stop`;
+  async remove(id: string) {
+    const stop = await this.stopRepository.findOne({ where: { id } });
+    if (!stop) {
+      throw new NotFoundException(`Stop with id ${id} not found`);
+    }
+    return await this.stopRepository.delete(id);
   }
 }

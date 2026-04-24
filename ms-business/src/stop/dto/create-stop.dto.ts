@@ -1,1 +1,3 @@
-export class CreateStopDto {}
+import { BaseStopDto } from './base-stop.dto';
+
+export class CreateStopDto extends BaseStopDto {}

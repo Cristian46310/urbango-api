@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { StopService } from './stop.service';
 import { CreateStopDto } from './dto/create-stop.dto';
 import { UpdateStopDto } from './dto/update-stop.dto';
@@ -8,27 +16,27 @@ export class StopController {
   constructor(private readonly stopService: StopService) {}
 
   @Post()
-  create(@Body() createStopDto: CreateStopDto) {
-    return this.stopService.create(createStopDto);
+  async create(@Body() createStopDto: CreateStopDto) {
+    return await this.stopService.create(createStopDto);
   }
 
   @Get()
-  findAll() {
-    return this.stopService.findAll();
+  async findAll() {
+    return await this.stopService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.stopService.findOne(+id);
+  async findOne(@Param('id') id: string) {
+    return await this.stopService.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateStopDto: UpdateStopDto) {
-    return this.stopService.update(+id, updateStopDto);
+  async update(@Param('id') id: string, @Body() updateStopDto: UpdateStopDto) {
+    return await this.stopService.update(id, updateStopDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.stopService.remove(+id);
+  async remove(@Param('id') id: string) {
+    return await this.stopService.remove(id);
   }
 }

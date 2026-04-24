@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { NodeService } from './node.service';
 import { CreateNodeDto } from './dto/create-node.dto';
 import { UpdateNodeDto } from './dto/update-node.dto';
@@ -7,28 +15,32 @@ import { UpdateNodeDto } from './dto/update-node.dto';
 export class NodeController {
   constructor(private readonly nodeService: NodeService) {}
 
-  @Post()
-  create(@Body() createNodeDto: CreateNodeDto) {
-    return this.nodeService.create(createNodeDto);
+  @Post('route/:routeId/stop/:stopId')
+  async create(
+    @Param('routeId') routeId: string,
+    @Param('stopId') stopId: string,
+    @Body() createNodeDto: CreateNodeDto,
+  ) {
+    return await this.nodeService.create(routeId, stopId, createNodeDto);
   }
 
   @Get()
-  findAll() {
-    return this.nodeService.findAll();
+  async findAll() {
+    return await this.nodeService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.nodeService.findOne(+id);
+  async findOne(@Param('id') id: string) {
+    return await this.nodeService.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateNodeDto: UpdateNodeDto) {
-    return this.nodeService.update(+id, updateNodeDto);
+  async update(@Param('id') id: string, @Body() updateNodeDto: UpdateNodeDto) {
+    return await this.nodeService.update(id, updateNodeDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.nodeService.remove(+id);
+  async remove(@Param('id') id: string) {
+    return await this.nodeService.remove(id);
   }
 }
