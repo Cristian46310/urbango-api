@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
@@ -20,6 +21,8 @@ import { CreateNodeDto } from './dto/create-node.dto';
 import { UpdateNodeDto } from './dto/update-node.dto';
 import { Node } from './entities/node.entity';
 import { ResponseNodeDto } from './dto/response-node.dto';
+import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { ResponseNodeListDto } from './dto/response-node-list.dto';
 
 @ApiTags('Nodes')
 @Controller('node')
@@ -41,9 +44,9 @@ export class NodeController {
 
   @Get()
   @ApiOperation({ summary: 'Listar todos los nodos' })
-  @ApiOkResponse({ type: ResponseNodeDto, isArray: true })
-  async findAll() {
-    return await this.nodeService.findAll();
+  @ApiOkResponse({ type: ResponseNodeListDto })
+  async findAll(@Query() paginationQuery: PaginationQueryDto) {
+    return await this.nodeService.findAll(paginationQuery);
   }
 
   @Get(':id')

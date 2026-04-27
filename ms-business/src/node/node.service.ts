@@ -7,6 +7,8 @@ import { Route } from 'src/route/entities/route.entity';
 import { Stop } from 'src/stop/entities/stop.entity';
 import { Node } from './entities/node.entity';
 import { ResponseNodeDto } from './dto/response-node.dto';
+import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { ResponseNodeListDto } from './dto/response-node-list.dto';
 
 @Injectable()
 export class NodeService {
@@ -49,13 +51,39 @@ export class NodeService {
     };
   }
 
-  async findAll(): Promise<ResponseNodeDto[]> {
-    const nodes = await this.nodeRepository.find({ relations: ['route', 'stop'] });
-    return nodes.map((node) => ({
-      order: node.order,
-      stopId: node.stop.id,
-      routeId: node.route.id,
-    }));
+  private buildPaginationMeta(page: number, limit: number, totalItems: number) {
+    const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+
+    return {
+      page,
+      limit,
+      totalItems,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    };
+  }
+
+  async findAll(
+    paginationQuery: PaginationQueryDto,
+  ): Promise<ResponseNodeListDto> {
+    const page = paginationQuery.page ?? 1;
+    const limit = paginationQuery.limit ?? 10;
+    const [nodes, totalItems] = await this.nodeRepository.findAndCount({
+      relations: ['route', 'stop'],
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return {
+      items: nodes.map((node) => ({
+        order: node.order,
+        stopId: node.stop.id,
+        routeId: node.route.id,
+      })),
+      meta: this.buildPaginationMeta(page, limit, totalItems),
+    };
   }
 
   async findOne(id: string): Promise<ResponseNodeDto> {

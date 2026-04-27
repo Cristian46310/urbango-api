@@ -7,6 +7,8 @@ import { Stop } from 'src/stop/entities/stop.entity';
 import { Node } from 'src/node/entities/node.entity';
 import { UpdateRouteNodesDto } from './dto/update-route-nodes.dto';
 import { ResponseRouteDto } from './dto/response-route.dto';
+import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { ResponseRouteListDto } from './dto/response-route-list.dto';
 import { ResponseStopDto } from 'src/stop/dto/response-stop.dto';
 
 @Injectable()
@@ -36,6 +38,19 @@ export class RouteService {
           createdAt: node.stop.createdAt,
         })),
       createdAt: route.createdAt,
+    };
+  }
+
+  private buildPaginationMeta(page: number, limit: number, totalItems: number) {
+    const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+
+    return {
+      page,
+      limit,
+      totalItems,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
     };
   }
 
@@ -94,9 +109,22 @@ export class RouteService {
     return this.toResponseRouteDto(savedRoute);
   }
 
-  async findAll(): Promise<ResponseRouteDto[]> {
-    const routes = await this.routeRepository.find({ relations: ['nodes'] });
-    return routes.map((route) => this.toResponseRouteDto(route));
+  async findAll(
+    paginationQuery: PaginationQueryDto,
+  ): Promise<ResponseRouteListDto> {
+    const page = paginationQuery.page ?? 1;
+    const limit = paginationQuery.limit ?? 10;
+    const [routes, totalItems] = await this.routeRepository.findAndCount({
+      relations: ['nodes'],
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return {
+      items: routes.map((route) => this.toResponseRouteDto(route)),
+      meta: this.buildPaginationMeta(page, limit, totalItems),
+    };
   }
 
   async findOne(id: string): Promise<ResponseRouteDto> {

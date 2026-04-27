@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
@@ -19,6 +20,8 @@ import { StopService } from './stop.service';
 import { CreateStopDto } from './dto/create-stop.dto';
 import { UpdateStopDto } from './dto/update-stop.dto';
 import { ResponseStopDto } from './dto/response-stop.dto';
+import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { ResponseStopListDto } from './dto/response-stop-list.dto';
 
 @ApiTags('Stops')
 @Controller('stop')
@@ -34,9 +37,11 @@ export class StopController {
 
   @Get()
   @ApiOperation({ summary: 'Listar todas las paradas' })
-  @ApiOkResponse({ type: ResponseStopDto, isArray: true })
-  async findAll(): Promise<ResponseStopDto[]> {
-    return await this.stopService.findAll();
+  @ApiOkResponse({ type: ResponseStopListDto })
+  async findAll(
+    @Query() paginationQuery: PaginationQueryDto,
+  ): Promise<ResponseStopListDto> {
+    return await this.stopService.findAll(paginationQuery);
   }
 
   @Get(':id')
