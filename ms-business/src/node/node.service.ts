@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { Route } from 'src/route/entities/route.entity';
 import { Stop } from 'src/stop/entities/stop.entity';
 import { Node } from './entities/node.entity';
+import { ResponseNodeDto } from './dto/response-node.dto';
 
 @Injectable()
 export class NodeService {
@@ -18,7 +19,11 @@ export class NodeService {
     private readonly stopRepository: Repository<Stop>,
   ) {}
 
-  async create(routeId: string, stopId: string, createNodeDto: CreateNodeDto) {
+  async create(
+    routeId: string,
+    stopId: string,
+    createNodeDto: CreateNodeDto,
+  ): Promise<ResponseNodeDto> {
     const route = await this.routeRepository.findOne({
       where: { id: routeId },
     });
@@ -36,30 +41,65 @@ export class NodeService {
       stop: stop,
       order: createNodeDto.order,
     });
-
-    return await this.nodeRepository.save(node);
+    const savedNode = await this.nodeRepository.save(node);
+    return {
+      order: savedNode.order,
+      stopId: savedNode.stop.id,
+      routeId: savedNode.route.id,
+    };
   }
 
-  async findAll() {
-    return await this.nodeRepository.find();
+  async findAll(): Promise<ResponseNodeDto[]> {
+    const nodes = await this.nodeRepository.find({ relations: ['route', 'stop'] });
+    return nodes.map((node) => ({
+      order: node.order,
+      stopId: node.stop.id,
+      routeId: node.route.id,
+    }));
   }
 
-  async findOne(id: string) {
-    const node = await this.nodeRepository.findOne({ where: { id } });
+  async findOne(id: string): Promise<ResponseNodeDto> {
+    const node = await this.nodeRepository.findOne({ where: { id }, relations: ['route', 'stop'] });
     if (!node) {
       throw new NotFoundException(`Node with id ${id} not found`);
     }
-    return node;
+    return {
+      order: node.order,
+      stopId: node.stop.id,
+      routeId: node.route.id,
+    };
   }
 
-  async update(id: string, updateNodeDto: UpdateNodeDto) {
-    const node = await this.findOne(id);
-    Object.assign(node, updateNodeDto);
-    return await this.nodeRepository.save(node);
+  async update(
+    id: string,
+    updateNodeDto: UpdateNodeDto,
+  ): Promise<ResponseNodeDto> {
+    const node = await this.nodeRepository.preload({ id, ...updateNodeDto });
+    if (!node) {
+      throw new NotFoundException(`Node with id ${id} not found`);
+    }
+    if (updateNodeDto.order !== undefined) {
+      node.order = updateNodeDto.order;
+    }
+    const updatedNode = await this.nodeRepository.save(node);
+    // Reload with relations to ensure route is loaded
+    const nodeWithRelations = await this.nodeRepository.findOne({ where: { id: updatedNode.id }, relations: ['route', 'stop'] });
+    if (!nodeWithRelations) {
+      throw new NotFoundException(`Node with id ${id} not found`);
+    }
+    return {
+      order: nodeWithRelations.order,
+      stopId: nodeWithRelations.stop.id,
+      routeId: nodeWithRelations.route.id,
+    };
   }
 
-  async remove(id: string) {
+  async remove(id: string): Promise<void> {
     const node = await this.findOne(id);
-    return await this.nodeRepository.remove(node);
+    if (!node) {
+      throw new NotFoundException(`Node with id ${id} not found`);
+    }
+    await this.nodeRepository.delete(id);
+    return;
   }
 }

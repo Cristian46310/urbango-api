@@ -6,6 +6,8 @@ import { CreateRouteNodesDto } from './dto/create-route-nodes.dto';
 import { Stop } from 'src/stop/entities/stop.entity';
 import { Node } from 'src/node/entities/node.entity';
 import { UpdateRouteNodesDto } from './dto/update-route-nodes.dto';
+import { ResponseRouteDto } from './dto/response-route.dto';
+import { ResponseStopDto } from 'src/stop/dto/response-stop.dto';
 
 @Injectable()
 export class RouteService {
@@ -17,7 +19,27 @@ export class RouteService {
     @InjectRepository(Stop)
     private readonly stopRepository: Repository<Stop>,
   ) {}
-  async create(createRouteDto: CreateRouteNodesDto) {
+
+  private toResponseRouteDto(route: Route): ResponseRouteDto {
+    return {
+      id: route.id,
+      name: route.name,
+      description: route.description,
+      price: route.price,
+      stops: (route.nodes ?? [])
+        .slice()
+        .sort((left, right) => left.order - right.order)
+        .map((node): ResponseStopDto => ({
+          id: node.stop.id,
+          name: node.stop.name,
+          location: node.stop.location,
+          createdAt: node.stop.createdAt,
+        })),
+      createdAt: route.createdAt,
+    };
+  }
+
+  async create(createRouteDto: CreateRouteNodesDto): Promise<ResponseRouteDto> {
     const { name, description, price, nodes } = createRouteDto;
 
     // 1. Crear la ruta primero
@@ -59,20 +81,25 @@ export class RouteService {
       await this.nodeRepository.save(createdNodes);
 
       // Cargar la ruta con sus nodos ordenados
-      return await this.routeRepository.findOne({
+      const createdRoute = await this.routeRepository.findOne({
         where: { id: savedRoute.id },
         relations: ['nodes'],
       });
+      if (!createdRoute) {
+        throw new BadRequestException('Ruta no encontrada');
+      }
+      return this.toResponseRouteDto(createdRoute);
     }
 
-    return savedRoute;
+    return this.toResponseRouteDto(savedRoute);
   }
 
-  async findAll() {
-    return await this.routeRepository.find({ relations: ['nodes'] });
+  async findAll(): Promise<ResponseRouteDto[]> {
+    const routes = await this.routeRepository.find({ relations: ['nodes'] });
+    return routes.map((route) => this.toResponseRouteDto(route));
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<ResponseRouteDto> {
     const route = await this.routeRepository.findOne({
       where: { id },
       relations: ['nodes'],
@@ -80,10 +107,13 @@ export class RouteService {
     if (!route) {
       throw new BadRequestException('Ruta no encontrada');
     }
-    return route;
+    return this.toResponseRouteDto(route);
   }
 
-  async update(id: string, updateRouteDto: UpdateRouteNodesDto) {
+  async update(
+    id: string,
+    updateRouteDto: UpdateRouteNodesDto,
+  ): Promise<ResponseRouteDto> {
     // 1. Validar que la ruta existe
     const route = await this.routeRepository.findOne({ where: { id } });
     if (!route) {
@@ -144,10 +174,14 @@ export class RouteService {
     }
 
     // 5. Retornar la ruta actualizada con sus nodos
-    return await this.routeRepository.findOne({
+    const updatedRoute = await this.routeRepository.findOne({
       where: { id },
       relations: ['nodes'],
     });
+    if (!updatedRoute) {
+      throw new BadRequestException('Ruta no encontrada');
+    }
+    return this.toResponseRouteDto(updatedRoute);
   }
 
   async remove(id: string) {

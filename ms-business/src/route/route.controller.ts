@@ -18,7 +18,7 @@ import {
 import { RouteService } from './route.service';
 import { UpdateRouteDto } from './dto/update-route.dto';
 import { CreateRouteNodesDto } from './dto/create-route-nodes.dto';
-import { Route } from './entities/route.entity';
+import { ResponseRouteDto } from './dto/response-route.dto';
 
 @ApiTags('Routes')
 @Controller('route')
@@ -27,14 +27,14 @@ export class RouteController {
 
   @Post()
   @ApiOperation({ summary: 'Crear una ruta' })
-  @ApiCreatedResponse({ type: Route })
+  @ApiCreatedResponse({ type: ResponseRouteDto })
   async create(@Body() createRouteDto: CreateRouteNodesDto) {
     return await this.routeService.create(createRouteDto);
   }
 
   @Get()
   @ApiOperation({ summary: 'Listar todas las rutas' })
-  @ApiOkResponse({ type: Route, isArray: true })
+  @ApiOkResponse({ type: ResponseRouteDto, isArray: true })
   async findAll() {
     return await this.routeService.findAll();
   }
@@ -42,7 +42,7 @@ export class RouteController {
   @Get(':id')
   @ApiOperation({ summary: 'Obtener una ruta por id' })
   @ApiParam({ name: 'id', description: 'Id de la ruta', format: 'uuid' })
-  @ApiOkResponse({ type: Route })
+  @ApiOkResponse({ type: ResponseRouteDto })
   async findOne(@Param('id') id: string) {
     return await this.routeService.findOne(id);
   }
@@ -50,7 +50,7 @@ export class RouteController {
   @Patch(':id')
   @ApiOperation({ summary: 'Actualizar una ruta por id' })
   @ApiParam({ name: 'id', description: 'Id de la ruta', format: 'uuid' })
-  @ApiOkResponse({ type: Route })
+  @ApiOkResponse({ type: ResponseRouteDto })
   async update(
     @Param('id') id: string,
     @Body() updateRouteDto: UpdateRouteDto,
