@@ -11,7 +11,7 @@ import {
 import { PaymentMethodService } from './payment-method.service';
 import { CreatePaymentMethodDto } from './dto/create-payment-method.dto';
 import { UpdatePaymentMethodDto } from './dto/update-payment-method.dto';
-import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 
 @ApiTags('payment-method')

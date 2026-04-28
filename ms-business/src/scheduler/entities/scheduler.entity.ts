@@ -6,28 +6,28 @@ import {
   Column,
   CreateDateColumn,
 } from 'typeorm';
-import { Bus } from 'src/bus/entities/bus.entity';
-import { Route } from 'src/route/entities/route.entity';
+import { Bus } from '@/bus/entities/bus.entity';
+import { Route } from '@/route/entities/route.entity';
 
 @Entity({ name: 'schedulers' })
 export class Scheduler {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @ManyToOne(() => Bus, { nullable: false })
   @JoinColumn({ name: 'bus_id' })
-  bus: Bus;
+  bus!: Bus;
 
   @ManyToOne(() => Route, { nullable: false })
   @JoinColumn({ name: 'route_id' })
-  route: Route;
+  route!: Route;
 
   @Column({ type: 'timestamp with time zone' })
-  startTime: Date;
+  startTime!: Date;
 
   @Column({ type: 'timestamp with time zone' })
-  endTime: Date;
+  endTime!: Date;
 
   @CreateDateColumn({ type: 'timestamp with time zone' })
-  createdAt: Date;
+  createdAt!: Date;
 }

@@ -8,12 +8,12 @@ import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Ticket } from './entities/ticket.entity';
-import { Citizen } from 'src/citizen/entities/citizen.entity';
-import { PaymentMethodCitizen } from 'src/payment-method-citizen/entities/payment-method-citizen.entity';
-import { Scheduler } from 'src/scheduler/entities/scheduler.entity';
+import { Citizen } from '@/citizen/entities/citizen.entity';
+import { PaymentMethodCitizen } from '@/payment-method-citizen/entities/payment-method-citizen.entity';
+import { Scheduler } from '@/scheduler/entities/scheduler.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponseTicketDto } from './dto/response-ticket.dto';
-import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 
 @Injectable()
 export class TicketService {

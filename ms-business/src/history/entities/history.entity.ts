@@ -6,8 +6,8 @@ import {
   CreateDateColumn,
   Index,
 } from 'typeorm';
-import { Node } from 'src/node/entities/node.entity';
-import { Ticket } from 'src/ticket/entities/ticket.entity';
+import { Node } from '@/node/entities/node.entity';
+import { Ticket } from '@/ticket/entities/ticket.entity';
 
 @Entity('histories')
 @Index(['ticket', 'order'], { unique: true })

@@ -5,7 +5,7 @@ import {
   CreateDateColumn,
   OneToMany,
 } from 'typeorm';
-import { Bus } from 'src/bus/entities/bus.entity';
+import { Bus } from '@/bus/entities/bus.entity';
 
 @Entity('enterprises')
 export class Enterprise {

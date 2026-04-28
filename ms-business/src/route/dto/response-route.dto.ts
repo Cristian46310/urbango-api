@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ResponseStopDto } from 'src/stop/dto/response-stop.dto';
+import { ResponseStopDto } from '@/stop/dto/response-stop.dto';
 
 export class ResponseRouteDto {
   @ApiProperty()

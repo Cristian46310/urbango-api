@@ -1,4 +1,4 @@
-import { Enterprise } from 'src/enterprise/entities/enterprise.entity';
+import { Enterprise } from '@/enterprise/entities/enterprise.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -7,8 +7,8 @@ import {
   ManyToOne,
   OneToMany,
 } from 'typeorm';
-import { Turn } from 'src/turn/entities/turn.entity';
-import { Scheduler } from 'src/scheduler/entities/scheduler.entity';
+import { Turn } from '@/turn/entities/turn.entity';
+import { Scheduler } from '@/scheduler/entities/scheduler.entity';
 
 @Entity('buses')
 export class Bus {

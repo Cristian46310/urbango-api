@@ -8,11 +8,11 @@ import { UpdateTurnDto } from './dto/update-turn.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Turn } from './entities/turn.entity';
-import { Bus } from 'src/bus/entities/bus.entity';
-import { Driver } from 'src/driver/entities/driver.entity';
+import { Bus } from '@/bus/entities/bus.entity';
+import { Driver } from '@/driver/entities/driver.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponseTurnDto } from './dto/response-turn.dto';
-import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 
 @Injectable()
 export class TurnService {

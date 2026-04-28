@@ -6,7 +6,7 @@ import { Repository } from 'typeorm';
 import { Driver } from './entities/driver.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponseDriverDto } from './dto/response-driver.dto';
-import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 
 @Injectable()
 export class DriverService {

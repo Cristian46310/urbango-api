@@ -6,7 +6,7 @@ import { UpdateAddressDto } from './dto/update-address.dto';
 import { Address } from './entities/address.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponseAddressDto } from './dto/response-address.dto';
-import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponseAddressListDto } from './dto/response-address-list.dto';
 
 @Injectable()

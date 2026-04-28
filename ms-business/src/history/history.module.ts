@@ -3,12 +3,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { HistoryService } from './history.service';
 import { HistoryController } from './history.controller';
 import { History } from './entities/history.entity';
-import { Ticket } from 'src/ticket/entities/ticket.entity';
-import { Node } from 'src/node/entities/node.entity';
-import { Turn } from 'src/turn/entities/turn.entity';
-import { Bus } from 'src/bus/entities/bus.entity';
-import { Driver } from 'src/driver/entities/driver.entity';
-import { Scheduler } from 'src/scheduler/entities/scheduler.entity';
+import { Ticket } from '@/ticket/entities/ticket.entity';
+import { Node } from '@/node/entities/node.entity';
+import { Turn } from '@/turn/entities/turn.entity';
+import { Bus } from '@/bus/entities/bus.entity';
+import { Driver } from '@/driver/entities/driver.entity';
+import { Scheduler } from '@/scheduler/entities/scheduler.entity';
 
 @Module({
   imports: [

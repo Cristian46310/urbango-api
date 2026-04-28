@@ -8,10 +8,10 @@ import { UpdateCitizenDto } from './dto/update-citizen.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Citizen } from './entities/citizen.entity';
-import { Address } from 'src/address/entities/address.entity';
+import { Address } from '@/address/entities/address.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponseCitizenDto } from './dto/response-citizen.dto';
-import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 
 @Injectable()
 export class CitizenService {

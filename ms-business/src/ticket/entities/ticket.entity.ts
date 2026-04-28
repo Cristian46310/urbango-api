@@ -6,10 +6,10 @@ import {
   Column,
   CreateDateColumn,
 } from 'typeorm';
-import { Citizen } from 'src/citizen/entities/citizen.entity';
-import { PaymentMethodCitizen } from 'src/payment-method-citizen/entities/payment-method-citizen.entity';
-import { Scheduler } from 'src/scheduler/entities/scheduler.entity';
-import { History } from 'src/history/entities/history.entity';
+import { Citizen } from '@/citizen/entities/citizen.entity';
+import { PaymentMethodCitizen } from '@/payment-method-citizen/entities/payment-method-citizen.entity';
+import { Scheduler } from '@/scheduler/entities/scheduler.entity';
+import { History } from '@/history/entities/history.entity';
 
 @Entity('tickets')
 export class Ticket {

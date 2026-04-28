@@ -21,7 +21,7 @@ import { CreateNodeDto } from './dto/create-node.dto';
 import { UpdateNodeDto } from './dto/update-node.dto';
 import { Node } from './entities/node.entity';
 import { ResponseNodeDto } from './dto/response-node.dto';
-import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponseNodeListDto } from './dto/response-node-list.dto';
 
 @ApiTags('Nodes')

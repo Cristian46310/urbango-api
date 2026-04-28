@@ -3,11 +3,11 @@ import { CreateNodeDto } from './dto/create-node.dto';
 import { UpdateNodeDto } from './dto/update-node.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Route } from 'src/route/entities/route.entity';
-import { Stop } from 'src/stop/entities/stop.entity';
+import { Route } from '@/route/entities/route.entity';
+import { Stop } from '@/stop/entities/stop.entity';
 import { Node } from './entities/node.entity';
 import { ResponseNodeDto } from './dto/response-node.dto';
-import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponseNodeListDto } from './dto/response-node-list.dto';
 
 @Injectable()

@@ -10,7 +10,7 @@ import { Repository } from 'typeorm';
 import { Enterprise } from './entities/enterprise.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponseEnterpriseDto } from './dto/response-enterprise.dto';
-import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponseEnterpriseListDto } from './dto/response-enterprise-list.dto';
 
 @Injectable()

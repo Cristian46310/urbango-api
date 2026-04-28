@@ -5,22 +5,22 @@ import {
   JoinColumn,
   CreateDateColumn,
 } from 'typeorm';
-import { Citizen } from 'src/citizen/entities/citizen.entity';
-import { PaymentMethod } from 'src/payment-method/entities/payment-method.entity';
+import { Citizen } from '@/citizen/entities/citizen.entity';
+import { PaymentMethod } from '@/payment-method/entities/payment-method.entity';
 
 @Entity({ name: 'payment_method_citizens' })
 export class PaymentMethodCitizen {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @ManyToOne(() => Citizen, { nullable: false })
   @JoinColumn({ name: 'citizen_id' })
-  citizen: Citizen;
+  citizen!: Citizen;
 
   @ManyToOne(() => PaymentMethod, { nullable: false })
   @JoinColumn({ name: 'payment_method_id' })
-  paymentMethod: PaymentMethod;
+  paymentMethod!: PaymentMethod;
 
   @CreateDateColumn({ type: 'timestamp with time zone' })
-  createdAt: Date;
+  createdAt!: Date;
 }

@@ -8,10 +8,10 @@ import { UpdateBusDto } from './dto/update-bus.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Bus } from './entities/bus.entity';
-import { Enterprise } from 'src/enterprise/entities/enterprise.entity';
+import { Enterprise } from '@/enterprise/entities/enterprise.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponseBusDto } from './dto/response-bus.dto';
-import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponseBusListDto } from './dto/response-bus-list.dto';
 
 @Injectable()

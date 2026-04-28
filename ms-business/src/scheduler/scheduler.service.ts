@@ -8,11 +8,11 @@ import { Repository } from 'typeorm';
 import { CreateSchedulerDto } from './dto/create-scheduler.dto';
 import { UpdateSchedulerDto } from './dto/update-scheduler.dto';
 import { Scheduler } from './entities/scheduler.entity';
-import { Bus } from 'src/bus/entities/bus.entity';
-import { Route } from 'src/route/entities/route.entity';
+import { Bus } from '@/bus/entities/bus.entity';
+import { Route } from '@/route/entities/route.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponseSchedulerDto } from './dto/response-scheduler.dto';
-import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponseSchedulerListDto } from './dto/response-scheduler-list.dto';
 
 @Injectable()

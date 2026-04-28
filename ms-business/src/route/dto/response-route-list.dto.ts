@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { PaginationMetaDto } from 'src/shared/dto/pagination-meta.dto';
+import { PaginationMetaDto } from '@/shared/dto/pagination-meta.dto';
 import { ResponseRouteDto } from './response-route.dto';
 
 export class ResponseRouteListDto {

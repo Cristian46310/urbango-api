@@ -19,7 +19,7 @@ import {
   ApiCreatedResponse,
 } from '@nestjs/swagger';
 import { ResponseTripDetailsDto } from './dto/response-trip-details.dto';
-import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponseHistoryDto } from './dto/response-history.dto';
 import { ResponseHistoryListDto } from './dto/response-history-list.dto';
 

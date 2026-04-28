@@ -8,11 +8,11 @@ import { Repository } from 'typeorm';
 import { CreatePaymentMethodCitizenDto } from './dto/create-payment-method-citizen.dto';
 import { UpdatePaymentMethodCitizenDto } from './dto/update-payment-method-citizen.dto';
 import { PaymentMethodCitizen } from './entities/payment-method-citizen.entity';
-import { Citizen } from 'src/citizen/entities/citizen.entity';
-import { PaymentMethod } from 'src/payment-method/entities/payment-method.entity';
+import { Citizen } from '@/citizen/entities/citizen.entity';
+import { PaymentMethod } from '@/payment-method/entities/payment-method.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponsePaymentMethodCitizenDto } from './dto/response-payment-method-citizen.dto';
-import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponsePaymentMethodCitizenListDto } from './dto/response-payment-method-citizen-list.dto';
 
 @Injectable()

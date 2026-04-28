@@ -20,7 +20,7 @@ import { StopService } from './stop.service';
 import { CreateStopDto } from './dto/create-stop.dto';
 import { UpdateStopDto } from './dto/update-stop.dto';
 import { ResponseStopDto } from './dto/response-stop.dto';
-import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponseStopListDto } from './dto/response-stop-list.dto';
 
 @ApiTags('Stops')

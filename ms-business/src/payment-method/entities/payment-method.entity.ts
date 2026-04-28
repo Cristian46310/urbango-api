@@ -8,11 +8,11 @@ import {
 @Entity({ name: 'payment_methods' })
 export class PaymentMethod {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ type: 'varchar', length: 128 })
-  name: string;
+  name!: string;
 
   @CreateDateColumn({ type: 'timestamp with time zone' })
-  createdAt: Date;
+  createdAt!: Date;
 }

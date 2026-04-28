@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { BaseNodeDto } from 'src/node/dto/base-node.dto';
+import { BaseNodeDto } from '@/node/dto/base-node.dto';
 import { IsArray, IsOptional, ValidateNested } from 'class-validator';
 import { CreateRouteDto } from './create-route.dto';
 

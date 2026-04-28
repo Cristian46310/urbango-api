@@ -1,8 +1,8 @@
 import { ChildEntity, ManyToOne, OneToMany, Column } from 'typeorm';
-import { Person } from 'src/shared/entities/person.entitie';
-import { Address } from 'src/address/entities/address.entity';
-import { Ticket } from 'src/ticket/entities/ticket.entity';
-import { PaymentMethodCitizen } from 'src/payment-method-citizen/entities/payment-method-citizen.entity';
+import { Person } from '@/shared/entities/person.entitie';
+import { Address } from '@/address/entities/address.entity';
+import { Ticket } from '@/ticket/entities/ticket.entity';
+import { PaymentMethodCitizen } from '@/payment-method-citizen/entities/payment-method-citizen.entity';
 
 @ChildEntity('citizen')
 export class Citizen extends Person {

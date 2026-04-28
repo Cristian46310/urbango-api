@@ -13,7 +13,7 @@ Esto creará un archivo llamado `bus.entity.ts` en la carpeta `src/entities`.
 Para crear las migraciones, puedes utilizar el comando `npx typeorm migration:generate <nombre-de-la-migración>`. Por ejemplo:
 
 ```bash
-npx typeorm migration:generate ./src/migrations/InitCinemaSchema -d ./typeorm.config.ts
+npx typeorm-ts-node-commonjs migration:generate ./src/migrations/InitCinemaSchema -d ./typeorm.config.ts
 ```
 
 Esto creará un archivo llamado `init-cinema-schema.ts` en la carpeta `src/migrations`.
@@ -23,7 +23,7 @@ Esto creará un archivo llamado `init-cinema-schema.ts` en la carpeta `src/migra
 Para realizar las migraciones, puedes utilizar el comando `npx typeorm migration:run`. Por ejemplo:
 
 ```bash
-npx typeorm migration:run -d ./typeorm.config.ts
+npx typeorm-ts-node-commonjs migration:run -d ./typeorm.config.ts
 ```
 
 Esto aplicará las migraciones creadas anteriormente a la base de datos.

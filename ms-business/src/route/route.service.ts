@@ -3,13 +3,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Route } from './entities/route.entity';
 import { In, Repository } from 'typeorm';
 import { CreateRouteNodesDto } from './dto/create-route-nodes.dto';
-import { Stop } from 'src/stop/entities/stop.entity';
-import { Node } from 'src/node/entities/node.entity';
+import { Stop } from '@/stop/entities/stop.entity';
+import { Node } from '@/node/entities/node.entity';
 import { UpdateRouteNodesDto } from './dto/update-route-nodes.dto';
 import { ResponseRouteDto } from './dto/response-route.dto';
-import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponseRouteListDto } from './dto/response-route-list.dto';
-import { ResponseStopDto } from 'src/stop/dto/response-stop.dto';
+import { ResponseStopDto } from '@/stop/dto/response-stop.dto';
 
 @Injectable()
 export class RouteService {

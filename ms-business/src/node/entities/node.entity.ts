@@ -1,5 +1,5 @@
-import { Route } from '../../route/entities/route.entity';
-import { Stop } from '../../stop/entities/stop.entity';
+import { Route } from '@/route/entities/route.entity';
+import { Stop } from '@/stop/entities/stop.entity';
 import {
   Column,
   CreateDateColumn,

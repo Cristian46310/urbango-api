@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ResponseBusDto } from 'src/bus/dto/response-bus.dto';
-import { ResponseRouteDto } from 'src/route/dto/response-route.dto';
+import { ResponseBusDto } from '@/bus/dto/response-bus.dto';
+import { ResponseRouteDto } from '@/route/dto/response-route.dto';
 
 export class ResponseSchedulerDto {
   @ApiProperty()

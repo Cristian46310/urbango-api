@@ -6,7 +6,7 @@ import { UpdatePaymentMethodDto } from './dto/update-payment-method.dto';
 import { PaymentMethod } from './entities/payment-method.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponsePaymentMethodDto } from './dto/response-payment-method.dto';
-import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponsePaymentMethodListDto } from './dto/response-payment-method-list.dto';
 
 @Injectable()

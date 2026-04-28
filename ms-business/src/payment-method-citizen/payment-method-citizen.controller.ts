@@ -11,7 +11,7 @@ import {
 import { PaymentMethodCitizenService } from './payment-method-citizen.service';
 import { CreatePaymentMethodCitizenDto } from './dto/create-payment-method-citizen.dto';
 import { UpdatePaymentMethodCitizenDto } from './dto/update-payment-method-citizen.dto';
-import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 
 @ApiTags('payment-method-citizen')

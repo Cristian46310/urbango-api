@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ResponsePaymentMethodDto } from 'src/payment-method/dto/response-payment-method.dto';
-import { ResponseCitizenDto } from 'src/citizen/dto/response-citizen.dto';
+import { ResponsePaymentMethodDto } from '@/payment-method/dto/response-payment-method.dto';
+import { ResponseCitizenDto } from '@/citizen/dto/response-citizen.dto';
 
 export class ResponsePaymentMethodCitizenDto {
   @ApiProperty()

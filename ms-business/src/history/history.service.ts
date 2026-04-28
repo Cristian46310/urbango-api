@@ -8,15 +8,15 @@ import { UpdateHistoryDto } from './dto/update-history.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 import { History } from './entities/history.entity';
-import { Ticket } from 'src/ticket/entities/ticket.entity';
-import { Turn } from 'src/turn/entities/turn.entity';
-import { Bus } from 'src/bus/entities/bus.entity';
-import { Driver } from 'src/driver/entities/driver.entity';
-import { Node } from 'src/node/entities/node.entity';
+import { Ticket } from '@/ticket/entities/ticket.entity';
+import { Turn } from '@/turn/entities/turn.entity';
+import { Bus } from '@/bus/entities/bus.entity';
+import { Driver } from '@/driver/entities/driver.entity';
+import { Node } from '@/node/entities/node.entity';
 import { ResponseTripDetailsDto } from './dto/response-trip-details.dto';
 import { plainToInstance } from 'class-transformer';
 import { ResponseHistoryDto } from './dto/response-history.dto';
-import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 
 @Injectable()
 export class HistoryService {
