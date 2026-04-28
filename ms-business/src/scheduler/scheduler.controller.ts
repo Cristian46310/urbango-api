@@ -12,7 +12,15 @@ import { SchedulerService } from './scheduler.service';
 import { CreateSchedulerDto } from './dto/create-scheduler.dto';
 import { UpdateSchedulerDto } from './dto/update-scheduler.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiNotFoundResponse,
+} from '@nestjs/swagger';
+import { ResponseSchedulerDto } from './dto/response-scheduler.dto';
+import { ResponseSchedulerListDto } from './dto/response-scheduler-list.dto';
 
 @ApiTags('scheduler')
 @Controller('scheduler')
@@ -21,17 +29,21 @@ export class SchedulerController {
 
   @Post()
   @ApiOperation({ summary: 'Create scheduler' })
+  @ApiCreatedResponse({ type: ResponseSchedulerDto })
   create(@Body() createSchedulerDto: CreateSchedulerDto) {
     return this.schedulerService.create(createSchedulerDto);
   }
 
   @Get()
   @ApiOperation({ summary: 'List schedulers (paginated)' })
+  @ApiOkResponse({ type: ResponseSchedulerListDto })
   findAll(@Query() pagination: PaginationQueryDto) {
     return this.schedulerService.findAll(pagination);
   }
 
   @Get(':id')
+  @ApiOkResponse({ type: ResponseSchedulerDto })
+  @ApiNotFoundResponse({ description: 'Scheduler not found' })
   findOne(@Param('id') id: string) {
     return this.schedulerService.findOne(id);
   }

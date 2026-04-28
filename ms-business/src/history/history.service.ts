@@ -15,6 +15,13 @@ import { Driver } from '@/driver/entities/driver.entity';
 import { Node } from '@/node/entities/node.entity';
 import { ResponseTripDetailsDto } from './dto/response-trip-details.dto';
 import { plainToInstance } from 'class-transformer';
+import { ResponseRouteDto } from '@/route/dto/response-route.dto';
+import { ResponseBusDto } from '@/bus/dto/response-bus.dto';
+import { ResponseDriverDto } from '@/driver/dto/response-driver.dto';
+import { ResponseTurnDto } from '@/turn/dto/response-turn.dto';
+import { ResponseSchedulerDto } from '@/scheduler/dto/response-scheduler.dto';
+import { ResponseStopDto } from '@/stop/dto/response-stop.dto';
+import { CitizenSummaryDto } from './dto/citizen-summary.dto';
 import { ResponseHistoryDto } from './dto/response-history.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 
@@ -190,16 +197,16 @@ export class HistoryService {
       driver = turn?.driver ?? null;
     }
 
-    const response: ResponseTripDetailsDto = {
+    const response: ResponseTripDetailsDto = plainToInstance(ResponseTripDetailsDto, {
       tripId: ticket.id,
-      route: scheduler?.route ?? null,
-      bus: bus ?? null,
-      driver: driver ?? null,
-      turn: turn ?? null,
-      scheduler: scheduler ?? null,
+      route: scheduler?.route ? plainToInstance(ResponseRouteDto, scheduler.route) : null,
+      bus: bus ? plainToInstance(ResponseBusDto, bus) : null,
+      driver: driver ? plainToInstance(ResponseDriverDto, driver) : null,
+      turn: turn ? plainToInstance(ResponseTurnDto, turn) : null,
+      scheduler: scheduler ? plainToInstance(ResponseSchedulerDto, scheduler) : null,
       validations: histories.map((h) => ({
         order: h.order,
-        stop: h.node?.stop ?? null,
+        stop: h.node?.stop ? plainToInstance(ResponseStopDto, h.node!.stop) : null,
         validatedAt: h.createdAt,
         type:
           h.order === histories[0].order
@@ -209,12 +216,12 @@ export class HistoryService {
               : 'intermediate',
       })),
       totalTime: { minutes, formatted: `${minutes} min` },
-      citizen: {
+      citizen: plainToInstance(CitizenSummaryDto, {
         id: ticket.citizen?.id ?? '',
         name: ticket.citizen?.name ?? '',
         document: ticket.citizen?.document ?? undefined,
-      },
-    };
+      }),
+    });
 
     return response;
   }
