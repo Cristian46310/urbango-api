@@ -26,12 +26,6 @@ export class History {
   })
   ticket?: Ticket;
 
-  @Column({ type: 'decimal', nullable: true })
-  latitude?: number;
-
-  @Column({ type: 'decimal', nullable: true })
-  longitude?: number;
-
   @CreateDateColumn()
   createdAt!: Date;
 }

@@ -12,13 +12,5 @@ export class ResponseHistoryDto {
 
   @ApiProperty()
   @Expose()
-  latitude?: number;
-
-  @ApiProperty()
-  @Expose()
-  longitude?: number;
-
-  @ApiProperty()
-  @Expose()
   createdAt!: Date;
 }

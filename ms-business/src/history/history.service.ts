@@ -56,8 +56,6 @@ export class HistoryService {
         ? ({ id: createHistoryDto.nodeId } as Node)
         : undefined,
       order: createHistoryDto.order,
-      latitude: createHistoryDto.latitude,
-      longitude: createHistoryDto.longitude,
     };
     const hist = this.historyRepository.create(histData);
 
@@ -126,8 +124,6 @@ export class HistoryService {
         ? ({ id: updateHistoryDto.nodeId } as Node)
         : undefined,
       order: updateHistoryDto.order,
-      latitude: updateHistoryDto.latitude,
-      longitude: updateHistoryDto.longitude,
     };
     const hist = await this.historyRepository.preload(preloadData);
     if (!hist) throw new NotFoundException(`History ${id} not found`);
@@ -211,8 +207,6 @@ export class HistoryService {
             : h.order === histories[histories.length - 1].order
               ? 'alighting'
               : 'intermediate',
-        latitude: h.latitude,
-        longitude: h.longitude,
       })),
       totalTime: { minutes, formatted: `${minutes} min` },
       citizen: {

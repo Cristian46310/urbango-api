@@ -17,13 +17,4 @@ export class CreateHistoryDto {
   @IsNumber()
   order?: number;
 
-  @ApiProperty({ example: -12.12 })
-  @IsOptional()
-  @IsNumber()
-  latitude?: number;
-
-  @ApiProperty({ example: -34.34 })
-  @IsOptional()
-  @IsNumber()
-  longitude?: number;
 }
