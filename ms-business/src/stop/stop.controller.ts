@@ -56,7 +56,10 @@ export class StopController {
   @ApiOperation({ summary: 'Actualizar una parada por id' })
   @ApiParam({ name: 'id', description: 'Id de la parada', format: 'uuid' })
   @ApiOkResponse({ type: ResponseStopDto })
-  async update(@Param('id') id: string, @Body() updateStopDto: UpdateStopDto): Promise<ResponseStopDto> {
+  async update(
+    @Param('id') id: string,
+    @Body() updateStopDto: UpdateStopDto,
+  ): Promise<ResponseStopDto> {
     return await this.stopService.update(id, updateStopDto);
   }
 

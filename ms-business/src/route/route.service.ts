@@ -31,12 +31,14 @@ export class RouteService {
       stops: (route.nodes ?? [])
         .slice()
         .sort((left, right) => left.order - right.order)
-        .map((node): ResponseStopDto => ({
-          id: node.stop.id,
-          name: node.stop.name,
-          location: node.stop.location,
-          createdAt: node.stop.createdAt,
-        })),
+        .map(
+          (node): ResponseStopDto => ({
+            id: node.stop.id,
+            name: node.stop.name,
+            location: node.stop.location,
+            createdAt: node.stop.createdAt,
+          }),
+        ),
       createdAt: route.createdAt,
     };
   }

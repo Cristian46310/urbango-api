@@ -17,7 +17,10 @@ export class StopService {
   ) {}
   async create(createStopDto: CreateStopDto): Promise<ResponseStopDto> {
     const stop = this.stopRepository.create(createStopDto);
-    return plainToInstance(ResponseStopDto, await this.stopRepository.save(stop));
+    return plainToInstance(
+      ResponseStopDto,
+      await this.stopRepository.save(stop),
+    );
   }
 
   private buildPaginationMeta(page: number, limit: number, totalItems: number) {
@@ -62,7 +65,7 @@ export class StopService {
     id: string,
     updateStopDto: UpdateStopDto,
   ): Promise<ResponseStopDto> {
-    const stop = await this.stopRepository.preload({id, ...updateStopDto});
+    const stop = await this.stopRepository.preload({ id, ...updateStopDto });
     if (!stop) {
       throw new NotFoundException(`Stop with id ${id} not found`);
     }

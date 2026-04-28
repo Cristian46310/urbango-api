@@ -87,7 +87,10 @@ export class NodeService {
   }
 
   async findOne(id: string): Promise<ResponseNodeDto> {
-    const node = await this.nodeRepository.findOne({ where: { id }, relations: ['route', 'stop'] });
+    const node = await this.nodeRepository.findOne({
+      where: { id },
+      relations: ['route', 'stop'],
+    });
     if (!node) {
       throw new NotFoundException(`Node with id ${id} not found`);
     }
@@ -111,7 +114,10 @@ export class NodeService {
     }
     const updatedNode = await this.nodeRepository.save(node);
     // Reload with relations to ensure route is loaded
-    const nodeWithRelations = await this.nodeRepository.findOne({ where: { id: updatedNode.id }, relations: ['route', 'stop'] });
+    const nodeWithRelations = await this.nodeRepository.findOne({
+      where: { id: updatedNode.id },
+      relations: ['route', 'stop'],
+    });
     if (!nodeWithRelations) {
       throw new NotFoundException(`Node with id ${id} not found`);
     }
