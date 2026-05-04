@@ -3,11 +3,11 @@ import { CreateNodeDto } from './dto/create-node.dto';
 import { UpdateNodeDto } from './dto/update-node.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Route } from 'src/route/entities/route.entity';
-import { Stop } from 'src/stop/entities/stop.entity';
+import { Route } from '@/route/entities/route.entity';
+import { Stop } from '@/stop/entities/stop.entity';
 import { Node } from './entities/node.entity';
 import { ResponseNodeDto } from './dto/response-node.dto';
-import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponseNodeListDto } from './dto/response-node-list.dto';
 
 @Injectable()
@@ -87,7 +87,10 @@ export class NodeService {
   }
 
   async findOne(id: string): Promise<ResponseNodeDto> {
-    const node = await this.nodeRepository.findOne({ where: { id }, relations: ['route', 'stop'] });
+    const node = await this.nodeRepository.findOne({
+      where: { id },
+      relations: ['route', 'stop'],
+    });
     if (!node) {
       throw new NotFoundException(`Node with id ${id} not found`);
     }
@@ -111,7 +114,10 @@ export class NodeService {
     }
     const updatedNode = await this.nodeRepository.save(node);
     // Reload with relations to ensure route is loaded
-    const nodeWithRelations = await this.nodeRepository.findOne({ where: { id: updatedNode.id }, relations: ['route', 'stop'] });
+    const nodeWithRelations = await this.nodeRepository.findOne({
+      where: { id: updatedNode.id },
+      relations: ['route', 'stop'],
+    });
     if (!nodeWithRelations) {
       throw new NotFoundException(`Node with id ${id} not found`);
     }

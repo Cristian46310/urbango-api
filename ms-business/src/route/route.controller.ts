@@ -20,7 +20,7 @@ import { RouteService } from './route.service';
 import { UpdateRouteDto } from './dto/update-route.dto';
 import { CreateRouteNodesDto } from './dto/create-route-nodes.dto';
 import { ResponseRouteDto } from './dto/response-route.dto';
-import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
+import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponseRouteListDto } from './dto/response-route-list.dto';
 
 @ApiTags('Routes')

@@ -1,4 +1,4 @@
-import { Node } from '../../node/entities/node.entity';
+import { Node } from '@/node/entities/node.entity';
 import {
   Column,
   CreateDateColumn,
