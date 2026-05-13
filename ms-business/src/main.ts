@@ -20,6 +20,12 @@ async function bootstrap() {
 
   app.useGlobalFilters(new HttpExceptionFilter());
 
+  // Habilitar CORS para que el frontend pueda consumir la API
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  });
+
   const swaggerConfig = new DocumentBuilder()
     .setTitle('MS Business API')
     .setDescription('Documentacion de endpoints para rutas, paradas y nodos')
