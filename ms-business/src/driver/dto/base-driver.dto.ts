@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsDateString } from 'class-validator';
+import { IsOptional, IsString, IsDateString, IsNotEmpty } from 'class-validator';
 
 export class BaseDriverDto {
   @ApiProperty({ example: 'Juan Perez' })
@@ -16,4 +16,9 @@ export class BaseDriverDto {
   @IsOptional()
   @IsDateString()
   licenseExpiry?: string;
+
+    @ApiProperty({ example: '12345678', description: 'Documento único' })
+    @IsNotEmpty()
+    @IsString()
+    document!: string;
 }
