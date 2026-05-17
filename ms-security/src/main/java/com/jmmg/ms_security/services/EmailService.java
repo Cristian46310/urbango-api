@@ -7,6 +7,7 @@ import org.springframework.web.client.RestTemplate;
 import com.jmmg.ms_security.DTOs.email.EmailSendBody;
 import com.jmmg.ms_security.DTOs.email.EmailSendResponse;
 import com.jmmg.ms_security.infra.config.EmailProperties;
+import com.jmmg.ms_security.infra.exception.NotPermitted;
 
 @Service
 public class EmailService {
@@ -26,11 +27,13 @@ public class EmailService {
             );
             
             if (response != null && !response.success()) {
-                System.err.println("Error al enviar email: " + response.error());
+                throw new NotPermitted("No fue posible enviar el correo solicitado.");
             }
         } catch (Exception e) {
-            System.err.println("Excepcion al enviar email: " + e.getMessage());
-            e.printStackTrace();
+            if (e instanceof NotPermitted notPermitted) {
+                throw notPermitted;
+            }
+            throw new NotPermitted("No fue posible enviar el correo solicitado.", e);
         }
     }
 }
