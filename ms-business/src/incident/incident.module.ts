@@ -11,6 +11,7 @@ import { Turn } from '@/turn/entities/turn.entity';
 import { Enterprise } from '@/enterprise/entities/enterprise.entity';
 import { IncidentStorageService } from './incident-storage.service';
 import { IncidentNotificationService } from './incident-notification.service';
+import { NotificationService } from './services/notification.service';
 import { Driver } from '@/driver/entities/driver.entity';
 import { AuthModule } from '@/auth/auth.module';
 import { SharedModule } from '@/shared/shared.module';
@@ -35,6 +36,7 @@ import { SharedModule } from '@/shared/shared.module';
     IncidentService,
     IncidentStorageService,
     IncidentNotificationService,
+    NotificationService,
   ],
 })
 export class IncidentModule {}

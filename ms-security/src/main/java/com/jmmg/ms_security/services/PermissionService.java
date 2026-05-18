@@ -1,8 +1,9 @@
 package com.jmmg.ms_security.services;
 
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.jmmg.ms_security.DTOs.permission.GetPermissionDTO;
@@ -13,8 +14,11 @@ import com.jmmg.ms_security.repositories.IPermissionRepository;
 @Service
 public class PermissionService {
 
-    @Autowired
-    private IPermissionRepository permissionRepository;
+    private final IPermissionRepository permissionRepository;
+
+    public PermissionService(IPermissionRepository permissionRepository) {
+        this.permissionRepository = permissionRepository;
+    }
 
     public Page<GetPermissionDTO> find(Pageable pageable) {
         return this.permissionRepository.findAll(pageable)
@@ -49,5 +53,26 @@ public class PermissionService {
         if (permission != null) {
             this.permissionRepository.delete(permission);
         }
+    }
+
+    public boolean isAllowed(List<String> roles, String method, String url) {
+        if (roles == null || roles.isEmpty() || method == null || url == null) {
+            return false;
+        }
+
+        String normalizedMethod = method.toUpperCase();
+        List<Permission> matchingPermissions = this.permissionRepository
+                .findByRolesAndMethod(roles, normalizedMethod);
+
+        return matchingPermissions.stream()
+                .anyMatch(permission -> matchesUrlPattern(permission.getUrl(), url));
+    }
+
+    private boolean matchesUrlPattern(String storedPattern, String incomingUrl) {
+        if (storedPattern.endsWith("/*")) {
+            String prefix = storedPattern.substring(0, storedPattern.length() - 2);
+            return incomingUrl.startsWith(prefix);
+        }
+        return storedPattern.equals(incomingUrl);
     }
 }

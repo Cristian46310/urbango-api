@@ -15,7 +15,6 @@ import {
 } from './incident-storage.service';
 import { IncidentNotificationService } from './incident-notification.service';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
-import { PaginationService } from '@/shared/services/pagination.service';
 import { JwtPayload } from '@/auth/types';
 import { IncidentSeverity } from './enums/incident.enum';
 
@@ -40,7 +39,6 @@ export class IncidentService {
     private readonly enterpriseRepository: Repository<Enterprise>,
     private readonly incidentStorageService: IncidentStorageService,
     private readonly incidentNotificationService: IncidentNotificationService,
-    private readonly paginationService: PaginationService,
   ) {}
 
   private isTurnActive(turn: Turn, now: Date) {
@@ -70,9 +68,18 @@ export class IncidentService {
       take: limit,
     });
 
+    const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+
     return {
       items,
-      meta: this.paginationService.buildPaginationMeta(page, limit, totalItems),
+      meta: {
+        page,
+        limit,
+        totalItems,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
     };
   }
 

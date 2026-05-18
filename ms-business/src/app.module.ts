@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HttpModule } from '@nestjs/axios';
+import { SecurityModule } from './auth/security.module';
 import { AuthModule } from './auth/auth.module';
 import { RouteModule } from './route/route.module';
 import { StopModule } from './stop/stop.module';
@@ -26,6 +27,7 @@ import { SharedModule } from './shared/shared.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     HttpModule,
+    SecurityModule,
     AuthModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -35,7 +37,7 @@ import { SharedModule } from './shared/shared.module';
         url: config.get<string>('DB_URL'),
         autoLoadEntities: true,
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: false, // Usaremos migraciones
+        synchronize: false,
       }),
     }),
     RouteModule,
