@@ -1,0 +1,66 @@
+# dev-backend-uc — Guía para agentes de IA
+
+Backend del proyecto UCaldas (semestre 2026-1). Monorepo con tres microservicios independientes que se integran por HTTP.
+
+## Microservicios
+
+| Servicio | Stack | Puerto | Carpeta | Skill |
+|----------|-------|--------|---------|-------|
+| **ms-security** | Spring Boot 4, Java 17, MongoDB | 8080 | `ms-security/` | `/ms-security` o skill `ms-security` |
+| **ms-business** | NestJS 11, TypeORM, PostgreSQL | 3000 | `ms-business/` | `/ms-business` o skill `ms-business` |
+| **ms-notifications** | FastAPI, Python 3.12, uv, Gmail API | 8000 | `ms-notifications/` | `/ms-notifications` o skill `ms-notifications` |
+
+Skill transversal del monorepo: `/monorepo-overview` o `.agents/skills/monorepo-overview/`.
+
+## Orden de lectura recomendado
+
+1. Trabajas en varios MS o integraciones → lee `monorepo-overview` y `references/inter-service-contracts.md`.
+2. Entras a un MS concreto → abre su `SKILL.md` en `.agents/skills/<nombre>/`.
+3. Necesitas detalle de API, modelos o env → `references/` dentro de esa skill.
+4. Auth/OAuth global → `docs/ROLES.md`, `docs/GITHUB_LOGIN_FRONTEND.md`.
+5. Despliegue → `docs/DEPLOY.md`, `docker-compose.yml`.
+
+## Ubicación de skills y reglas
+
+```
+.agents/skills/          # Agent Skills (Cursor las descubre automáticamente)
+.cursor/rules/           # Reglas cortas por glob al editar archivos
+.github/AI_CONTEXT.md    # Contexto para PRs y CI
+```
+
+## Flujo de autenticación (resumen)
+
+1. El frontend hace login en **ms-security** → recibe JWT.
+2. **ms-business** recibe `Authorization: Bearer <token>` y valida contra `POST /api/public/security/validate-token`.
+3. Los IDs de usuario en MongoDB (security) pueden mapearse a UUID en PostgreSQL (business) vía `user_id_mapping`.
+
+## Reglas globales
+
+- No commitear `.env`, `secrets/`, claves JWT ni `client_secret_*.json`.
+- **ms-security:** secretos en `~/.config/ms-security/.env` (ver `ms-security/README.md`).
+- **ms-business:** `synchronize: false` en TypeORM; usar migraciones en `src/migrations/`.
+- Documentación de dominio en español; identificadores de código en inglés.
+- Antes de cambiar contratos HTTP entre MS, actualizar `monorepo-overview/references/inter-service-contracts.md`.
+
+## Comandos rápidos (desde la raíz del repo)
+
+```bash
+# ms-security
+./.agents/skills/ms-security/scripts/build-verify.sh
+
+# ms-business
+./.agents/skills/ms-business/scripts/test.sh
+
+# ms-notifications
+./.agents/skills/ms-notifications/scripts/lint.sh
+
+# Docker (security + notifications)
+docker compose up -d --build ms-security ms-notifications
+```
+
+## Documentación humana existente
+
+- [ms-business/docs/ARCHITECTURE.md](ms-business/docs/ARCHITECTURE.md)
+- [docs/ROLES.md](docs/ROLES.md)
+- [docs/DEPLOY.md](docs/DEPLOY.md)
+- [ms-notifications/README.md](ms-notifications/README.md)

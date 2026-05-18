@@ -1,0 +1,14 @@
+---
+description: Convenciones Spring Boot para ms-security (DTOs, secretos, API pública)
+globs: ms-security/**/*.java
+alwaysApply: false
+---
+
+# ms-security
+
+- Exponer DTOs en controllers; modelos MongoDB solo en services/repositories.
+- Secretos en `~/.config/ms-security/.env`, no en el repositorio.
+- Rutas públicas bajo `/api/public/`; RBAC admin en `/api/roles`, `/api/permissions`, etc.
+- Cambios en `validate-token` afectan ms-business: coordinar contrato y roles.
+- Passwords: SHA256 como en `docs/ROLES.md`; no introducir bcrypt sin migración planificada.
+- CI local: `./mvnw -B clean verify` y `checkstyle:check`. Skill: `.agents/skills/ms-security/SKILL.md`.
