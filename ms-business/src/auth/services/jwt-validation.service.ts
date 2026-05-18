@@ -4,10 +4,8 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
-import type { AxiosError } from 'axios';
+import axios, { AxiosError } from 'axios';
 import { JwtPayload } from '../types';
 import { UserIdMappingService } from '@/shared/services/user-id-mapping.service';
 
@@ -17,7 +15,6 @@ export class JwtValidationService {
   private readonly securityServiceUrl: string;
 
   constructor(
-    private readonly httpService: HttpService,
     private readonly configService: ConfigService,
     private readonly userIdMappingService: UserIdMappingService,
   ) {
@@ -37,15 +34,13 @@ export class JwtValidationService {
       this.logger.debug(`🔍 Validating token against: ${validationUrl}`);
       this.logger.debug(`Token preview: ${token.substring(0, 20)}...`);
 
-      const response = await firstValueFrom(
-        this.httpService.post(validationUrl, null, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          timeout: 60000,
-        }),
-      );
+      const response = await axios.post(validationUrl, null, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 60000,
+      });
 
       const userData = response.data;
 

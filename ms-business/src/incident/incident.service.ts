@@ -15,8 +15,9 @@ import {
 } from './incident-storage.service';
 import { IncidentNotificationService } from './incident-notification.service';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
+import { PaginationService } from '@/shared/services/pagination.service';
 import { JwtPayload } from '@/auth/types';
-import { UserIdMappingService } from '@/shared/services/user-id-mapping.service';
+import { IncidentSeverity } from './enums/incident.enum';
 
 @Injectable()
 export class IncidentService {
@@ -39,7 +40,7 @@ export class IncidentService {
     private readonly enterpriseRepository: Repository<Enterprise>,
     private readonly incidentStorageService: IncidentStorageService,
     private readonly incidentNotificationService: IncidentNotificationService,
-    private readonly userIdMappingService: UserIdMappingService,
+    private readonly paginationService: PaginationService,
   ) {}
 
   private isTurnActive(turn: Turn, now: Date) {
@@ -48,19 +49,6 @@ export class IncidentService {
     }
 
     return turn.startTime <= now && (!turn.endTime || turn.endTime >= now);
-  }
-
-  private buildPaginationMeta(page: number, limit: number, totalItems: number) {
-    const totalPages = Math.max(1, Math.ceil(totalItems / limit));
-
-    return {
-      page,
-      limit,
-      totalItems,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPreviousPage: page > 1,
-    };
   }
 
   async findAll(paginationQuery: PaginationQueryDto) {
@@ -84,7 +72,7 @@ export class IncidentService {
 
     return {
       items,
-      meta: this.buildPaginationMeta(page, limit, totalItems),
+      meta: this.paginationService.buildPaginationMeta(page, limit, totalItems),
     };
   }
 
@@ -107,52 +95,14 @@ export class IncidentService {
 
     // 1. Obtener el driver desde la BD
     // El currentUser.id viene de ms-security (MongoDB ObjectId)
-    // La BD espera UUID, así que usamos el mapeador de IDs
-    let driverUuid: string;
-
-    // Intentar obtener el UUID desde el mapeo
-    const mappedUuid = await this.userIdMappingService.getPostgresUuid(
-      currentUser.id,
-    );
-
-    if (mappedUuid) {
-      driverUuid = mappedUuid;
-      this.logger.debug(`🔗 Using mapped UUID for driver: ${driverUuid}`);
-    } else {
-      // Si no hay mapeo, intentar buscar por email
-      this.logger.warn(
-        `⚠️ No ID mapping found for ${currentUser.id}, falling back to email search`,
-      );
-      const driverByEmail = await this.driverRepository.findOne({
-        where: { email: currentUser.email },
-      });
-
-      if (!driverByEmail) {
-        throw new NotFoundException(
-          `Driver with email ${currentUser.email} not found in database`,
-        );
-      }
-
-      driverUuid = driverByEmail.id;
-
-      // Crear el mapeo para futuras consultas
-      await this.userIdMappingService.createOrUpdateMapping(
-        currentUser.id,
-        driverUuid,
-      );
-      this.logger.debug(
-        `🔗 Created ID mapping after email search: ${currentUser.id} -> ${driverUuid}`,
-      );
-    }
-
-    // Obtener el driver usando el UUID resuelto
-    const driver = await this.driverRepository.findOne({
-      where: { id: driverUuid },
+    // Buscamos directamente por mongoUserId en la entidad Driver
+    let driver = await this.driverRepository.findOne({
+      where: { mongoUserId: currentUser.id },
     });
 
     if (!driver) {
       throw new NotFoundException(
-        `Driver with UUID ${driverUuid} not found in database`,
+        `Driver with ID ${currentUser.id} not found in database`,
       );
     }
 
@@ -236,7 +186,8 @@ export class IncidentService {
     }
 
     // 5. Notificar si es de severidad alta o crítica
-    if (['high', 'critical'].includes(savedIncident.severity)) {
+    const criticalSeverities = [IncidentSeverity.HIGH, IncidentSeverity.CRITICAL];
+    if (criticalSeverities.includes(savedIncident.severity as IncidentSeverity)) {
       await this.incidentNotificationService.notifySupervisorIfNeeded(
         savedIncident,
         incidentBus,

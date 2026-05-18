@@ -58,7 +58,7 @@ export class IncidentController {
   }
 
   /**
-   * ✅ ENDPOINT PROTEGIDO: Solo drivers pueden reportar incidentes
+   * ENDPOINT PROTEGIDO: Solo drivers pueden reportar incidentes
    * Extrae automáticamente del token:
    * - ID del driver
    * - Sus roles
@@ -75,65 +75,16 @@ export class IncidentController {
       'El conductor autenticado reporta un incidente de su turno actual. El sistema obtiene automáticamente el driver, el turno activo y el bus asociado.',
   })
   @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['type', 'severity', 'description', 'latitude', 'longitude'],
-      properties: {
-        type: {
-          type: 'string',
-          enum: ['mechanical', 'accident', 'delay', 'other'],
-          example: 'mechanical',
-        },
-        severity: {
-          type: 'string',
-          enum: ['low', 'medium', 'high', 'critical'],
-          example: 'high',
-        },
-        description: {
-          type: 'string',
-          example: 'El bus presenta una falla en el motor',
-        },
-        latitude: {
-          type: 'number',
-          example: 4.8156,
-          description: 'Latitud GPS actual',
-        },
-        longitude: {
-          type: 'number',
-          example: -75.5149,
-          description: 'Longitud GPS actual',
-        },
-        timestamp: {
-          type: 'string',
-          format: 'date-time',
-          example: '2026-05-17T23:10:00.000Z',
-          description: 'Timestamp del evento (opcional)',
-        },
-        photos: {
-          type: 'array',
-          maxItems: 5,
-          items: {
-            type: 'string',
-            format: 'binary',
-          },
-        },
-      },
-    },
-  })
   @UseInterceptors(FilesInterceptor('photos', 5, incidentUploadOptions))
   async createByDriver(
     @CurrentUser() currentUser: JwtPayload,
     @Body() dto: CreateIncidentDriverDto,
     @UploadedFiles() photos: UploadedIncidentFile[] = [],
   ) {
-    console.log('🔵 createByDriver called with:', { currentUser, dto, photosCount: photos.length });
     try {
       const result = await this.incidentService.createByDriver(currentUser, dto, photos);
-      console.log('✅ Result:', result);
       return result;
     } catch (error) {
-      console.error('❌ Error in createByDriver:', error);
       throw error;
     }
   }

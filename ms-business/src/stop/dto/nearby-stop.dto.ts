@@ -39,4 +39,8 @@ export class NearbyStopDto {
   @ApiProperty({ type: [NearbyRouteDto] })
   @Expose()
   routes!: NearbyRouteDto[];
+
+  constructor(partial?: Partial<NearbyStopDto>) {
+    Object.assign(this, partial);
+  }
 }

@@ -1,1 +1,0 @@
-ql postgresql://postgres.ddcgfmylkexkpaetbxay:LesTroisMousquetaires20261-2A@aws-1-sa-east-1.pooler.supabase.com:5432/postgres --no-align --field-separator\=\, -c SELECT\ id\,\ email\,\ name\ FROM\ persons\ WHERE\ type\=\'driver\'\;

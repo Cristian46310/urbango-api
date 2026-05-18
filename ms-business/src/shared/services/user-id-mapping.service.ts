@@ -1,96 +1,92 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { UserIdMapping } from '../entities/user-id-mapping.entity';
+import { Person } from '../entities/person.entitie';
 
 /**
  * Servicio para gestionar el mapeo entre ObjectIds (ms-security/MongoDB)
- * y UUIDs (ms-business/PostgreSQL)
+ * y UUIDs (ms-business/PostgreSQL) usando el atributo mongoUserId en Person
  */
 @Injectable()
 export class UserIdMappingService {
   private readonly logger = new Logger(UserIdMappingService.name);
 
   constructor(
-    @InjectRepository(UserIdMapping)
-    private readonly mappingRepository: Repository<UserIdMapping>,
+    @InjectRepository(Person)
+    private readonly personRepository: Repository<Person>,
   ) {}
 
   /**
-   * Crea o actualiza un mapeo entre un ObjectId y un UUID
+   * Crea o actualiza el mapeo asignando el mongoUserId a una Person
    * Se llama cuando el usuario se autentica
    */
   async createOrUpdateMapping(
     mongoObjectId: string,
     postgresUuid: string,
-  ): Promise<UserIdMapping> {
-    let mapping = await this.mappingRepository.findOne({
-      where: { mongoObjectId },
+  ): Promise<Person> {
+    let person = await this.personRepository.findOne({
+      where: { id: postgresUuid },
     });
 
-    if (mapping) {
-      // Actualizar si ya existe (por si acaso cambian el UUID)
-      mapping.postgresUuid = postgresUuid;
-      mapping = await this.mappingRepository.save(mapping);
-      this.logger.debug(
-        `✅ Updated mapping: ${mongoObjectId} -> ${postgresUuid}`,
+    if (!person) {
+      this.logger.warn(
+        `⚠️ Person with UUID ${postgresUuid} not found`,
       );
-    } else {
-      // Crear nuevo mapeo
-      mapping = this.mappingRepository.create({
-        mongoObjectId,
-        postgresUuid,
-      });
-      mapping = await this.mappingRepository.save(mapping);
-      this.logger.debug(
-        `✅ Created new mapping: ${mongoObjectId} -> ${postgresUuid}`,
-      );
+      throw new Error(`Person with UUID ${postgresUuid} not found`);
     }
 
-    return mapping;
+    person.mongoUserId = mongoObjectId;
+    person = await this.personRepository.save(person);
+    this.logger.debug(
+      `✅ Updated mapping: ${mongoObjectId} -> ${postgresUuid}`,
+    );
+
+    return person;
   }
 
   /**
    * Obtiene el UUID de PostgreSQL dado un ObjectId de MongoDB
    */
   async getPostgresUuid(mongoObjectId: string): Promise<string | null> {
-    const mapping = await this.mappingRepository.findOne({
-      where: { mongoObjectId },
+    const person = await this.personRepository.findOne({
+      where: { mongoUserId: mongoObjectId },
     });
 
-    if (!mapping) {
+    if (!person) {
       this.logger.warn(
-        `⚠️ No mapping found for ObjectId: ${mongoObjectId}`,
+        `⚠️ No user found for ObjectId: ${mongoObjectId}`,
       );
       return null;
     }
 
-    return mapping.postgresUuid;
+    return person.id;
   }
 
   /**
    * Obtiene el ObjectId de MongoDB dado un UUID de PostgreSQL
    */
   async getMongoObjectId(postgresUuid: string): Promise<string | null> {
-    const mapping = await this.mappingRepository.findOne({
-      where: { postgresUuid },
+    const person = await this.personRepository.findOne({
+      where: { id: postgresUuid },
     });
 
-    if (!mapping) {
+    if (!person?.mongoUserId) {
       this.logger.warn(
-        `⚠️ No mapping found for PostgreSQL UUID: ${postgresUuid}`,
+        `⚠️ No MongoDB mapping found for PostgreSQL UUID: ${postgresUuid}`
       );
       return null;
     }
 
-    return mapping.mongoObjectId;
+    return person.mongoUserId;
   }
 
   /**
-   * Elimina un mapeo (útil si se necesita limpiar datos)
+   * Elimina el mapeo (limpia el mongoUserId)
    */
   async deleteMapping(mongoObjectId: string): Promise<void> {
-    await this.mappingRepository.delete({ mongoObjectId });
-    this.logger.debug(`🗑️ Deleted mapping for ObjectId: ${mongoObjectId}`);
+    await this.personRepository.update(
+      { mongoUserId: mongoObjectId },
+      { mongoUserId: undefined },
+    );
   }
 }

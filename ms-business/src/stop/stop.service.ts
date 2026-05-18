@@ -87,15 +87,7 @@ export class StopService {
     return degrees * (Math.PI / 180);
   }
 
-  private validateCoordinates(latitude: number, longitude: number): void {
-    if (Number.isNaN(latitude) || latitude < -90 || latitude > 90) {
-      throw new BadRequestException('Latitude must be between -90 and 90');
-    }
-    if (Number.isNaN(longitude) || longitude < -180 || longitude > 180) {
-      throw new BadRequestException('Longitude must be between -180 and 180');
-    }
-  }
-// Buscar paradas cercanas a una ubicación dentro de un radio específico
+  // Buscar paradas cercanas a una ubicación dentro de un radio específico
   // Utiliza dos estrategias: Bounding Box (cuadro delimitador) para filtrado rápido
   // y la fórmula Haversine para cálculo exacto de distancias en la base de datos
   async findNearbyStops(
@@ -104,8 +96,6 @@ export class StopService {
     limit = 5,
     radiusMeters = 1000,
   ): Promise<NearbyStopDto[]> {
-    this.validateCoordinates(lat, lon);
-
     const minLatitude = -90;
     const maxLatitude = 90;
     const minLongitude = -180;
@@ -222,28 +212,23 @@ export class StopService {
       .getRawMany();
 
       return raw.map((row) => {
-        // Parsea rutas si vienen como string JSON, si no devuelve el array directamente
-      const routesValue =
-        typeof row.routes === 'string' ? JSON.parse(row.routes) : row.routes;
+        const routesValue =
+          typeof row.routes === 'string' ? JSON.parse(row.routes) : row.routes;
 
-      // Crear instancia del DTO usando constructor
-      const nearbyStop = new NearbyStopDto();
-      nearbyStop.id = row.id;
-      nearbyStop.name = row.name;
-      nearbyStop.location = row.location;
-      nearbyStop.latitude = Number(row.latitude);
-      nearbyStop.longitude = Number(row.longitude);
-      // Distancia calculada por Haversine en metros
-      nearbyStop.distanceMeters = Number(row.distanceMeters);
-      // Rutas asociadas a esta parada
-      nearbyStop.routes = Array.isArray(routesValue)
-        ? routesValue.map((route: { id: string; name: string }) => ({
-            id: route.id,
-            name: route.name,
-          }))
-        : [];
-      
-      return nearbyStop;
-    });
+        return new NearbyStopDto({
+          id: row.id,
+          name: row.name,
+          location: row.location,
+          latitude: Number(row.latitude),
+          longitude: Number(row.longitude),
+          distanceMeters: Number(row.distanceMeters),
+          routes: Array.isArray(routesValue)
+            ? routesValue.map((route: { id: string; name: string }) => ({
+                id: route.id,
+                name: route.name,
+              }))
+            : [],
+        });
+      });
   }
 }
