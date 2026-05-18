@@ -29,13 +29,9 @@ export class SecurityGuard implements CanActivate {
 
     request.user = this.decodeJwtPayload(token);
 
-    const msSecurityUrl = this.configService.get<string>('MS_SECURITY_URL');
-    if (!msSecurityUrl) {
-      throw new HttpException(
-        { allowed: false, reason: 'Authorization service unavailable' },
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
-    }
+    const msSecurityUrl =
+      this.configService.get<string>('MS_SECURITY_URL') ??
+      'http://localhost:8080';
 
     try {
       const response = await firstValueFrom(
