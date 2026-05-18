@@ -14,4 +14,6 @@ public interface IPermissionRepository extends MongoRepository<Permission, Strin
 
     @Query("{'role': { $in: ?0 }, 'method': ?1}")
     List<Permission> findByRolesAndMethod(List<String> roles, String method);
+
+    List<Permission> findByMethod(com.jmmg.ms_security.models.Method method);
 }

@@ -10,4 +10,6 @@ import com.jmmg.ms_security.models.Role;
 public interface IRoleRepository extends MongoRepository<Role, String> {
 
     List<Role> findByIdIn(Collection<String> ids);
+
+    List<Role> findByNameIn(Collection<String> names);
 }
