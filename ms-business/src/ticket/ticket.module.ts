@@ -6,6 +6,8 @@ import { Ticket } from './entities/ticket.entity';
 import { Citizen } from '@/citizen/entities/citizen.entity';
 import { PaymentMethodCitizen } from '@/payment-method-citizen/entities/payment-method-citizen.entity';
 import { Scheduler } from '@/scheduler/entities/scheduler.entity';
+import { History } from '@/history/entities/history.entity';
+import { Node } from '@/node/entities/node.entity';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { Scheduler } from '@/scheduler/entities/scheduler.entity';
       Citizen,
       PaymentMethodCitizen,
       Scheduler,
+      History,
+      Node,
     ]),
   ],
   controllers: [TicketController],

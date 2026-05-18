@@ -5,12 +5,16 @@ import {
 } from '@nestjs/common';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
+import { AlightTicketDto } from './dto/alight-ticket.dto';
+import { AlightResponseDto } from './dto/alight-response.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Ticket } from './entities/ticket.entity';
+import { Ticket, TicketStatus } from './entities/ticket.entity';
 import { Citizen } from '@/citizen/entities/citizen.entity';
 import { PaymentMethodCitizen } from '@/payment-method-citizen/entities/payment-method-citizen.entity';
 import { Scheduler } from '@/scheduler/entities/scheduler.entity';
+import { History } from '@/history/entities/history.entity';
+import { Node } from '@/node/entities/node.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponseTicketDto } from './dto/response-ticket.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
@@ -26,6 +30,10 @@ export class TicketService {
     private readonly pmcRepository: Repository<PaymentMethodCitizen>,
     @InjectRepository(Scheduler)
     private readonly schedulerRepository: Repository<Scheduler>,
+    @InjectRepository(History)
+    private readonly historyRepository: Repository<History>,
+    @InjectRepository(Node)
+    private readonly nodeRepository: Repository<Node>,
   ) {}
 
   async create(createTicketDto: CreateTicketDto) {
@@ -156,5 +164,95 @@ export class TicketService {
     if (!ticket) throw new NotFoundException(`Ticket ${id} not found`);
     await this.ticketRepository.delete(id);
     return;
+  }
+
+  async alightTicket(
+    ticketId: string,
+    alightTicketDto: AlightTicketDto,
+  ): Promise<AlightResponseDto> {
+    // 1. Buscar ticket con todas las relaciones
+    const ticket = await this.ticketRepository.findOne({
+      where: { id: ticketId },
+      relations: [
+        'citizen',
+        'scheduler',
+        'scheduler.bus',
+        'scheduler.route',
+        'histories',
+        'histories.node',
+        'histories.node.stop',
+      ],
+    });
+
+    if (!ticket) {
+      throw new NotFoundException(`Ticket ${ticketId} not found`);
+    }
+
+    // 2. Validar que ticket esté ACTIVE
+    if (ticket.status !== TicketStatus.ACTIVE) {
+      throw new BadRequestException(
+        `Ticket is not active. Current status: ${ticket.status}`,
+      );
+    }
+
+    // 3. Validar que el bus coincida
+    if (ticket.scheduler?.bus?.id !== alightTicketDto.busId) {
+      throw new BadRequestException(
+        'Bus ID does not match the ticket bus',
+      );
+    }
+
+    // 4. Buscar el nodo (paradero) de descenso
+    const alightNode = await this.nodeRepository.findOne({
+      where: { id: alightTicketDto.nodeId },
+      relations: ['stop', 'route'],
+    });
+
+    if (!alightNode) {
+      throw new NotFoundException(`Node (stop) ${alightTicketDto.nodeId} not found`);
+    }
+
+    // 5. Validar que el nodo pertenece a la ruta del ticket
+    if (alightNode.route?.id !== ticket.scheduler?.route?.id) {
+      throw new BadRequestException(
+        'Node does not belong to the ticket route',
+      );
+    }
+
+    // 6. Registrar evento de descenso en History
+    const lastOrder = (ticket.histories?.length ?? 0) + 1;
+    const alightHistory = this.historyRepository.create({
+      ticket,
+      node: alightNode,
+      order: lastOrder,
+    });
+
+    await this.historyRepository.save(alightHistory);
+
+    // 7. Actualizar ticket: status a COMPLETED y completedAt a now
+    const now = new Date();
+    ticket.status = TicketStatus.COMPLETED;
+    ticket.completedAt = now;
+
+    await this.ticketRepository.save(ticket);
+
+    // 8. Calcular tiempo total de viaje
+    let totalTravelTime = 0;
+    if (ticket.histories && ticket.histories.length > 0) {
+      const firstTime = ticket.histories[0]?.createdAt?.getTime() ?? 0;
+      const lastTime = now.getTime();
+      const totalMs = lastTime - firstTime;
+      const minutes = Math.round(totalMs / 60000);
+      totalTravelTime = minutes;
+    }
+
+    // 9. Retornar respuesta de éxito
+    const response = new AlightResponseDto();
+    response.message = 'Viaje completado - Gracias por usar nuestro servicio';
+    response.ticketId = ticket.id;
+    response.completedAt = now;
+    response.stopName = alightNode.stop?.name ?? 'Unknown Stop';
+    response.totalTravelTime = totalTravelTime;
+    return response;
   }
 }

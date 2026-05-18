@@ -31,6 +31,20 @@
 $ pnpm install
 ```
 
+## Incident reports
+
+Incident photos are uploaded to Supabase Storage. Configure these variables before using `POST /incident-reports`:
+
+```bash
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+SUPABASE_INCIDENT_BUCKET=incident-report
+MS_NOTIFICATION_URL=http://127.0.0.1:8000/api/email/send
+INCIDENT_SUPERVISOR_EMAIL=supervisor@example.com
+```
+
+`INCIDENT_SUPERVISOR_EMAIL` is only a fallback. Prefer setting `supervisorEmail` on each enterprise so high and critical reports notify the correct supervisor.
+
 ## Compile and run the project
 
 ```bash

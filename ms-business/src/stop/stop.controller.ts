@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
+  ApiBody,
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
@@ -22,6 +23,8 @@ import { UpdateStopDto } from './dto/update-stop.dto';
 import { ResponseStopDto } from './dto/response-stop.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponseStopListDto } from './dto/response-stop-list.dto';
+import { NearbyStopDto } from './dto/nearby-stop.dto';
+import { NearbyStopQueryDto } from '@/stop/dto/nearby-stop-query.dto';
 
 @ApiTags('Stops')
 @Controller('stop')
@@ -30,6 +33,7 @@ export class StopController {
 
   @Post()
   @ApiOperation({ summary: 'Crear una parada' })
+  @ApiBody({ type: CreateStopDto })
   @ApiCreatedResponse({ type: ResponseStopDto })
   async create(@Body() createStopDto: CreateStopDto): Promise<ResponseStopDto> {
     return await this.stopService.create(createStopDto);
@@ -42,6 +46,21 @@ export class StopController {
     @Query() paginationQuery: PaginationQueryDto,
   ): Promise<ResponseStopListDto> {
     return await this.stopService.findAll(paginationQuery);
+  }
+  //Buscar paradas cercanas a una ubicación dada
+
+  @Get('nearby')
+  @ApiOperation({ summary: 'Buscar paradas cercanas a una ubicación dada' })
+  @ApiOkResponse({ type: [NearbyStopDto] })
+  async findNearbyStops(
+    @Query() nearbyQuery: NearbyStopQueryDto,
+  ): Promise<NearbyStopDto[]> {
+    return await this.stopService.findNearbyStops(
+      nearbyQuery.lat,
+      nearbyQuery.lon,
+      nearbyQuery.limit,
+      nearbyQuery.radiusMeters,
+    );
   }
 
   @Get(':id')

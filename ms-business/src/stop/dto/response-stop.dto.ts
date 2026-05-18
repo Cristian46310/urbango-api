@@ -22,4 +22,16 @@ export class ResponseStopDto {
   })
   @Expose()
   createdAt!: Date;
+
+  @ApiProperty({
+    example: -12.3456,
+  })
+  @Expose()
+  latitude!: number;
+  
+  @ApiProperty({
+    example: 78.9012,
+  })
+  @Expose()
+  longitude!: number;
 }

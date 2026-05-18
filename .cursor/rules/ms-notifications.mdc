@@ -1,0 +1,13 @@
+---
+description: Convenciones FastAPI para ms-notifications (Ruff, email API)
+globs: ms-notifications/**/*.py
+alwaysApply: false
+---
+
+# ms-notifications
+
+- Rutas async en `app/routes/`; lógica Gmail en `app/services/email_service.py`.
+- Contrato estable: `to`, `subject`, `body`, `files` opcional — alineado con consumidores Java/Nest.
+- Ejecutar desde raíz del MS con `uv run`; lint: `ruff check` + `ruff format --check`.
+- No loguear tokens OAuth, `client_secret` ni credenciales Gmail.
+- `secrets/` y `.env` fuera de git. Skill: `.agents/skills/ms-notifications/SKILL.md`.

@@ -13,6 +13,11 @@ export class Stop {
   name!: string;
   @Column()
   location!: string;
+  @Column()
+  latitude!: number;
+  @Column()
+  longitude!: number;
   @CreateDateColumn()
   createdAt!: Date;
+
 }

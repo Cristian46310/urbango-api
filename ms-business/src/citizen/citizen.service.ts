@@ -31,6 +31,7 @@ export class CitizenService {
     }
     const citData: Partial<Citizen> = {
       name: createCitizenDto.name,
+      document: createCitizenDto.document,
       extraInfo: createCitizenDto.extraInfo,
       address: createCitizenDto.addressId
         ? ({ id: createCitizenDto.addressId } as Address)
@@ -89,6 +90,7 @@ export class CitizenService {
     const preloadData: Partial<Citizen> = {
       id,
       name: updateCitizenDto.name,
+      document: updateCitizenDto.document,
       extraInfo: updateCitizenDto.extraInfo,
       address: updateCitizenDto.addressId
         ? ({ id: updateCitizenDto.addressId } as Address)
