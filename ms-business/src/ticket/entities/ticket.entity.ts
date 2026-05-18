@@ -13,8 +13,7 @@ import { History } from '@/history/entities/history.entity';
 
 export enum TicketStatus {
   ACTIVE = 'active',
-  COMPLETED = 'completed',
-  CANCELED = 'canceled'
+  COMPLETED = 'completed'
 }
 
 @Entity('tickets')

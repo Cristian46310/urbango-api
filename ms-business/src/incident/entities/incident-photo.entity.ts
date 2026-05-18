@@ -21,6 +21,9 @@ export class IncidentPhoto {
   path!: string;
 
   @Column({ nullable: true })
+  publicUrl?: string;
+
+  @Column({ nullable: true })
   originalName?: string;
 
   @Column({ nullable: true })

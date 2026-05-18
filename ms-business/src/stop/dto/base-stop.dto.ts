@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
 
 export class BaseStopDto {
   @ApiProperty({
@@ -17,4 +18,6 @@ export class BaseStopDto {
   @IsString()
   @IsNotEmpty()
   location!: string;
+
+
 }

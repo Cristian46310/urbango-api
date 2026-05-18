@@ -247,13 +247,12 @@ export class TicketService {
     }
 
     // 9. Retornar respuesta de éxito
-    return {
-      message: 'Viaje completado - Gracias por usar nuestro servicio',
-      ticketId: ticket.id,
-      completedAt: now,
-      stopName: alightNode.stop?.name ?? 'Unknown Stop',
-      seatReleased: true,
-      totalTravelTime,
-    };
+    const response = new AlightResponseDto();
+    response.message = 'Viaje completado - Gracias por usar nuestro servicio';
+    response.ticketId = ticket.id;
+    response.completedAt = now;
+    response.stopName = alightNode.stop?.name ?? 'Unknown Stop';
+    response.totalTravelTime = totalTravelTime;
+    return response;
   }
 }

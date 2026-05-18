@@ -37,6 +37,8 @@ export class RouteService {
             name: node.stop.name,
             location: node.stop.location,
             createdAt: node.stop.createdAt,
+            latitude: node.stop.latitude,
+            longitude: node.stop.longitude,
           }),
         ),
       createdAt: route.createdAt,

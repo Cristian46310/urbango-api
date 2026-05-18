@@ -8,11 +8,19 @@ import { IncidentPhoto } from './entities/incident-photo.entity';
 import { Gps } from './entities/gps.entity';
 import { Bus } from '@/bus/entities/bus.entity';
 import { Turn } from '@/turn/entities/turn.entity';
-import { Driver } from '@/driver/entities/driver.entity';
 import { Enterprise } from '@/enterprise/entities/enterprise.entity';
+import { IncidentStorageService } from './incident-storage.service';
+import { IncidentNotificationService } from './incident-notification.service';
+import { Driver } from '@/driver/entities/driver.entity';
+import { AuthModule } from '@/auth/auth.module';
+import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
+import { RolesGuard } from '@/auth/guards/roles.guard';
+import { SharedModule } from '@/shared/shared.module';
 
 @Module({
   imports: [
+    AuthModule,
+    SharedModule,
     TypeOrmModule.forFeature([
       Incident,
       IncidentBus,
@@ -20,11 +28,17 @@ import { Enterprise } from '@/enterprise/entities/enterprise.entity';
       Gps,
       Bus,
       Turn,
-      Driver,
       Enterprise,
+      Driver,
     ]),
   ],
   controllers: [IncidentController],
-  providers: [IncidentService],
+  providers: [
+    IncidentService,
+    IncidentStorageService,
+    IncidentNotificationService,
+    JwtAuthGuard,
+    RolesGuard,
+  ],
 })
 export class IncidentModule {}

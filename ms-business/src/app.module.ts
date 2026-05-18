@@ -3,6 +3,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { HttpModule } from '@nestjs/axios';
+import { AuthModule } from './auth/auth.module';
 import { RouteModule } from './route/route.module';
 import { StopModule } from './stop/stop.module';
 import { NodeModule } from './node/node.module';
@@ -18,10 +20,13 @@ import { EnterpriseModule } from './enterprise/enterprise.module';
 import { DriverModule } from './driver/driver.module';
 import { TurnModule } from './turn/turn.module';
 import { IncidentModule } from './incident/incident.module';
+import { SharedModule } from './shared/shared.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    HttpModule,
+    AuthModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -48,6 +53,7 @@ import { IncidentModule } from './incident/incident.module';
     DriverModule,
     TurnModule,
     IncidentModule,
+    SharedModule,
   ],
   controllers: [AppController],
   providers: [AppService],

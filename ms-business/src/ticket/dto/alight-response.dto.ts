@@ -17,12 +17,7 @@ export class AlightResponseDto {
     @ApiProperty()
     @Expose()
     stopName!: string;
-
-//indica si la silla quedo disponible para otro pasajero o no    
-    @ApiProperty()
-    @Expose()
-    seatReleased!: boolean;
-
+    
     @ApiProperty()
     @Expose()
     totalTravelTime!: number;

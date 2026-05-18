@@ -1,0 +1,1 @@
+ql postgresql://postgres.ddcgfmylkexkpaetbxay:LesTroisMousquetaires20261-2A@aws-1-sa-east-1.pooler.supabase.com:5432/postgres -c COPY\ \(SELECT\ \*\ FROM\ persons\ WHERE\ type\=\'driver\'\ LIMIT\ 10\)\ TO\ STDOUT\ WITH\ CSV\ HEADER\;
