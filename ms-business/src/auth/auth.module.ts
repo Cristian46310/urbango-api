@@ -1,6 +1,6 @@
 import { Agent } from 'http';
 import { Agent as HttpsAgent } from 'https';
-import { HttpModule } from '@nestjs/axios;
+import { HttpModule } from '@nestjs/axios';
 import { Module } from '@nestjs/common';
 
 import { JwtValidationService } from './services/jwt-validation.service';

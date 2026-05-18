@@ -21,8 +21,6 @@ import { memoryStorage } from 'multer';
 import { IncidentService } from './incident.service';
 import { CreateIncidentDriverDto } from './dto/create-incident-driver.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
-import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
-import { RolesGuard } from '@/auth/guards/roles.guard';
 import { Roles } from '@/auth/decorators/roles.decorator';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import type { JwtPayload } from '@/auth/types';
@@ -66,8 +64,6 @@ export class IncidentController {
    * - El bus del turno
    */
   @Post('driver')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('DRIVER')
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Crear reporte de incidente del conductor',

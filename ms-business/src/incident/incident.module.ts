@@ -13,8 +13,6 @@ import { IncidentStorageService } from './incident-storage.service';
 import { IncidentNotificationService } from './incident-notification.service';
 import { Driver } from '@/driver/entities/driver.entity';
 import { AuthModule } from '@/auth/auth.module';
-import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
-import { RolesGuard } from '@/auth/guards/roles.guard';
 import { SharedModule } from '@/shared/shared.module';
 
 @Module({
@@ -37,8 +35,6 @@ import { SharedModule } from '@/shared/shared.module';
     IncidentService,
     IncidentStorageService,
     IncidentNotificationService,
-    JwtAuthGuard,
-    RolesGuard,
   ],
 })
 export class IncidentModule {}
