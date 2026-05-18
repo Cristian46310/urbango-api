@@ -7,19 +7,44 @@ import {
   Param,
   Delete,
   Query,
+  BadRequestException,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CitizenService } from './citizen.service';
 import { CreateCitizenDto } from './dto/create-citizen.dto';
 import { UpdateCitizenDto } from './dto/update-citizen.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
+import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import type { JwtPayload } from '@/auth/types';
 
+@ApiTags('Citizens')
+@ApiBearerAuth('bearer')
 @Controller('citizen')
 export class CitizenController {
   constructor(private readonly citizenService: CitizenService) {}
 
   @Post()
-  create(@Body() createCitizenDto: CreateCitizenDto) {
-    return this.citizenService.create(createCitizenDto);
+  @ApiOperation({ summary: 'Registrar perfil de ciudadano (userId desde token)' })
+  create(
+    @Body() createCitizenDto: CreateCitizenDto,
+    @CurrentUser() currentUser: JwtPayload,
+  ) {
+    if (!currentUser?.id) {
+      throw new BadRequestException('Usuario no identificado en el token');
+    }
+    return this.citizenService.create({
+      ...createCitizenDto,
+      userId: currentUser.id,
+    });
+  }
+
+  @Get('me')
+  @ApiOperation({ summary: 'Obtener perfil de ciudadano del usuario autenticado' })
+  findMe(@CurrentUser() currentUser: JwtPayload) {
+    if (!currentUser?.id) {
+      throw new BadRequestException('Usuario no identificado en el token');
+    }
+    return this.citizenService.findByUserId(currentUser.id);
   }
 
   @Get()

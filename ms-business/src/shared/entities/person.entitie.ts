@@ -9,7 +9,7 @@ import {
 
 @Entity('persons')
 @TableInheritance({ column: { type: 'varchar', name: 'type' } })
-@Index(['mongoUserId'], { unique: true, where: '"mongoUserId" IS NOT NULL' })
+@Index(['userId'], { unique: true, where: '"user_id" IS NOT NULL' })
 export class Person {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -26,8 +26,9 @@ export class Person {
   @Column({ nullable: true })
   phone?: string;
 
-  @Column({ nullable: true, unique: true })
-  mongoUserId?: string;
+  /** ID del usuario en ms-security (JWT sub / id). */
+  @Column({ name: 'user_id', nullable: true, unique: true })
+  userId?: string;
 
   @CreateDateColumn()
   createdAt!: Date;

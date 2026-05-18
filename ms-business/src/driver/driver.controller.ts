@@ -7,19 +7,44 @@ import {
   Param,
   Delete,
   Query,
+  BadRequestException,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { DriverService } from './driver.service';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
+import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import type { JwtPayload } from '@/auth/types';
 
+@ApiTags('Drivers')
+@ApiBearerAuth('bearer')
 @Controller('driver')
 export class DriverController {
   constructor(private readonly driverService: DriverService) {}
 
   @Post()
-  create(@Body() createDriverDto: CreateDriverDto) {
-    return this.driverService.create(createDriverDto);
+  @ApiOperation({ summary: 'Registrar perfil de conductor (userId desde token)' })
+  create(
+    @Body() createDriverDto: CreateDriverDto,
+    @CurrentUser() currentUser: JwtPayload,
+  ) {
+    if (!currentUser?.id) {
+      throw new BadRequestException('Usuario no identificado en el token');
+    }
+    return this.driverService.create({
+      ...createDriverDto,
+      userId: currentUser.id,
+    });
+  }
+
+  @Get('me')
+  @ApiOperation({ summary: 'Obtener perfil de conductor del usuario autenticado' })
+  findMe(@CurrentUser() currentUser: JwtPayload) {
+    if (!currentUser?.id) {
+      throw new BadRequestException('Usuario no identificado en el token');
+    }
+    return this.driverService.findByUserId(currentUser.id);
   }
 
   @Get()

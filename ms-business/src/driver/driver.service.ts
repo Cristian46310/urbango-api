@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -8,6 +12,8 @@ import { plainToInstance } from 'class-transformer';
 import { ResponseDriverDto } from './dto/response-driver.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 
+export type CreateDriverInput = CreateDriverDto & { userId: string };
+
 @Injectable()
 export class DriverService {
   constructor(
@@ -15,12 +21,27 @@ export class DriverService {
     private readonly driverRepository: Repository<Driver>,
   ) {}
 
-  async create(createDriverDto: CreateDriverDto) {
-    const drv = this.driverRepository.create(
-      createDriverDto as Partial<Driver>,
-    );
+  async create(input: CreateDriverInput) {
+    const existing = await this.driverRepository.findOne({
+      where: { userId: input.userId },
+    });
+    if (existing) {
+      throw new ConflictException(
+        'Ya existe un perfil de conductor para este usuario',
+      );
+    }
+
+    const drv = this.driverRepository.create(input as Partial<Driver>);
     const saved = await this.driverRepository.save(drv);
     return plainToInstance(ResponseDriverDto, saved);
+  }
+
+  async findByUserId(userId: string) {
+    const drv = await this.driverRepository.findOne({ where: { userId } });
+    if (!drv) {
+      throw new NotFoundException('Driver profile not found for this user');
+    }
+    return plainToInstance(ResponseDriverDto, drv);
   }
 
   private buildPaginationMeta(page: number, limit: number, totalItems: number) {

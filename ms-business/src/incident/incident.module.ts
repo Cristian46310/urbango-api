@@ -14,12 +14,10 @@ import { IncidentNotificationService } from './incident-notification.service';
 import { NotificationService } from './services/notification.service';
 import { Driver } from '@/driver/entities/driver.entity';
 import { AuthModule } from '@/auth/auth.module';
-import { SharedModule } from '@/shared/shared.module';
 
 @Module({
   imports: [
     AuthModule,
-    SharedModule,
     TypeOrmModule.forFeature([
       Incident,
       IncidentBus,

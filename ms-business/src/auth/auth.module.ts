@@ -5,8 +5,6 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { JwtValidationService } from './services/jwt-validation.service';
-import { UserIdMappingService } from '@/shared/services/user-id-mapping.service';
-import { SharedModule } from '@/shared/shared.module';
 import { Person } from '@/shared/entities/person.entitie';
 
 @Module({
@@ -28,9 +26,8 @@ import { Person } from '@/shared/entities/person.entitie';
       }),
     }),
     TypeOrmModule.forFeature([Person]),
-    SharedModule,
   ],
-  providers: [JwtValidationService, UserIdMappingService],
-  exports: [HttpModule, JwtValidationService, UserIdMappingService, SharedModule],
+  providers: [JwtValidationService],
+  exports: [HttpModule, JwtValidationService],
 })
 export class AuthModule {}

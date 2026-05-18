@@ -100,16 +100,13 @@ export class IncidentService {
       throw new BadRequestException('You can attach up to 5 photos');
     }
 
-    // 1. Obtener el driver desde la BD
-    // El currentUser.id viene de ms-security (MongoDB ObjectId)
-    // Buscamos directamente por mongoUserId en la entidad Driver
-    let driver = await this.driverRepository.findOne({
-      where: { mongoUserId: currentUser.id },
+    const driver = await this.driverRepository.findOne({
+      where: { userId: currentUser.id },
     });
 
     if (!driver) {
       throw new NotFoundException(
-        `Driver with ID ${currentUser.id} not found in database`,
+        'No tienes un perfil de conductor registrado. Completa el registro en el panel.',
       );
     }
 
