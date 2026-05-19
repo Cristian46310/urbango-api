@@ -9,6 +9,7 @@ import { CreateSchedulerDto } from './dto/create-scheduler.dto';
 import { UpdateSchedulerDto } from './dto/update-scheduler.dto';
 import { Scheduler } from './entities/scheduler.entity';
 import { Bus } from '@/bus/entities/bus.entity';
+import { BusService } from '@/bus/bus.service';
 import { Route } from '@/route/entities/route.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponseSchedulerDto } from './dto/response-scheduler.dto';
@@ -24,6 +25,7 @@ export class SchedulerService {
     private readonly busRepository: Repository<Bus>,
     @InjectRepository(Route)
     private readonly routeRepository: Repository<Route>,
+    private readonly busService: BusService,
   ) {}
 
   async create(
@@ -33,6 +35,7 @@ export class SchedulerService {
       where: { id: createSchedulerDto.busId },
     });
     if (!bus) throw new BadRequestException('Bus not found');
+    this.busService.assertBusAvailableForScheduling(bus);
     const route = await this.routeRepository.findOne({
       where: { id: createSchedulerDto.routeId },
     });
@@ -96,6 +99,7 @@ export class SchedulerService {
         where: { id: updateSchedulerDto.busId },
       });
       if (!bus) throw new BadRequestException('Bus not found');
+      this.busService.assertBusAvailableForScheduling(bus);
       preloadData.bus = { id: bus.id } as Bus;
     }
     if (updateSchedulerDto.routeId) {

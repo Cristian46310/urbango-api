@@ -136,6 +136,10 @@ export class SecurityGuard implements CanActivate {
               : undefined,
         name: typeof payload.name === 'string' ? payload.name : undefined,
         email: typeof payload.email === 'string' ? payload.email : undefined,
+        enterpriseId:
+          typeof payload.enterpriseId === 'string'
+            ? payload.enterpriseId
+            : undefined,
         roles: Array.isArray(payload.roles)
           ? payload.roles.filter((role): role is string => typeof role === 'string')
           : [],

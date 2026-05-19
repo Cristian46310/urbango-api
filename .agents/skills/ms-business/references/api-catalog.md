@@ -85,10 +85,12 @@ Documentación interactiva: `/docs`
 | Método | Ruta |
 |--------|------|
 | POST | `/bus` |
+| GET | `/bus/fleet` | Flota de la empresa (JWT + `enterpriseId`) |
 | GET | `/bus` |
 | GET | `/bus/:id` |
 | PATCH | `/bus/:id` |
 | DELETE | `/bus/:id` |
+| POST | `/bus/:id/photo` | Multipart, campo `photo` |
 
 ## turn
 

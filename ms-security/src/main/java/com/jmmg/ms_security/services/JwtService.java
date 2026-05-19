@@ -44,6 +44,11 @@ public class JwtService {
     claims.put("name", theUser.getName());
     claims.put("email", theUser.getEmail());
     claims.put("createdAt", now.getTime());
+    
+    // Incluir enterpriseId si está presente
+    if (theUser.getEnterpriseId() != null) {
+        claims.put("enterpriseId", theUser.getEnterpriseId());
+    }
 
     // Obtener roles desde UserRole
     List<String> roleNames = userRoleRepository.findByUserId(theUser.getId())
