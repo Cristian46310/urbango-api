@@ -13,4 +13,3 @@ export class BaseCitizenDto extends BasePersonDto {
   @IsString()
   addressId?: string;
 }
-

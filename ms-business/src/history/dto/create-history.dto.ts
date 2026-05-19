@@ -16,5 +16,4 @@ export class CreateHistoryDto {
   @IsOptional()
   @IsNumber()
   order?: number;
-
 }

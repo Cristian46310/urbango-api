@@ -1,13 +1,6 @@
-import {
-  INestApplication,
-  RequestMethod,
-} from '@nestjs/common';
+import { INestApplication, RequestMethod } from '@nestjs/common';
 import { PATH_METADATA, METHOD_METADATA } from '@nestjs/common/constants';
-import {
-  DiscoveryService,
-  MetadataScanner,
-  Reflector,
-} from '@nestjs/core';
+import { DiscoveryService, MetadataScanner, Reflector } from '@nestjs/core';
 import { OpenAPIObject } from '@nestjs/swagger';
 import { IS_PUBLIC_KEY } from '@/auth/decorators/public.decorator';
 
@@ -34,7 +27,10 @@ function buildPublicRouteKeys(app: INestApplication): Set<string> {
   const publicKeys = new Set<string>();
 
   for (const wrapper of discovery.getControllers()) {
-    const { instance, metatype } = wrapper;
+    const instance = wrapper.instance as Record<string, unknown> | undefined;
+    const metatype = wrapper.metatype as
+      | (new (...args: unknown[]) => object)
+      | null;
     if (!metatype || !instance) {
       continue;
     }
@@ -49,7 +45,7 @@ function buildPublicRouteKeys(app: INestApplication): Set<string> {
 
     const prototype = Object.getPrototypeOf(instance) as object;
     for (const methodName of scanner.getAllMethodNames(prototype)) {
-      const handler = (instance as Record<string, unknown>)[methodName];
+      const handler = instance[methodName];
       if (typeof handler !== 'function') {
         continue;
       }
@@ -102,14 +98,19 @@ export function applySwaggerBearerAuth(
       continue;
     }
 
-    for (const [method, operation] of Object.entries(pathItem)) {
-      if (
-        !operation ||
-        typeof operation !== 'object' ||
-        !('responses' in operation)
-      ) {
+    for (const [method, operationValue] of Object.entries(pathItem)) {
+      if (!operationValue || typeof operationValue !== 'object') {
         continue;
       }
+
+      if (!('responses' in operationValue)) {
+        continue;
+      }
+
+      const operation = operationValue as {
+        responses: Record<string, unknown>;
+        security?: Array<Record<string, string[]>>;
+      };
 
       const normalizedPath = path.replace(/\/$/, '') || '/';
       const routeKey = `${method.toLowerCase()}:${normalizedPath}`;

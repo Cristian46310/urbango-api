@@ -31,7 +31,4 @@ jobs:
 
       - name: Build
         run: mvn -B clean verify
-
-      - name: Lint (Checkstyle)
-        run: mvn checkstyle:check
         

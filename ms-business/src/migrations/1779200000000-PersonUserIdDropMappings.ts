@@ -39,7 +39,9 @@ export class PersonUserIdDropMappings1779200000000 implements MigrationInterface
     await queryRunner.query(
       `DROP INDEX IF EXISTS "public"."IDX_persons_user_id"`,
     );
-    await queryRunner.query(`ALTER TABLE "persons" DROP COLUMN IF EXISTS "user_id"`);
+    await queryRunner.query(
+      `ALTER TABLE "persons" DROP COLUMN IF EXISTS "user_id"`,
+    );
 
     await queryRunner.query(
       `CREATE TABLE "user_id_mappings" (

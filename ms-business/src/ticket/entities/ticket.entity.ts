@@ -13,7 +13,7 @@ import { History } from '@/history/entities/history.entity';
 
 export enum TicketStatus {
   ACTIVE = 'active',
-  COMPLETED = 'completed'
+  COMPLETED = 'completed',
 }
 
 @Entity('tickets')
@@ -35,6 +35,9 @@ export class Ticket {
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   buyedAt!: Date;
+
+  @Column({ type: 'integer' })
+  amount!: number;
 
   @Column({
     type: 'enum',

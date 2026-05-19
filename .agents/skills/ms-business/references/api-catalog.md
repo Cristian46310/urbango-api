@@ -157,7 +157,26 @@ Documentación interactiva: `/docs`
 | Método | Ruta | Auth |
 |--------|------|------|
 | GET | `/incident-reports` | Público (listado paginado) |
+| GET | `/incident-reports/bus/:busId` | JWT (`type`, `status`, `page`, `limit` en query) |
 | POST | `/incident-reports/driver` | JWT + rol `DRIVER`, multipart fotos |
+| GET | `/incident-reports/:incidentId/comments` | JWT |
+| POST | `/incident-reports/:incidentId/comments` | JWT |
+| PATCH | `/incident-reports/:incidentId/status` | JWT |
+
+## dashboard
+
+| Método | Ruta | Auth | Query |
+|--------|------|------|-------|
+| GET | `/dashboard/payment-method-income` | JWT + permiso ms-security | `months` = `3` \| `6` \| `12` (default `6`) |
+| GET | `/dashboard/payment-method-income/export` | JWT + permiso ms-security | `months` = `3` \| `6` \| `12` |
+| GET | `/dashboard/incident-trend-by-type` | JWT + permiso ms-security | `months` = `3` \| `6` \| `12` (default `12`); `enterpriseId` (UUID, opcional) |
+| GET | `/dashboard/incident-trend-by-type/export` | JWT + permiso ms-security | `months` = `3` \| `6` \| `12`; `enterpriseId` (UUID, opcional) |
+
+**Ingresos por método de pago** — respuesta JSON: `period`, `labels` (meses `YYYY-MM`), `datasets[]` con `paymentMethodId`, `paymentMethodName`, `data[]`, `totalIncome`, `grandTotal`, `excludedTicketsCount`.
+
+**Evolución de incidentes por tipo** — respuesta JSON: `period`, `scope` (`enterpriseId`, `enterpriseName`; null = consolidado), `labels`, `datasets[]` con `type`, `typeLabel`, `data[]`, `total`, `grandTotal`. Tipos fijos: `mechanical`, `accident`, `delay`, `passenger`, `other`.
+
+**Permisos en ms-security** (rol `BUSINESS_ADMIN` o `ADMIN`): registrar `GET` para las rutas anteriores (o patrón `/dashboard/*`).
 
 ## Paginación
 

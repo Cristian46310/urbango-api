@@ -69,7 +69,7 @@ Guía detallada (ejemplos, 401/403, documentar endpoints):
 
 ## Módulos registrados
 
-`AuthModule`, `RouteModule`, `StopModule`, `NodeModule`, `AddressModule`, `CitizenModule`, `TicketModule`, `HistoryModule`, `BusModule`, `SchedulerModule`, `PaymentMethodModule`, `PaymentMethodCitizenModule`, `EnterpriseModule`, `DriverModule`, `TurnModule`, `IncidentModule`, `SharedModule`.
+`AuthModule`, `RouteModule`, `StopModule`, `NodeModule`, `AddressModule`, `CitizenModule`, `TicketModule`, `HistoryModule`, `BusModule`, `SchedulerModule`, `PaymentMethodModule`, `PaymentMethodCitizenModule`, `EnterpriseModule`, `DriverModule`, `TurnModule`, `IncidentModule`, `DashboardModule`, `SharedModule`.
 
 Catálogo: [references/domains-and-modules.md](references/domains-and-modules.md).
 
