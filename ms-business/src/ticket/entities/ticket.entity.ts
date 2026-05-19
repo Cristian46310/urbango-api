@@ -44,6 +44,9 @@ export class Ticket {
   @Column({ type: 'timestamp with time zone', nullable: true })
   boardedAt?: Date;
 
+  @Column({ type: 'timestamp', nullable: true })
+  completedAt?: Date | null;
+
   @OneToMany(() => History, (history) => history.ticket)
   histories?: History[];
 

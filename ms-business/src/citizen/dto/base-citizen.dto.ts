@@ -1,18 +1,14 @@
+import { BasePersonDto } from '@/shared/dto/base-person.dto';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsDateString, IsOptional, IsString } from 'class-validator';
 
-export class BaseCitizenDto {
-  @ApiProperty({ example: 'María Gómez' })
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @ApiProperty({ example: 'Información adicional' })
+export class BaseCitizenDto extends BasePersonDto {
+  @ApiProperty({ example: 'Información adicional', required: false })
   @IsOptional()
   @IsString()
   extraInfo?: string;
 
-  @ApiProperty({ example: 'address-uuid' })
+  @ApiProperty({ example: 'uuid-de-la-direccion', required: false })
   @IsOptional()
   @IsString()
   addressId?: string;
@@ -22,3 +18,4 @@ export class BaseCitizenDto {
   @IsDateString()
   birthDate?: string;
 }
+

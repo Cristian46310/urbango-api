@@ -1,0 +1,14 @@
+---
+description: Convenciones NestJS para ms-business (DTOs, auth, migraciones)
+globs: ms-business/**/*.ts
+alwaysApply: false
+---
+
+# ms-business
+
+- Controllers delgados; lógica en services; respuestas siempre como response DTOs, no entidades TypeORM.
+- DTOs: `base-*` → `create-*` → `update-*` (PartialType) → `response-*` / listas con `items` + `meta`.
+- JWT: validar solo vía `JwtValidationService` → ms-security `validate-token`; no firmar tokens aquí.
+- Endpoints sensibles: `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles(...)` + `@ApiBearerAuth()`.
+- TypeORM: `synchronize: false`; cambios de esquema vía `src/migrations/`.
+- Path alias `@/` → `src/`. Skill: `.agents/skills/ms-business/SKILL.md`.

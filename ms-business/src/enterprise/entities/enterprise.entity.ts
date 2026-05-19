@@ -18,6 +18,9 @@ export class Enterprise {
   @Column({ unique: true })
   nit!: string;
 
+  @Column({ nullable: true })
+  supervisorEmail?: string;
+
   @OneToMany(() => Bus, (bus) => bus.enterprise)
   buses?: Bus[];
 

@@ -19,4 +19,5 @@ export class Stop {
   longitude?: number;
   @CreateDateColumn()
   createdAt!: Date;
+
 }

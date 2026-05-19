@@ -1,8 +1,12 @@
 import { Module } from '@nestjs/common';
+import { DiscoveryModule } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { HttpModule } from '@nestjs/axios';
+import { SecurityModule } from './auth/security.module';
+import { AuthModule } from './auth/auth.module';
 import { RouteModule } from './route/route.module';
 import { StopModule } from './stop/stop.module';
 import { NodeModule } from './node/node.module';
@@ -19,10 +23,16 @@ import { DriverModule } from './driver/driver.module';
 import { TurnModule } from './turn/turn.module';
 import { BoardingModule } from './boarding/boarding.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { IncidentModule } from './incident/incident.module';
+import { SharedModule } from './shared/shared.module';
 
 @Module({
   imports: [
+    DiscoveryModule,
     ConfigModule.forRoot({ isGlobal: true }),
+    HttpModule,
+    SecurityModule,
+    AuthModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -31,7 +41,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
         url: config.get<string>('DB_URL'),
         autoLoadEntities: true,
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: false, // Usaremos migraciones
+        synchronize: false,
       }),
     }),
     RouteModule,
@@ -50,6 +60,8 @@ import { AnalyticsModule } from './analytics/analytics.module';
     TurnModule,
     BoardingModule,
     AnalyticsModule,
+    IncidentModule,
+    SharedModule,
   ],
   controllers: [AppController],
   providers: [AppService],

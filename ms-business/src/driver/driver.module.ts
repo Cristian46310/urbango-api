@@ -9,5 +9,6 @@ import { Person } from '@/shared/entities/person.entitie';
   imports: [TypeOrmModule.forFeature([Driver, Person])],
   controllers: [DriverController],
   providers: [DriverService],
+  exports: [DriverService],
 })
 export class DriverModule {}
