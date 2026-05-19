@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { AxiosError } from 'axios';
 import { firstValueFrom } from 'rxjs';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { IS_AUTHENTICATED_KEY } from '../decorators/authenticated.decorator';
 
 @Injectable()
 export class SecurityGuard implements CanActivate {
@@ -20,6 +21,11 @@ export class SecurityGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
+
+    const isAuthenticatedOnly = this.reflector.getAllAndOverride<boolean>(
+      IS_AUTHENTICATED_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
     if (isPublic) {
       return true;
@@ -40,6 +46,10 @@ export class SecurityGuard implements CanActivate {
     const url = this.getRequestPath(request);
 
     request.user = this.decodeJwtPayload(token);
+
+    if (isAuthenticatedOnly) {
+      return true;
+    }
 
     const msSecurityUrl =
       this.configService.get<string>('MS_SECURITY_URL') ??

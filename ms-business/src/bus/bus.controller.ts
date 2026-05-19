@@ -41,6 +41,16 @@ export class BusController {
     private readonly busStorageService: BusStorageService,
   ) {}
 
+  private async resolveEnterpriseId(user: JwtPayload): Promise<string> {
+    if (!user?.id) {
+      throw new BadRequestException('Usuario no identificado en el token');
+    }
+    return this.busService.resolveEnterpriseIdForUser(
+      user.id,
+      user.enterpriseId,
+    );
+  }
+
   @Post()
   @UseGuards(SecurityGuard)
   @ApiBearerAuth()
@@ -48,16 +58,12 @@ export class BusController {
     summary: 'Registrar un bus en la flota de la empresa (requiere autenticación)',
   })
   @ApiCreatedResponse({ type: ResponseBusDto })
-  create(
+  async create(
     @Body() createBusDto: CreateBusDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    if (!user.enterpriseId) {
-      throw new BadRequestException(
-        'Your user is not associated with an enterprise. Contact the administrator.',
-      );
-    }
-    return this.busService.create(createBusDto, user.enterpriseId);
+    const enterpriseId = await this.resolveEnterpriseId(user);
+    return this.busService.create(createBusDto, enterpriseId);
   }
 
   @Get('fleet')
@@ -67,16 +73,12 @@ export class BusController {
     summary: 'Listar buses de la flota de mi empresa (requiere autenticación)',
   })
   @ApiOkResponse({ type: ResponseBusListDto })
-  findFleet(
+  async findFleet(
     @Query() paginationQuery: PaginationQueryDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    if (!user.enterpriseId) {
-      throw new BadRequestException(
-        'Your user is not associated with an enterprise. Contact the administrator.',
-      );
-    }
-    return this.busService.findAll(paginationQuery, user.enterpriseId);
+    const enterpriseId = await this.resolveEnterpriseId(user);
+    return this.busService.findAll(paginationQuery, enterpriseId);
   }
 
   @Get()
@@ -113,12 +115,8 @@ export class BusController {
     @Body() updateBusDto: UpdateBusDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    if (!user.enterpriseId) {
-      throw new BadRequestException(
-        'Your user is not associated with an enterprise. Contact the administrator.',
-      );
-    }
-    await this.busService.assertBusBelongsToEnterprise(id, user.enterpriseId);
+    const enterpriseId = await this.resolveEnterpriseId(user);
+    await this.busService.assertBusBelongsToEnterprise(id, enterpriseId);
     return this.busService.update(id, updateBusDto);
   }
 
@@ -127,15 +125,10 @@ export class BusController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Eliminar un bus por id (requiere autenticación)' })
   @ApiParam({ name: 'id', format: 'uuid' })
-  remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    if (!user.enterpriseId) {
-      throw new BadRequestException(
-        'Your user is not associated with an enterprise. Contact the administrator.',
-      );
-    }
-    return this.busService
-      .assertBusBelongsToEnterprise(id, user.enterpriseId)
-      .then(() => this.busService.remove(id));
+  async remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    const enterpriseId = await this.resolveEnterpriseId(user);
+    await this.busService.assertBusBelongsToEnterprise(id, enterpriseId);
+    return this.busService.remove(id);
   }
 
   @Post(':id/photo')
@@ -150,13 +143,8 @@ export class BusController {
     @UploadedFile() file: Express.Multer.File,
     @CurrentUser() user: JwtPayload,
   ): Promise<ResponseBusDto> {
-    if (!user.enterpriseId) {
-      throw new BadRequestException(
-        'Your user is not associated with an enterprise. Contact the administrator.',
-      );
-    }
-
-    await this.busService.assertBusBelongsToEnterprise(id, user.enterpriseId);
+    const enterpriseId = await this.resolveEnterpriseId(user);
+    await this.busService.assertBusBelongsToEnterprise(id, enterpriseId);
 
     if (!file) {
       throw new BadRequestException('No file was uploaded');

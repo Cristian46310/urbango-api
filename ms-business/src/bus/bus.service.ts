@@ -11,6 +11,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Bus } from './entities/bus.entity';
 import { Enterprise } from '@/enterprise/entities/enterprise.entity';
+import { Driver } from '@/driver/entities/driver.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponseBusDto } from './dto/response-bus.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
@@ -25,7 +26,35 @@ export class BusService {
     private readonly busRepository: Repository<Bus>,
     @InjectRepository(Enterprise)
     private readonly enterpriseRepository: Repository<Enterprise>,
+    @InjectRepository(Driver)
+    private readonly driverRepository: Repository<Driver>,
   ) {}
+
+  /**
+   * Empresa desde JWT (ms-security) o, si falta, desde el perfil de conductor en persons.
+   */
+  async resolveEnterpriseIdForUser(
+    userId: string,
+    jwtEnterpriseId?: string,
+  ): Promise<string> {
+    if (jwtEnterpriseId) {
+      return jwtEnterpriseId;
+    }
+
+    const driver = await this.driverRepository.findOne({
+      where: { userId },
+      relations: ['enterprise'],
+    });
+
+    const fromDriverProfile = driver?.enterprise?.id;
+    if (fromDriverProfile) {
+      return fromDriverProfile;
+    }
+
+    throw new BadRequestException(
+      'Tu usuario no está asociado a una empresa. Registra tu perfil de conductor con empresa o pide al administrador que asigne enterpriseId en tu cuenta.',
+    );
+  }
 
   async create(
     createBusDto: CreateBusDto,
