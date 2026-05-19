@@ -42,21 +42,29 @@ Skill transversal del monorepo: `/monorepo-overview` o `.agents/skills/monorepo-
 - Documentación de dominio en español; identificadores de código en inglés.
 - Antes de cambiar contratos HTTP entre MS, actualizar `monorepo-overview/references/inter-service-contracts.md`.
 
+## Verificación local (rápida) vs CI
+
+Scripts para agentes y desarrollo ágil. GitHub Actions ejecuta pasos adicionales (tests Java en ms-security, jest en Nest).
+
+| MS | Script | Comando equivalente |
+|----|--------|---------------------|
+| ms-security | `scripts/build.sh` | `mvn clean package -DskipTests` |
+| ms-business | `scripts/verify.sh` | `pnpm lint` + `pnpm build` |
+| ms-notifications | `scripts/lint.sh` | `ruff check` + `ruff format --check` |
+
 ## Comandos rápidos (desde la raíz del repo)
 
 ```bash
-# ms-security
-./.agents/skills/ms-security/scripts/build-verify.sh
-
-# ms-business
-./.agents/skills/ms-business/scripts/test.sh
-
-# ms-notifications
+# Verificación rápida por microservicio
+./.agents/skills/ms-security/scripts/build.sh
+./.agents/skills/ms-business/scripts/verify.sh
 ./.agents/skills/ms-notifications/scripts/lint.sh
 
 # Docker (security + notifications)
 docker compose up -d --build ms-security ms-notifications
 ```
+
+Swagger local: ms-security `:8080/swagger-ui/index.html`, ms-business `:3000/docs`, ms-notifications `:8000/docs`.
 
 ## Documentación humana existente
 

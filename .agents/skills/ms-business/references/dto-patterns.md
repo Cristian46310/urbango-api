@@ -37,7 +37,8 @@ dto/
 
 En controllers: `@ApiTags`, `@ApiOperation`, `@ApiResponse`, `@ApiBearerAuth` en rutas protegidas.
 
-Documento generado en `/docs` — título "MS Business API".
+Documento generado en `/docs` — título "MS Business API".  
+Probar con JWT: [swagger-testing.md](swagger-testing.md).
 
 ## Listas paginadas
 

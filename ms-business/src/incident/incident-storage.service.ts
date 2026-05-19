@@ -36,7 +36,9 @@ export class IncidentStorageService {
       'incident-report';
   }
 
-  async uploadMany(files: IncidentStorageFile[]): Promise<StoredIncidentPhoto[]> {
+  async uploadMany(
+    files: IncidentStorageFile[],
+  ): Promise<StoredIncidentPhoto[]> {
     if (files.length === 0) return [];
     if (!this.supabaseUrl || !this.supabaseKey) {
       throw new BadRequestException(
@@ -47,8 +49,11 @@ export class IncidentStorageService {
     return Promise.all(files.map((file) => this.upload(file)));
   }
 
-  private async upload(file: IncidentStorageFile): Promise<StoredIncidentPhoto> {
-    const extension = extname(file.originalname) || this.extensionFromMime(file);
+  private async upload(
+    file: IncidentStorageFile,
+  ): Promise<StoredIncidentPhoto> {
+    const extension =
+      extname(file.originalname) || this.extensionFromMime(file);
     const path = `incidents/${new Date().toISOString().slice(0, 10)}/${Date.now()}-${randomUUID()}${extension}`;
     const uploadUrl = `${this.supabaseUrl}/storage/v1/object/${this.bucket}/${path}`;
 

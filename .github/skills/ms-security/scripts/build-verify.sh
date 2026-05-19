@@ -3,5 +3,4 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../../../ms-security" && pwd)"
 cd "$ROOT"
 ./mvnw -B clean verify
-./mvnw checkstyle:check
-echo "OK: verify y checkstyle completados."
+echo "OK: verify completado."

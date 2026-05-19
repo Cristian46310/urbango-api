@@ -10,6 +10,7 @@ import { Turn } from '@/turn/entities/turn.entity';
 import { Driver } from '@/driver/entities/driver.entity';
 import { Enterprise } from '@/enterprise/entities/enterprise.entity';
 import { IncidentBus } from './incident-bus.entity';
+import { IncidentComment } from './incident-comment.entity';
 import {
   IncidentType,
   IncidentSeverity,
@@ -36,7 +37,11 @@ export class Incident {
   @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
   longitude?: number;
 
-  @Column({ type: 'enum', enum: IncidentStatus, default: IncidentStatus.REPORTED })
+  @Column({
+    type: 'enum',
+    enum: IncidentStatus,
+    default: IncidentStatus.REPORTED,
+  })
   status!: IncidentStatus;
 
   @ManyToOne(() => Turn, { eager: true })
@@ -50,6 +55,9 @@ export class Incident {
 
   @OneToMany(() => IncidentBus, (incidentBus) => incidentBus.incident)
   incidentBuses?: IncidentBus[];
+
+  @OneToMany(() => IncidentComment, (comment) => comment.incident)
+  comments?: IncidentComment[];
 
   @CreateDateColumn({ type: 'timestamp with time zone' })
   reportedAt!: Date;

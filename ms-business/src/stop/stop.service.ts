@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateStopDto } from './dto/create-stop.dto';
 import { UpdateStopDto } from './dto/update-stop.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -9,6 +9,16 @@ import { plainToInstance } from 'class-transformer';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponseStopListDto } from './dto/response-stop-list.dto';
 import { NearbyStopDto } from './dto/nearby-stop.dto';
+
+type NearbyStopRawRow = {
+  id: string;
+  name: string;
+  location: string;
+  latitude: string | number;
+  longitude: string | number;
+  distanceMeters: string | number;
+  routes: string | { id: string; name: string }[];
+};
 
 @Injectable()
 export class StopService {
@@ -96,10 +106,6 @@ export class StopService {
     limit = 5,
     radiusMeters = 1000,
   ): Promise<NearbyStopDto[]> {
-    const minLatitude = -90;
-    const maxLatitude = 90;
-    const minLongitude = -180;
-    const maxLongitude = 180;
     const minNearbyLimit = 1;
     const maxNearbyLimit = 100;
     const minRadiusMeters = 1;
@@ -108,9 +114,15 @@ export class StopService {
     const minimumCosineValue = 0.000001;
 
     // Sanitizar el límite: mínimo 1, máximo 100 resultados
-    const safeLimit = Math.max(minNearbyLimit, Math.min(Math.trunc(limit), maxNearbyLimit));
+    const safeLimit = Math.max(
+      minNearbyLimit,
+      Math.min(Math.trunc(limit), maxNearbyLimit),
+    );
     // Sanitizar el radio: mínimo 1 metro
-    const safeRadiusMeters = Math.max(minRadiusMeters, Math.trunc(radiusMeters));
+    const safeRadiusMeters = Math.max(
+      minRadiusMeters,
+      Math.trunc(radiusMeters),
+    );
 
     // ═══════════════════════════════════════════════════════════════
     // PASO 1: CÁLCULO DEL CUADRO DELIMITADOR (Bounding Box)
@@ -120,12 +132,12 @@ export class StopService {
     // entre grados de coordenadas y metros. Sirve para aproximar rápidamente
     // qué paradas están "cerca" antes de calcular la distancia exacta.
     const latDelta = safeRadiusMeters / metersPerDegree;
-    
+
     // cos(latitud) = ajusta la longitud porque los meridianos convergen hacia los polos
     // Ejemplo: a 60° de latitud, cada grado de longitud = ~55 km (no 111 km)
     // Esto compensa la curvatura de la Tierra según la latitud actual
     const lonCos = Math.cos(this.toRadians(lat));
-    
+
     // Delta de longitud ajustado por la latitud
     // Math.max(Math.abs(lonCos), minimumCosineValue) evita división por cero en los polos
     const lonDelta =
@@ -145,7 +157,7 @@ export class StopService {
     // earthRadiusMeters = Radio de la Tierra en metros (6,371 km es el valor estándar)
     // acos() = arcocoseno (inverso del coseno, rango [0, π])
     // radians() = convierte grados a radianes (x * π/180)
-    // 
+    //
     // La fórmula Haversine calcula la distancia sobre la esfera terrestre
     // entre dos puntos dados sus coordenadas en latitud/longitud:
     // d = R * arccos(cos(lat1) * cos(lat2) * cos(lon2-lon1) + sin(lat1) * sin(lat2))
@@ -158,9 +170,9 @@ export class StopService {
       )
     )`;
 
-    // “Busca las paradas dentro de una zona aproximada cercana, 
-    // calcula la distancia exacta desde mi ubicación, agrupa sus rutas, 
-    // filtra solo las que estén dentro del radio permitido, 
+    // “Busca las paradas dentro de una zona aproximada cercana,
+    // calcula la distancia exacta desde mi ubicación, agrupa sus rutas,
+    // filtra solo las que estén dentro del radio permitido,
     // ordénalas por cercanía y devuelve las más próximas.”
     // ═══════════════════════════════════════════════════════════════
     // PASO 3: CONSULTA A BASE DE DATOS CON FILTRO Y ORDENAMIENTO
@@ -209,26 +221,28 @@ export class StopService {
       .orderBy('"distanceMeters"', 'ASC')
       .limit(safeLimit)
       .setParameters({ lat, lon })
-      .getRawMany();
+      .getRawMany<NearbyStopRawRow>();
 
-      return raw.map((row) => {
-        const routesValue =
-          typeof row.routes === 'string' ? JSON.parse(row.routes) : row.routes;
+    return raw.map((row) => {
+      const routesValue =
+        typeof row.routes === 'string'
+          ? (JSON.parse(row.routes) as { id: string; name: string }[])
+          : row.routes;
 
-        return new NearbyStopDto({
-          id: row.id,
-          name: row.name,
-          location: row.location,
-          latitude: Number(row.latitude),
-          longitude: Number(row.longitude),
-          distanceMeters: Number(row.distanceMeters),
-          routes: Array.isArray(routesValue)
-            ? routesValue.map((route: { id: string; name: string }) => ({
-                id: route.id,
-                name: route.name,
-              }))
-            : [],
-        });
+      return new NearbyStopDto({
+        id: row.id,
+        name: row.name,
+        location: row.location,
+        latitude: Number(row.latitude),
+        longitude: Number(row.longitude),
+        distanceMeters: Number(row.distanceMeters),
+        routes: Array.isArray(routesValue)
+          ? routesValue.map((route: { id: string; name: string }) => ({
+              id: route.id,
+              name: route.name,
+            }))
+          : [],
       });
+    });
   }
 }

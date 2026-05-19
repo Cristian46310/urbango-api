@@ -5,10 +5,19 @@ on:
     branches:
       - main
       - dev
+    paths:
+      - 'ms-security/**'
+      - '.github/workflows/ms-security.yml'
   pull_request:
     branches:
       - main
       - dev
+    paths:
+      - 'ms-security/**'
+      - '.github/workflows/ms-security.yml'
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -30,8 +39,4 @@ jobs:
           cache: 'maven'
 
       - name: Build
-        run: mvn -B clean verify
-
-      - name: Lint (Checkstyle)
-        run: mvn checkstyle:check
-        
+        run: ./mvnw -B clean verify

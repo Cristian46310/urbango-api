@@ -49,11 +49,18 @@ export class TicketService {
       });
       if (!pmc) throw new BadRequestException('Payment method not found');
     }
+    let amount: number | undefined;
     if (createTicketDto.schedulerId) {
       const sch = await this.schedulerRepository.findOne({
         where: { id: createTicketDto.schedulerId },
+        relations: ['route'],
       });
       if (!sch) throw new BadRequestException('Scheduler not found');
+      amount = sch.route.price;
+    } else {
+      throw new BadRequestException(
+        'schedulerId is required to determine ticket amount',
+      );
     }
 
     const ticketData: Partial<Ticket> = {
@@ -71,7 +78,8 @@ export class TicketService {
       buyedAt: createTicketDto.buyedAt
         ? new Date(createTicketDto.buyedAt)
         : undefined,
-      appliedRate: createTicketDto.appliedRate,
+      appliedRate: createTicketDto.appliedRate ?? amount,
+      amount,
       status: createTicketDto.status,
       boardedAt: createTicketDto.boardedAt
         ? new Date(createTicketDto.boardedAt)
@@ -207,9 +215,7 @@ export class TicketService {
 
     // 3. Validar que el bus coincida
     if (ticket.scheduler?.bus?.id !== alightTicketDto.busId) {
-      throw new BadRequestException(
-        'Bus ID does not match the ticket bus',
-      );
+      throw new BadRequestException('Bus ID does not match the ticket bus');
     }
 
     // 4. Buscar el nodo (paradero) de descenso
@@ -219,14 +225,14 @@ export class TicketService {
     });
 
     if (!alightNode) {
-      throw new NotFoundException(`Node (stop) ${alightTicketDto.nodeId} not found`);
+      throw new NotFoundException(
+        `Node (stop) ${alightTicketDto.nodeId} not found`,
+      );
     }
 
     // 5. Validar que el nodo pertenece a la ruta del ticket
     if (alightNode.route?.id !== ticket.scheduler?.route?.id) {
-      throw new BadRequestException(
-        'Node does not belong to the ticket route',
-      );
+      throw new BadRequestException('Node does not belong to the ticket route');
     }
 
     // 6. Registrar evento de descenso en History

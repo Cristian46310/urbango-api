@@ -131,6 +131,7 @@ export class BoardingService {
         scheduler: { id: scheduler.id } as Scheduler,
         buyedAt: now,
         appliedRate,
+        amount: appliedRate,
         status: TicketStatus.ACTIVE,
         boardedAt: now,
       });

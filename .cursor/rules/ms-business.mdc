@@ -11,4 +11,4 @@ alwaysApply: false
 - JWT: validar solo vía `JwtValidationService` → ms-security `validate-token`; no firmar tokens aquí.
 - Endpoints sensibles: `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles(...)` + `@ApiBearerAuth()`.
 - TypeORM: `synchronize: false`; cambios de esquema vía `src/migrations/`.
-- Path alias `@/` → `src/`. Skill: `.agents/skills/ms-business/SKILL.md`.
+- Path alias `@/` → `src/`. Swagger: `/docs`; probar JWT vía ms-security login. Verificación rápida: `scripts/verify.sh` (lint + build). Skill: `.agents/skills/ms-business/SKILL.md`.

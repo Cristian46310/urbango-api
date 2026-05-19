@@ -8,6 +8,15 @@ import { firstValueFrom } from 'rxjs';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { IS_AUTHENTICATED_KEY } from '../decorators/authenticated.decorator';
 import { JwtValidationService } from '../services/jwt-validation.service';
+import { JwtPayload } from '../types';
+
+interface AuthRequest {
+  headers: { authorization?: string };
+  method: string;
+  originalUrl?: string;
+  url?: string;
+  user?: JwtPayload;
+}
 
 @Injectable()
 export class SecurityGuard implements CanActivate {
@@ -33,7 +42,7 @@ export class SecurityGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<AuthRequest>();
     const authHeader = request.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -98,7 +107,10 @@ export class SecurityGuard implements CanActivate {
         return true;
       } else {
         throw new HttpException(
-          { allowed: false, reason: response.data.reason || 'Insufficient role' },
+          {
+            allowed: false,
+            reason: response.data.reason || 'Insufficient role',
+          },
           HttpStatus.FORBIDDEN,
         );
       }
@@ -120,14 +132,14 @@ export class SecurityGuard implements CanActivate {
             ? responseData.reason
             : 'Authorization service unavailable';
 
-        if (status === HttpStatus.UNAUTHORIZED) {
+        if (status === 401) {
           throw new HttpException(
             { allowed: false, reason },
             HttpStatus.UNAUTHORIZED,
           );
         }
 
-        if (status === HttpStatus.FORBIDDEN) {
+        if (status === 403) {
           throw new HttpException(
             { allowed: false, reason: reason || 'Insufficient role' },
             HttpStatus.FORBIDDEN,
@@ -142,7 +154,10 @@ export class SecurityGuard implements CanActivate {
     }
   }
 
-  private getRequestPath(request: { originalUrl?: string; url?: string }): string {
+  private getRequestPath(request: {
+    originalUrl?: string;
+    url?: string;
+  }): string {
     const rawUrl = request.originalUrl ?? request.url ?? '/';
     const questionMarkIndex = rawUrl.indexOf('?');
     return questionMarkIndex >= 0 ? rawUrl.slice(0, questionMarkIndex) : rawUrl;

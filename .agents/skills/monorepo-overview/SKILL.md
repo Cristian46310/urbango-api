@@ -21,13 +21,16 @@ dev-backend-uc/
 └── .agents/skills/    # Skills por microservicio
 ```
 
-## Puertos y URLs locales
+## Puertos, health y documentación API
 
-| Servicio | Puerto | Health / docs |
-|----------|--------|----------------|
-| ms-security | 8080 | `http://localhost:8080/actuator/health` |
-| ms-business | 3000 | Swagger `http://localhost:3000/docs` |
-| ms-notifications | 8000 | `GET /api/email/health`, Swagger `/docs` |
+| Servicio | Puerto | Health | Swagger / docs |
+|----------|--------|--------|----------------|
+| ms-security | 8080 | `/actuator/health` | `/swagger-ui/index.html` |
+| ms-business | 3000 | — | `/docs` |
+| ms-notifications | 8000 | `/api/email/health` | `/docs` |
+
+Probar Swagger con JWT (Nest): skill `ms-business` → [swagger-testing.md](../ms-business/references/swagger-testing.md).  
+Flujo login → token → **Authorize** en `/docs` requiere ms-security arriba.
 
 ## Dependencias entre servicios
 
@@ -40,25 +43,44 @@ flowchart LR
   ms_business -->|incident email| ms_notifications
 ```
 
+## Verificación local (agentes) vs CI
+
+Scripts pensados para feedback rápido antes de commit. **CI en GitHub sigue siendo más estricto.**
+
+| Microservicio | Script rápido | Qué hace | CI adicional |
+|---------------|---------------|----------|--------------|
+| ms-security | `ms-security/scripts/build.sh` | `mvn package -DskipTests` | `./mvnw verify` |
+| ms-business | `ms-business/scripts/verify.sh` | `lint` + `build` | `pnpm test` |
+| ms-notifications | `ms-notifications/scripts/lint.sh` | ruff check + format | — |
+
+Desde la raíz del repo:
+
+```bash
+./.agents/skills/ms-security/scripts/build.sh
+./.agents/skills/ms-business/scripts/verify.sh
+./.agents/skills/ms-notifications/scripts/lint.sh
+```
+
 ## Checklist antes de codificar
 
-1. ¿Qué microservicio toca el cambio?
-2. ¿Afecta autenticación? → revisar skill `ms-security` y `docs/ROLES.md`.
-3. ¿Afecta emails? → skill `ms-notifications` y `MS_NOTIFICATION_URL`.
-4. ¿Cambia contrato HTTP entre MS? → actualizar `references/inter-service-contracts.md`.
-5. ¿Necesitas los tres MS arriba? → ver `references/local-dev.md`.
+1. ¿Qué microservicio toca el cambio? → abrir su `SKILL.md`.
+2. ¿Afecta autenticación? → `ms-security` + `docs/ROLES.md`.
+3. ¿Afecta emails? → `ms-notifications` + `MS_NOTIFICATION_URL`.
+4. ¿Cambia contrato HTTP entre MS? → `references/inter-service-contracts.md`.
+5. ¿Necesitas probar rutas protegidas en Nest? → ms-security + JWT en Swagger `/docs`.
+6. ¿Necesitas los tres MS arriba? → `references/local-dev.md`.
 
 ## Skills por carpeta
 
-| Si editas… | Skill |
-|------------|-------|
-| `ms-business/**` | `ms-business` |
-| `ms-security/**` | `ms-security` |
-| `ms-notifications/**` | `ms-notifications` |
-| Raíz, `docs/`, `docker-compose.yml` | Esta skill + la del MS afectado |
+| Si editas… | Skill | Arquitectura / Swagger |
+|------------|-------|-------------------------|
+| `ms-business/**` | `ms-business` | `references/architecture.md`, `references/swagger-testing.md` |
+| `ms-security/**` | `ms-security` | `references/architecture.md`, `references/swagger-testing.md` |
+| `ms-notifications/**` | `ms-notifications` | `references/architecture.md`, `references/swagger-testing.md` |
+| Raíz, `docs/`, `docker-compose.yml` | Esta skill + MS afectado | — |
 
 ## Referencias
 
-- Contratos HTTP compartidos: [references/inter-service-contracts.md](references/inter-service-contracts.md)
-- Desarrollo local y Docker: [references/local-dev.md](references/local-dev.md)
-- Índice humano: [AGENTS.md](../../../AGENTS.md) en la raíz del repo
+- Contratos HTTP: [references/inter-service-contracts.md](references/inter-service-contracts.md)
+- Desarrollo local: [references/local-dev.md](references/local-dev.md)
+- Índice agentes: [AGENTS.md](../../../AGENTS.md)

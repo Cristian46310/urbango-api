@@ -68,6 +68,8 @@ export class AddIncidentReports1779047000000 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE "incident_buses"`);
     await queryRunner.query(`DROP TABLE "incidents"`);
     await queryRunner.query(`DROP TABLE "gps"`);
-    await queryRunner.query(`ALTER TABLE "enterprises" DROP COLUMN "supervisorEmail"`);
+    await queryRunner.query(
+      `ALTER TABLE "enterprises" DROP COLUMN "supervisorEmail"`,
+    );
   }
 }

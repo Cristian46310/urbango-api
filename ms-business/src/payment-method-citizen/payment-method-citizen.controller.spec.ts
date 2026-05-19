@@ -8,12 +8,21 @@ describe('PaymentMethodCitizenController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PaymentMethodCitizenController],
-      providers: [PaymentMethodCitizenService],
+      providers: [
+        {
+          provide: PaymentMethodCitizenService,
+          useValue: {
+            create: jest.fn(),
+            findAll: jest.fn(),
+            findOne: jest.fn(),
+            update: jest.fn(),
+            remove: jest.fn(),
+          },
+        },
+      ],
     }).compile();
 
-    controller = module.get<PaymentMethodCitizenController>(
-      PaymentMethodCitizenController,
-    );
+    controller = module.get(PaymentMethodCitizenController);
   });
 
   it('should be defined', () => {

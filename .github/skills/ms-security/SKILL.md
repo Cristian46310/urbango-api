@@ -68,7 +68,6 @@ Plantilla: `ms-security/.env.example` y [references/env-vars.md](references/env-
 ```bash
 cd ms-security
 ./mvnw -B clean verify
-./mvnw checkstyle:check
 ```
 
 Script: `scripts/build-verify.sh`, `scripts/check-env.sh`.

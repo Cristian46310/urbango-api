@@ -18,4 +18,3 @@ export class BaseCitizenDto extends BasePersonDto {
   @IsDateString()
   birthDate?: string;
 }
-

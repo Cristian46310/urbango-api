@@ -1,12 +1,15 @@
-import {
-  Injectable,
-  Logger,
-  HttpException,
-  HttpStatus,
-} from '@nestjs/common';
+import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
 import { JwtPayload } from '../types';
+
+interface ValidateTokenResponse {
+  id: string;
+  name?: string;
+  email?: string;
+  roles?: string[];
+  createdAt?: number;
+}
 
 @Injectable()
 export class JwtValidationService {
@@ -25,13 +28,17 @@ export class JwtValidationService {
 
       this.logger.debug(`Validating token against: ${validationUrl}`);
 
-      const response = await axios.post(validationUrl, null, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+      const response = await axios.post<ValidateTokenResponse>(
+        validationUrl,
+        null,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 60000,
         },
-        timeout: 60000,
-      });
+      );
 
       const userData = response.data;
 
@@ -52,8 +59,6 @@ export class JwtValidationService {
       if (error instanceof Error) {
         this.logger.error(`Token validation error: ${error.message}`);
       }
-
-      const axiosError = error as AxiosError;
 
       throw new HttpException(
         {

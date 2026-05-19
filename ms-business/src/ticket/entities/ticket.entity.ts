@@ -38,7 +38,14 @@ export class Ticket {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   appliedRate!: number;
 
-  @Column({ type: 'enum', enum: TicketStatus, default: TicketStatus.ACTIVE })
+  @Column({ type: 'integer' })
+  amount!: number;
+
+  @Column({
+    type: 'enum',
+    enum: TicketStatus,
+    default: TicketStatus.ACTIVE,
+  })
   status!: TicketStatus;
 
   @Column({ type: 'timestamp with time zone', nullable: true })

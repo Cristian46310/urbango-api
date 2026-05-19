@@ -45,7 +45,9 @@ export class DriverController {
 
   @Get('me')
   @Authenticated()
-  @ApiOperation({ summary: 'Obtener perfil de conductor del usuario autenticado' })
+  @ApiOperation({
+    summary: 'Obtener perfil de conductor del usuario autenticado',
+  })
   findMe(@CurrentUser() currentUser: JwtPayload) {
     if (!currentUser?.id) {
       throw new BadRequestException('Usuario no identificado en el token');

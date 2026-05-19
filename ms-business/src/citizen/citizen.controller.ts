@@ -26,7 +26,9 @@ export class CitizenController {
 
   @Post()
   @Authenticated()
-  @ApiOperation({ summary: 'Registrar perfil de ciudadano (userId desde token)' })
+  @ApiOperation({
+    summary: 'Registrar perfil de ciudadano (userId desde token)',
+  })
   create(
     @Body() createCitizenDto: CreateCitizenDto,
     @CurrentUser() currentUser: JwtPayload,
@@ -42,7 +44,9 @@ export class CitizenController {
 
   @Get('me')
   @Authenticated()
-  @ApiOperation({ summary: 'Obtener perfil de ciudadano del usuario autenticado' })
+  @ApiOperation({
+    summary: 'Obtener perfil de ciudadano del usuario autenticado',
+  })
   findMe(@CurrentUser() currentUser: JwtPayload) {
     if (!currentUser?.id) {
       throw new BadRequestException('Usuario no identificado en el token');

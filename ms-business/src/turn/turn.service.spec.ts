@@ -50,7 +50,7 @@ describe('TurnService', () => {
       ],
     }).compile();
 
-    service = module.get<TurnService>(TurnService);
+    service = module.get(TurnService);
   });
 
   it('should be defined', () => {

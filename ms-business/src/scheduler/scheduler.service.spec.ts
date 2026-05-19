@@ -82,7 +82,7 @@ describe('SchedulerService', () => {
       ],
     }).compile();
 
-    service = module.get<SchedulerService>(SchedulerService);
+    service = module.get(SchedulerService);
   });
 
   it('should be defined', () => {

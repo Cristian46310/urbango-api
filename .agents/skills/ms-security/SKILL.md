@@ -11,37 +11,72 @@ paths:
 
 # ms-security
 
-Spring Boot 4 + Java 17 + Spring Data MongoDB. Puerto **8080**.
+**Spring Boot 4** + **Java 17** + **Spring Data MongoDB**. Puerto **8080**.
 
-## Capas del paquete `com.jmmg.ms_security`
+## Frameworks y dependencias clave
+
+| Componente | Detalle |
+|------------|---------|
+| Spring Boot | 4.0.x (`spring-boot-starter-parent`) |
+| Persistencia | MongoDB (`@Document`, repositories) |
+| API docs | springdoc-openapi 3 → Swagger UI |
+| Build | Maven Wrapper (`./mvnw`) |
+| Utilidades | Lombok |
+| Tests (CI) | `spring-boot-starter-*-test`, `mvn verify` |
+
+## Arquitectura
+
+Capas en `com.jmmg.ms_security`:
 
 ```
-controllers/     → REST, validación de entrada, códigos HTTP
-services/        → Lógica de negocio (JwtService, SecurityService, OAuth…)
-repositories/    → Interfaces MongoDB (IUserRepository, IRoleRepository…)
-models/          → Documentos @Document
-DTOs/            → Contratos API (records/clases por dominio)
-infra/           → config, errors, exceptions
-configurations/  → WebConfig, CORS, etc.
+controllers/ → services/ → repositories/ → models/ (MongoDB)
+     ↓              ↓
+   DTOs/      infra/ (config, errors, springdoc)
 ```
 
-Detalle de paquetes: [references/layers-and-packages.md](references/layers-and-packages.md).
+- **Controller:** REST, `@Valid`, `ResponseEntity`, sin lógica de negocio pesada.
+- **Service:** JWT, login, OAuth, RBAC, llamadas a ms-notifications.
+- **Repository:** interfaces Spring Data.
+- **DTOs:** contrato API; no exponer `models/` en JSON.
+
+Diagrama y convenciones: [references/architecture.md](references/architecture.md).  
+Paquetes y servicios: [references/layers-and-packages.md](references/layers-and-packages.md).
+
+## Estilo de código
+
+- Respuestas siempre como **DTO**; modelos Mongo solo internos.
+- Rutas públicas bajo `/api/public/`; admin RBAC en `/api/roles`, `/api/permissions`, etc.
+- Errores centralizados: `infra/errors/ErrorHandle.java`.
+- Passwords: **SHA256** (`docs/ROLES.md`).
+- Secretos: `~/.config/ms-security/.env` (no en el repo).
+
+## Swagger (probar la API)
+
+| Recurso | URL |
+|---------|-----|
+| Swagger UI | `http://localhost:8080/swagger-ui/index.html` |
+| OpenAPI | `http://localhost:8080/v3/api-docs` |
+
+Esquema JWT: **`bearer-jwt`** (`SpringDocConfiguration.java`).
+
+1. Arrancar: `./mvnw spring-boot:run`
+2. `POST /api/public/security/login` → copiar `token`
+3. **Authorize** en Swagger → pegar JWT
+4. Probar endpoints protegidos
+
+Guía paso a paso: [references/swagger-testing.md](references/swagger-testing.md).
 
 ## Prefijos API
 
 | Prefijo | Acceso | Ejemplos |
 |---------|--------|----------|
-| `/api/public/security` | Público | login, register, validate-token, OAuth shortcuts |
-| `/api/public/security/github` | OAuth GitHub | authorize, callback, link |
-| `/api/public/security/microsoft` | OAuth Microsoft | authorize, callback, link |
-| `/api/public/users` | Gestión usuarios | CRUD, perfiles |
-| `/api/public/user-role` | Asignación roles | user/{id}/role/{id} |
-| `/api/roles`, `/api/permissions`, `/api/profiles` | Admin RBAC | CRUD |
-| `/api/role-permission` | Permisos por rol | assign-multiple |
+| `/api/public/security` | Público | login, register, validate-token, OAuth |
+| `/api/public/users` | Usuarios | CRUD, perfiles |
+| `/api/roles`, `/api/permissions` | Admin RBAC | CRUD |
 
-Catálogo completo: [references/api-catalog.md](references/api-catalog.md).
+Catálogo: [references/api-catalog.md](references/api-catalog.md).
 
-## validate-token (integración ms-business)
+## validate-token (ms-business)
 
 ```
 POST /api/public/security/validate-token
@@ -51,43 +86,33 @@ Authorization: Bearer <jwt>
 Respuesta 200: `id`, `name`, `email`, `userId`, `roles[]`.  
 Implementación: `ValidationController.java`.
 
-## Configuración de secretos
-
-**No** usar `.env` en el repo para producción. Ruta recomendada:
-
-`~/.config/ms-security/.env` importado vía `spring.config.import` en `application.properties`.
-
-Plantilla: `ms-security/.env.example` y [references/env-vars.md](references/env-vars.md).
-
 ## Notificaciones
 
-`notifications.url=${MS_NOTIFICATION_URL}` — ms-security llama al endpoint de email de ms-notifications (forgot password, 2FA, etc.).
+`notifications.url=${MS_NOTIFICATION_URL}` — forgot password, 2FA, etc.  
+URL completa del send de ms-notifications.
 
-## Build y CI
+## Verificación local (agentes)
+
+**Rápida** — solo compilar:
 
 ```bash
-cd ms-security
-./mvnw -B clean verify
-./mvnw checkstyle:check
+./.agents/skills/ms-security/scripts/build.sh
 ```
 
-Script: `scripts/build-verify.sh`, `scripts/check-env.sh`.
+**CI completo** (GitHub Actions): `./mvnw -B clean verify` (tests con `src/test/resources/application.properties`).
 
-## Convenciones
-
-- DTOs en respuestas API; no exponer `models` directamente salvo casos internos.
-- Passwords: SHA256 en almacenamiento (ver `docs/ROLES.md`).
-- Errores: `infra/errors/ErrorHandle.java`, excepciones en `infra/exception/`.
-- Documentación API: springdoc OpenAPI (UI en runtime).
+Scripts: `scripts/build.sh`, `scripts/check-env.sh`. Alias: `build-verify.sh` → `build.sh`.
 
 ## Referencias
 
 | Archivo | Contenido |
 |---------|-----------|
+| [architecture.md](references/architecture.md) | Capas y convenciones |
+| [swagger-testing.md](references/swagger-testing.md) | Probar con Swagger UI |
 | [api-catalog.md](references/api-catalog.md) | Endpoints |
-| [data-models.md](references/data-models.md) | Modelos MongoDB |
+| [data-models.md](references/data-models.md) | MongoDB |
 | [auth-oauth-2fa.md](references/auth-oauth-2fa.md) | Flujos auth |
-| [layers-and-packages.md](references/layers-and-packages.md) | Estructura código |
+| [layers-and-packages.md](references/layers-and-packages.md) | Estructura detallada |
 | [env-vars.md](references/env-vars.md) | Variables |
 
 Docs repo: `docs/ROLES.md`, `docs/GITHUB_LOGIN_FRONTEND.md`.

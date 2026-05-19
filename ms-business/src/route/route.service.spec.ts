@@ -65,7 +65,7 @@ describe('RouteService', () => {
       ],
     }).compile();
 
-    service = module.get<RouteService>(RouteService);
+    service = module.get(RouteService);
   });
 
   it('should be defined', () => {

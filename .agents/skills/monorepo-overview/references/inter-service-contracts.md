@@ -88,7 +88,32 @@ Servicio: `UserIdMappingService` — sincroniza cuando validate-token devuelve `
 
 ---
 
-## 5. Roles relevantes en ms-business
+## 5. Autorización por URL (ms-business → ms-security)
+
+**Request**
+
+```
+POST {MS_SECURITY_URL}/api/public/security/authorize
+Authorization: Bearer <jwt>
+Content-Type: application/json
+
+{ "method": "GET", "url": "/dashboard/payment-method-income" }
+```
+
+`SecurityGuard` envía `method` y `url` (sin query string). ms-security compara con permisos MongoDB (patrones exactos o prefijo `/*`).
+
+**Dashboard (HU-ENTR-2-014)** — registrar en ms-security y asignar a `BUSINESS_ADMIN` o `ADMIN`:
+
+| method | url |
+|--------|-----|
+| GET | `/dashboard/payment-method-income` |
+| GET | `/dashboard/payment-method-income/export` |
+
+Alternativa: un permiso `GET` `/dashboard/*` para todas las rutas del módulo.
+
+---
+
+## 6. Roles relevantes en ms-business
 
 - `DRIVER` — requerido en `POST /incident-reports/driver` (`@Roles('DRIVER')`).
 

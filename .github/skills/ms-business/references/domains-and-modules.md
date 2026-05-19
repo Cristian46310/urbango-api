@@ -42,16 +42,24 @@
 ### payment-method / payment-method-citizen
 - Métodos de pago y asociación ciudadano–método.
 
+### dashboard
+- **HU-ENTR-2-014:** ingresos por método de pago (tickets `completed`, `completedAt` en período).
+- **Dashboard operativo:** evolución mensual de incidentes por tipo (`reportedAt`), filtro opcional por empresa.
+- **Servicios:** `DashboardPeriodService` (rangos 3/6/12 meses UTC), `DashboardExportService` (CSV), `PaymentMethodIncomeService`, `IncidentTrendByTypeService`.
+- **Rutas:** `GET /dashboard/payment-method-income`, `GET /dashboard/payment-method-income/export`, `GET /dashboard/incident-trend-by-type`, `GET /dashboard/incident-trend-by-type/export`.
+
 ### address
 - Direcciones asociadas al dominio de ciudadanos/entregas según modelo.
 
 ## incident (incident-reports)
 
-- **Entidades:** `Incident`, `IncidentBus`, `IncidentPhoto`, `Gps`.
+- **Entidades:** `Incident`, `IncidentBus`, `IncidentPhoto`, `IncidentComment`, `Gps`.
 - **Storage:** `IncidentStorageService` → Supabase.
 - **Notificaciones:** `NotificationService` → `MS_NOTIFICATION_URL`.
-- **Auth:** solo conductores (`DRIVER`); `currentUser.id` es ObjectId de ms-security.
+- **Auth:** conductores (`DRIVER`) en reporte; listado por bus, comentarios y cambio de estado vía JWT (permisos en ms-security).
 - **Upload:** hasta 5 imágenes, solo `image/*`, `multipart/form-data`.
+- **Listado por bus:** `GET /incident-reports/bus/:busId` — filtros `type`, `status`, estadísticas (`total`, `byType`, `resolutionRate`).
+- **Estados:** `reported` (pendiente), `in_review`, `closed` (resuelto).
 
 ## shared
 

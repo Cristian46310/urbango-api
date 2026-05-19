@@ -25,6 +25,7 @@ import { BoardingModule } from './boarding/boarding.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { IncidentModule } from './incident/incident.module';
 import { CardRechargeModule } from './card-recharge/card-recharge.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { SharedModule } from './shared/shared.module';
 
 @Module({
@@ -63,6 +64,7 @@ import { SharedModule } from './shared/shared.module';
     AnalyticsModule,
     IncidentModule,
     CardRechargeModule,
+    DashboardModule,
     SharedModule,
   ],
   controllers: [AppController],
