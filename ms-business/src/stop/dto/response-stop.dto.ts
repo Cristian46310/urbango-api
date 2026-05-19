@@ -25,13 +25,15 @@ export class ResponseStopDto {
 
   @ApiProperty({
     example: -12.3456,
+    required: false,
   })
   @Expose()
-  latitude!: number;
-  
+  latitude?: number;
+
   @ApiProperty({
     example: 78.9012,
+    required: false,
   })
   @Expose()
-  longitude!: number;
+  longitude?: number;
 }

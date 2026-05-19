@@ -1,12 +1,9 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UserIdMapping } from './entities/user-id-mapping.entity';
-import { UserIdMappingService } from './services/user-id-mapping.service';
-import { PaginationService } from './services/pagination.service';
+import { Person } from './entities/person.entitie';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserIdMapping])],
-  providers: [UserIdMappingService, PaginationService],
-  exports: [UserIdMappingService, PaginationService, TypeOrmModule],
+  imports: [TypeOrmModule.forFeature([Person])],
+  exports: [TypeOrmModule],
 })
 export class SharedModule {}

@@ -7,7 +7,6 @@ import {
   Query,
   UploadedFiles,
   UseInterceptors,
-  UseGuards,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import {
@@ -21,9 +20,7 @@ import { memoryStorage } from 'multer';
 import { IncidentService } from './incident.service';
 import { CreateIncidentDriverDto } from './dto/create-incident-driver.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
-import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
-import { RolesGuard } from '@/auth/guards/roles.guard';
-import { Roles } from '@/auth/decorators/roles.decorator';
+import { Public } from '@/auth/decorators/public.decorator';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import type { JwtPayload } from '@/auth/types';
 
@@ -51,6 +48,7 @@ const incidentUploadOptions = {
 export class IncidentController {
   constructor(private readonly incidentService: IncidentService) {}
 
+  @Public()
   @Get()
   @ApiOperation({ summary: 'Listar todos los reportes de incidentes (público)' })
   findAll(@Query() pagination: PaginationQueryDto) {
@@ -66,9 +64,7 @@ export class IncidentController {
    * - El bus del turno
    */
   @Post('driver')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('DRIVER')
-  @ApiBearerAuth()
+  @ApiBearerAuth('bearer')
   @ApiOperation({
     summary: 'Crear reporte de incidente del conductor',
     description:

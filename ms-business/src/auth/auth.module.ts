@@ -1,10 +1,11 @@
 import { Agent } from 'http';
 import { Agent as HttpsAgent } from 'https';
-import { HttpModule } from '@nestjs/axios;
+import { HttpModule } from '@nestjs/axios';
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { JwtValidationService } from './services/jwt-validation.service';
-import { SharedModule } from '@/shared/shared.module';
+import { Person } from '@/shared/entities/person.entitie';
 
 @Module({
   imports: [
@@ -24,9 +25,9 @@ import { SharedModule } from '@/shared/shared.module';
         timeout: 60000,
       }),
     }),
-    SharedModule,
+    TypeOrmModule.forFeature([Person]),
   ],
   providers: [JwtValidationService],
-  exports: [HttpModule, JwtValidationService, SharedModule],
+  exports: [HttpModule, JwtValidationService],
 })
 export class AuthModule {}
