@@ -41,6 +41,9 @@ export class PaymentMethodCitizenService {
     const pmc = this.pmcRepository.create({
       citizen: { id: citizen.id } as Citizen,
       paymentMethod: { id: pm.id } as PaymentMethod,
+      balance: createDto.balance,
+      type: createDto.type,
+      status: createDto.status,
     } as Partial<PaymentMethodCitizen>);
     const saved = await this.pmcRepository.save(pmc);
     return plainToInstance(ResponsePaymentMethodCitizenDto, saved);
@@ -104,6 +107,9 @@ export class PaymentMethodCitizenService {
       if (!pm) throw new BadRequestException('Payment method not found');
       preloadData.paymentMethod = { id: pm.id } as PaymentMethod;
     }
+    if (updateDto.balance !== undefined) preloadData.balance = updateDto.balance;
+    if (updateDto.type !== undefined) preloadData.type = updateDto.type;
+    if (updateDto.status !== undefined) preloadData.status = updateDto.status;
     const pmc = await this.pmcRepository.preload(preloadData);
     if (!pmc)
       throw new NotFoundException(`PaymentMethodCitizen ${id} not found`);

@@ -128,7 +128,7 @@ public class SecurityController {
         return ResponseEntity.status(HttpStatus.CREATED).body(new ResponseMessage(message));
     }
 
-        @PostMapping("forgot-password")
+         @PostMapping("forgot-password")
     public ResponseEntity<ResponseMessage> forgotPassword(@Valid @RequestBody ForgotPasswordDTO dto) {
         String message = this.theSecurityService.forgotPassword(dto);
         return ResponseEntity.ok(new ResponseMessage(message));

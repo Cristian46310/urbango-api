@@ -17,6 +17,8 @@ import { PaymentMethodCitizenModule } from './payment-method-citizen/payment-met
 import { EnterpriseModule } from './enterprise/enterprise.module';
 import { DriverModule } from './driver/driver.module';
 import { TurnModule } from './turn/turn.module';
+import { BoardingModule } from './boarding/boarding.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -46,6 +48,8 @@ import { TurnModule } from './turn/turn.module';
     EnterpriseModule,
     DriverModule,
     TurnModule,
+    BoardingModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

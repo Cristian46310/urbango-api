@@ -24,6 +24,9 @@ export class Person {
   @Column({ nullable: true })
   phone?: string;
 
+  @Column({ name: 'birth_date', type: 'date', nullable: true })
+  birthDate?: Date;
+
   @CreateDateColumn()
   createdAt!: Date;
 }

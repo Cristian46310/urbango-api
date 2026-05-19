@@ -1,5 +1,15 @@
-import { IsUUID, IsNotEmpty, IsDateString } from 'class-validator';
+import {
+  IsUUID,
+  IsNotEmpty,
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsInt,
+  Min,
+  IsString,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { RecurrenceType, SchedulerStatus } from '../entities/scheduler.entity';
 
 export class CreateSchedulerDto {
   @ApiProperty({ example: 'a3f5c1d2-1234-4a5b-9cde-111111111111', description: 'Bus id' })
@@ -12,13 +22,34 @@ export class CreateSchedulerDto {
   @IsNotEmpty()
   routeId: string;
 
-  @ApiProperty({ example: '2026-05-01T08:00:00.000Z', description: 'Start time ISO string' })
+  @ApiProperty({ example: '2026-05-18', required: false })
+  @IsOptional()
   @IsDateString()
+  date?: string;
+
+  @ApiProperty({ example: '08:00:00', description: 'Start time ISO string or HH:mm:ss' })
+  @IsString()
   @IsNotEmpty()
   startTime: string;
 
-  @ApiProperty({ example: '2026-05-01T10:00:00.000Z', description: 'End time ISO string' })
-  @IsDateString()
+  @ApiProperty({ example: '10:00:00', description: 'End time ISO string or HH:mm:ss' })
+  @IsString()
   @IsNotEmpty()
   endTime: string;
+
+  @ApiProperty({ enum: SchedulerStatus, required: false })
+  @IsOptional()
+  @IsEnum(SchedulerStatus)
+  status?: SchedulerStatus;
+
+  @ApiProperty({ example: 5, required: false, minimum: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  toleranceMinutes?: number;
+
+  @ApiProperty({ enum: RecurrenceType, required: false })
+  @IsOptional()
+  @IsEnum(RecurrenceType)
+  recurrenceType?: RecurrenceType;
 }

@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
+import { TurnStatus } from '../entities/turn.entity';
 
 export class ResponseTurnDto {
   @ApiProperty({ example: 'uuid' })
@@ -14,9 +15,25 @@ export class ResponseTurnDto {
   @Expose()
   endTime?: Date;
 
-  @ApiProperty({ example: 'active' })
+  @ApiProperty({ enum: TurnStatus, example: TurnStatus.SCHEDULED })
   @Expose()
-  status?: string;
+  status?: TurnStatus;
+
+  @ApiProperty({ required: false })
+  @Expose()
+  actualStartTime?: Date;
+
+  @ApiProperty({ required: false })
+  @Expose()
+  busStatus?: string;
+
+  @ApiProperty({ required: false })
+  @Expose()
+  busObservations?: string;
+
+  @ApiProperty({ required: false })
+  @Expose()
+  gpsActivatedAt?: Date;
 
   @ApiProperty()
   @Expose()

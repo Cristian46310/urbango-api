@@ -42,12 +42,16 @@ export class NodeService {
       route,
       stop: stop,
       order: createNodeDto.order,
+      distanceFromPrevious: createNodeDto.distanceFromPrevious,
+      estimatedTimeMinutes: createNodeDto.estimatedTimeMinutes,
     });
     const savedNode = await this.nodeRepository.save(node);
     return {
       order: savedNode.order,
       stopId: savedNode.stop.id,
       routeId: savedNode.route.id,
+      distanceFromPrevious: Number(savedNode.distanceFromPrevious),
+      estimatedTimeMinutes: savedNode.estimatedTimeMinutes,
     };
   }
 
@@ -81,6 +85,8 @@ export class NodeService {
         order: node.order,
         stopId: node.stop.id,
         routeId: node.route.id,
+        distanceFromPrevious: Number(node.distanceFromPrevious),
+        estimatedTimeMinutes: node.estimatedTimeMinutes,
       })),
       meta: this.buildPaginationMeta(page, limit, totalItems),
     };
@@ -98,6 +104,8 @@ export class NodeService {
       order: node.order,
       stopId: node.stop.id,
       routeId: node.route.id,
+      distanceFromPrevious: Number(node.distanceFromPrevious),
+      estimatedTimeMinutes: node.estimatedTimeMinutes,
     };
   }
 
@@ -112,6 +120,12 @@ export class NodeService {
     if (updateNodeDto.order !== undefined) {
       node.order = updateNodeDto.order;
     }
+    if (updateNodeDto.distanceFromPrevious !== undefined) {
+      node.distanceFromPrevious = updateNodeDto.distanceFromPrevious;
+    }
+    if (updateNodeDto.estimatedTimeMinutes !== undefined) {
+      node.estimatedTimeMinutes = updateNodeDto.estimatedTimeMinutes;
+    }
     const updatedNode = await this.nodeRepository.save(node);
     // Reload with relations to ensure route is loaded
     const nodeWithRelations = await this.nodeRepository.findOne({
@@ -125,6 +139,8 @@ export class NodeService {
       order: nodeWithRelations.order,
       stopId: nodeWithRelations.stop.id,
       routeId: nodeWithRelations.route.id,
+      distanceFromPrevious: Number(nodeWithRelations.distanceFromPrevious),
+      estimatedTimeMinutes: nodeWithRelations.estimatedTimeMinutes,
     };
   }
 

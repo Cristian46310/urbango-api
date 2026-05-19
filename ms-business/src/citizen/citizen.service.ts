@@ -32,6 +32,9 @@ export class CitizenService {
     const citData: Partial<Citizen> = {
       name: createCitizenDto.name,
       extraInfo: createCitizenDto.extraInfo,
+      birthDate: createCitizenDto.birthDate
+        ? new Date(createCitizenDto.birthDate)
+        : undefined,
       address: createCitizenDto.addressId
         ? ({ id: createCitizenDto.addressId } as Address)
         : undefined,
@@ -90,6 +93,9 @@ export class CitizenService {
       id,
       name: updateCitizenDto.name,
       extraInfo: updateCitizenDto.extraInfo,
+      birthDate: updateCitizenDto.birthDate
+        ? new Date(updateCitizenDto.birthDate)
+        : undefined,
       address: updateCitizenDto.addressId
         ? ({ id: updateCitizenDto.addressId } as Address)
         : undefined,

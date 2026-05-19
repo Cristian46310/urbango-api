@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { IsDateString, IsOptional, IsString } from 'class-validator';
 
 export class BaseCitizenDto {
   @ApiProperty({ example: 'María Gómez' })
@@ -16,4 +16,9 @@ export class BaseCitizenDto {
   @IsOptional()
   @IsString()
   addressId?: string;
+
+  @ApiProperty({ example: '1998-05-20', required: false })
+  @IsOptional()
+  @IsDateString()
+  birthDate?: string;
 }
