@@ -17,13 +17,13 @@ Guía para agentes y revisores de PR en el monorepo UCaldas.
 
 | Workflow | Directorio | Comandos CI |
 |----------|------------|-------------|
-| `ms-security.yml` | `ms-security` | `mvn -B clean verify`, `mvn checkstyle:check` |
+| `ms-security.yml` | `ms-security` | `./mvnw -B clean verify` |
 | `ms-notifications.yml` | `ms-notifications` | `uv sync --locked --group dev`, ruff check/format |
 | `ms-business.yml` | `ms-business` | `pnpm install`, lint, **test**, build |
 
 Ramas: `main`, `dev` (push y pull_request).
 
-Los scripts en `.agents/skills/*/scripts/` omiten tests/checkstyle a propósito para iteración rápida; antes de merge conviene que el CI del MS esté en verde.
+Los scripts en `.agents/skills/*/scripts/` omiten tests a propósito para iteración rápida; antes de merge conviene que el CI del MS esté en verde.
 
 ## Contratos que no romper sin aviso
 

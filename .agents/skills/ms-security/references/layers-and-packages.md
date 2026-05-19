@@ -48,7 +48,7 @@ src/main/java/com/jmmg/ms_security/
 `src/test/java/.../MsSecurityApplicationTests.java` — context load.
 
 Verificación rápida (agentes): `scripts/build.sh` → `mvn clean package -DskipTests`.  
-CI (GitHub): `mvn -B clean verify` + `mvn checkstyle:check`.
+CI (GitHub): `./mvnw -B clean verify`.
 
 ## Dependencias notables (pom.xml)
 

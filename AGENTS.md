@@ -44,7 +44,7 @@ Skill transversal del monorepo: `/monorepo-overview` o `.agents/skills/monorepo-
 
 ## Verificación local (rápida) vs CI
 
-Scripts para agentes y desarrollo ágil. GitHub Actions ejecuta pasos adicionales (tests Java, jest en Nest, checkstyle).
+Scripts para agentes y desarrollo ágil. GitHub Actions ejecuta pasos adicionales (tests Java en ms-security, jest en Nest).
 
 | MS | Script | Comando equivalente |
 |----|--------|---------------------|

@@ -49,7 +49,7 @@ Scripts pensados para feedback rápido antes de commit. **CI en GitHub sigue sie
 
 | Microservicio | Script rápido | Qué hace | CI adicional |
 |---------------|---------------|----------|--------------|
-| ms-security | `ms-security/scripts/build.sh` | `mvn package -DskipTests` | `verify` + checkstyle |
+| ms-security | `ms-security/scripts/build.sh` | `mvn package -DskipTests` | `./mvnw verify` |
 | ms-business | `ms-business/scripts/verify.sh` | `lint` + `build` | `pnpm test` |
 | ms-notifications | `ms-notifications/scripts/lint.sh` | ruff check + format | — |
 

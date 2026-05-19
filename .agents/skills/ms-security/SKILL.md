@@ -99,7 +99,7 @@ URL completa del send de ms-notifications.
 ./.agents/skills/ms-security/scripts/build.sh
 ```
 
-**CI completo** (GitHub Actions): `mvn -B clean verify` + `mvn checkstyle:check`.
+**CI completo** (GitHub Actions): `./mvnw -B clean verify` (tests con `src/test/resources/application.properties`).
 
 Scripts: `scripts/build.sh`, `scripts/check-env.sh`. Alias: `build-verify.sh` → `build.sh`.
 

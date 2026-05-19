@@ -65,7 +65,7 @@ curl -s http://localhost:3000/
 
 | MS | Workflow |
 |----|----------|
-| ms-security | `.github/workflows/ms-security.yml` — `mvn clean verify`, checkstyle |
+| ms-security | `.github/workflows/ms-security.yml` — `./mvnw clean verify` |
 | ms-notifications | `.github/workflows/ms-notifications.yml` — ruff check/format |
 | ms-business | `.github/workflows/ms-business.yml` — pnpm lint, test, build |
 
