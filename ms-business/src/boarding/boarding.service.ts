@@ -14,7 +14,10 @@ import {
   PaymentMethodStatus,
   PaymentMethodType,
 } from '@/payment-method-citizen/entities/payment-method-citizen.entity';
-import { Scheduler, SchedulerStatus } from '@/scheduler/entities/scheduler.entity';
+import {
+  Scheduler,
+  SchedulerStatus,
+} from '@/scheduler/entities/scheduler.entity';
 import { Ticket, TicketStatus } from '@/ticket/entities/ticket.entity';
 import { History, HistoryEventType } from '@/history/entities/history.entity';
 import { Citizen } from '@/citizen/entities/citizen.entity';
@@ -123,11 +126,16 @@ export class BoardingService {
       }
 
       paymentMethodCitizen.lastUsedAt = now;
-      await queryRunner.manager.save(PaymentMethodCitizen, paymentMethodCitizen);
+      await queryRunner.manager.save(
+        PaymentMethodCitizen,
+        paymentMethodCitizen,
+      );
 
       const ticket = queryRunner.manager.create(Ticket, {
         citizen: { id: citizenId } as Citizen,
-        paymentMethodCitizen: { id: paymentMethodCitizen.id } as PaymentMethodCitizen,
+        paymentMethodCitizen: {
+          id: paymentMethodCitizen.id,
+        } as PaymentMethodCitizen,
         scheduler: { id: scheduler.id } as Scheduler,
         buyedAt: now,
         appliedRate,

@@ -74,36 +74,34 @@ describe('RouteService', () => {
 
   it('creates a route with ordered nodes and generated code', async () => {
     stopRepository.findBy.mockResolvedValue(stops);
-    routeRepository.findOne
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        id: 'route-1',
-        code: 'RUT-ABC',
-        name: 'Ruta Centro Norte',
-        description: 'Conecta el centro con la zona norte',
-        price: 2800,
-        nodes: [
-          {
-            order: 1,
-            distanceFromPrevious: 0,
-            estimatedTimeMinutes: 0,
-            stop: stops[0],
-          },
-          {
-            order: 2,
-            distanceFromPrevious: 1.4,
-            estimatedTimeMinutes: 5,
-            stop: stops[1],
-          },
-          {
-            order: 3,
-            distanceFromPrevious: 2.1,
-            estimatedTimeMinutes: 8,
-            stop: stops[2],
-          },
-        ],
-        createdAt: new Date(),
-      });
+    routeRepository.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      id: 'route-1',
+      code: 'RUT-ABC',
+      name: 'Ruta Centro Norte',
+      description: 'Conecta el centro con la zona norte',
+      price: 2800,
+      nodes: [
+        {
+          order: 1,
+          distanceFromPrevious: 0,
+          estimatedTimeMinutes: 0,
+          stop: stops[0],
+        },
+        {
+          order: 2,
+          distanceFromPrevious: 1.4,
+          estimatedTimeMinutes: 5,
+          stop: stops[1],
+        },
+        {
+          order: 3,
+          distanceFromPrevious: 2.1,
+          estimatedTimeMinutes: 8,
+          stop: stops[2],
+        },
+      ],
+      createdAt: new Date(),
+    });
 
     const response = await service.create({
       name: 'Ruta Centro Norte',

@@ -19,7 +19,13 @@ export class Node {
   @Column()
   order!: number;
 
-  @Column({ name: 'distance_from_previous', type: 'decimal', precision: 8, scale: 2, default: 0 })
+  @Column({
+    name: 'distance_from_previous',
+    type: 'decimal',
+    precision: 8,
+    scale: 2,
+    default: 0,
+  })
   distanceFromPrevious!: number;
 
   @Column({ name: 'estimated_time_minutes', type: 'int', default: 0 })

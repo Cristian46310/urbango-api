@@ -158,7 +158,8 @@ export class PaymentMethodCitizenService {
       if (!pm) throw new BadRequestException('Payment method not found');
       preloadData.paymentMethod = { id: pm.id } as PaymentMethod;
     }
-    if (updateDto.balance !== undefined) preloadData.balance = updateDto.balance;
+    if (updateDto.balance !== undefined)
+      preloadData.balance = updateDto.balance;
     if (updateDto.type !== undefined) preloadData.type = updateDto.type;
     if (updateDto.status !== undefined) preloadData.status = updateDto.status;
     const pmc = await this.pmcRepository.preload(preloadData);

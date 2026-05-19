@@ -52,7 +52,8 @@ export class BusController {
   @UseGuards(SecurityGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Registrar un bus en la flota de la empresa (requiere autenticación)',
+    summary:
+      'Registrar un bus en la flota de la empresa (requiere autenticación)',
   })
   @ApiCreatedResponse({ type: ResponseBusDto })
   async create(
@@ -104,7 +105,9 @@ export class BusController {
   @Patch(':id')
   @UseGuards(SecurityGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Actualizar un bus por id (requiere autenticación)' })
+  @ApiOperation({
+    summary: 'Actualizar un bus por id (requiere autenticación)',
+  })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ type: ResponseBusDto })
   async update(

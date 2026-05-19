@@ -76,7 +76,12 @@ export class AnalyticsService {
   async exportAgeDistributionAsExcel(query: AgeDistributionQueryDto) {
     const distribution = await this.getAgeDistribution(query);
     const rows = [
-      ['Rango etario', 'Cantidad de pasajeros', 'Porcentaje', 'Variacion vs mes anterior'],
+      [
+        'Rango etario',
+        'Cantidad de pasajeros',
+        'Porcentaje',
+        'Variacion vs mes anterior',
+      ],
       ...distribution.segments.map((segment) => [
         segment.name,
         segment.count.toString(),
@@ -118,7 +123,10 @@ export class AnalyticsService {
     const tickets = await queryBuilder.getMany();
 
     for (const ticket of tickets) {
-      const bucketKey = this.getBucketKey(ticket.citizen?.birthDate, ticket.boardedAt);
+      const bucketKey = this.getBucketKey(
+        ticket.citizen?.birthDate,
+        ticket.boardedAt,
+      );
       counts[bucketKey] += 1;
     }
 
@@ -139,7 +147,8 @@ export class AnalyticsService {
 
   private calculateAge(birthDate: Date, referenceDate: Date): number {
     let age = referenceDate.getUTCFullYear() - birthDate.getUTCFullYear();
-    const monthDifference = referenceDate.getUTCMonth() - birthDate.getUTCMonth();
+    const monthDifference =
+      referenceDate.getUTCMonth() - birthDate.getUTCMonth();
     const dayDifference = referenceDate.getUTCDate() - birthDate.getUTCDate();
 
     if (monthDifference < 0 || (monthDifference === 0 && dayDifference < 0)) {
@@ -158,7 +167,9 @@ export class AnalyticsService {
     const count = currentCounts[bucket.key];
     const previousCount = previousCounts[bucket.key];
     const percentage =
-      totalPassengers === 0 ? 0 : this.round((count / totalPassengers) * 100, 1);
+      totalPassengers === 0
+        ? 0
+        : this.round((count / totalPassengers) * 100, 1);
 
     return {
       name: bucket.name,
@@ -179,8 +190,13 @@ export class AnalyticsService {
   }
 
   private resolveDateRange(query: AgeDistributionQueryDto): DateRange {
-    if ((query.startDate && !query.endDate) || (!query.startDate && query.endDate)) {
-      throw new BadRequestException('startDate and endDate must be provided together');
+    if (
+      (query.startDate && !query.endDate) ||
+      (!query.startDate && query.endDate)
+    ) {
+      throw new BadRequestException(
+        'startDate and endDate must be provided together',
+      );
     }
 
     if (query.startDate && query.endDate) {
@@ -188,7 +204,9 @@ export class AnalyticsService {
       const end = this.parseEndOfDay(query.endDate);
 
       if (start > end) {
-        throw new BadRequestException('startDate must be before or equal to endDate');
+        throw new BadRequestException(
+          'startDate must be before or equal to endDate',
+        );
       }
 
       return {

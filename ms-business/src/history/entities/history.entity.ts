@@ -38,7 +38,10 @@ export class History {
   })
   eventType!: HistoryEventType;
 
-  @Column({ type: 'timestamp with time zone', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({
+    type: 'timestamp with time zone',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   eventTimestamp!: Date;
 
   @CreateDateColumn()

@@ -16,7 +16,10 @@ export class ResponsePaymentMethodCitizenDto {
   @ApiProperty({ type: () => ResponsePaymentMethodDto })
   paymentMethod: ResponsePaymentMethodDto;
 
-  @ApiProperty({ example: 0, description: 'Saldo en COP (tarjetas recargables)' })
+  @ApiProperty({
+    example: 0,
+    description: 'Saldo en COP (tarjetas recargables)',
+  })
   balance: number;
 
   @ApiPropertyOptional({ example: 'TC1A2B3C4D5' })

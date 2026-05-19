@@ -33,12 +33,18 @@ export class CreateSchedulerDto {
   @IsDateString()
   date?: string;
 
-  @ApiProperty({ example: '08:00:00', description: 'Start time ISO string or HH:mm:ss' })
+  @ApiProperty({
+    example: '08:00:00',
+    description: 'Start time ISO string or HH:mm:ss',
+  })
   @IsString()
   @IsNotEmpty()
   startTime: string;
 
-  @ApiProperty({ example: '10:00:00', description: 'End time ISO string or HH:mm:ss' })
+  @ApiProperty({
+    example: '10:00:00',
+    description: 'End time ISO string or HH:mm:ss',
+  })
   @IsString()
   @IsNotEmpty()
   endTime: string;

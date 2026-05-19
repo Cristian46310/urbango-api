@@ -97,12 +97,10 @@ describe('TurnService', () => {
   });
 
   it('throws 409 when the current turn is not scheduled', async () => {
-    turnRepository.findOne
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        ...scheduledTurn,
-        status: TurnStatus.IN_PROGRESS,
-      });
+    turnRepository.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      ...scheduledTurn,
+      status: TurnStatus.IN_PROGRESS,
+    });
 
     await expect(service.startTurn('driver-1', 'operativo')).rejects.toThrow(
       ConflictException,

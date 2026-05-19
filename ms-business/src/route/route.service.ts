@@ -86,7 +86,9 @@ export class RouteService {
       (order, index) => order === index + 1,
     );
     if (!isSequential) {
-      throw new BadRequestException('Los ordenes deben ser secuenciales desde 1');
+      throw new BadRequestException(
+        'Los ordenes deben ser secuenciales desde 1',
+      );
     }
 
     const firstNode = nodes.find((node) => node.order === 1);

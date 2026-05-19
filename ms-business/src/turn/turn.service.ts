@@ -126,9 +126,7 @@ export class TurnService {
         throw new ConflictException('Turno ya iniciado o no disponible');
       }
 
-      throw new NotFoundException(
-        'No hay turno programado para este horario',
-      );
+      throw new NotFoundException('No hay turno programado para este horario');
     }
 
     if (scheduledTurn.actualStartTime) {

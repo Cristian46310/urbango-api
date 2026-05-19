@@ -32,8 +32,7 @@ export class BusStorageService {
       this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') ??
       this.configService.get<string>('SUPABASE_ANON_KEY');
     this.bucket =
-      this.configService.get<string>('SUPABASE_BUS_BUCKET') ??
-      'bus-photos';
+      this.configService.get<string>('SUPABASE_BUS_BUCKET') ?? 'bus-photos';
   }
 
   async upload(file: BusStorageFile): Promise<StoredBusPhoto> {
@@ -47,14 +46,15 @@ export class BusStorageService {
       throw new BadRequestException('File is empty or invalid');
     }
 
-    const extension = extname(file.originalname) || this.extensionFromMime(file);
+    const extension =
+      extname(file.originalname) || this.extensionFromMime(file);
     const path = `buses/${new Date().toISOString().slice(0, 10)}/${Date.now()}-${randomUUID()}${extension}`;
     const uploadUrl = `${this.supabaseUrl}/storage/v1/object/${this.bucket}/${path}`;
 
     const response = await fetch(uploadUrl, {
       method: 'POST',
       headers: {
-        apikey: this.supabaseKey!,
+        apikey: this.supabaseKey,
         Authorization: `Bearer ${this.supabaseKey}`,
         'Content-Type': file.mimetype,
         'x-upsert': 'false',

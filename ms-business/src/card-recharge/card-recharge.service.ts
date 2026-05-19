@@ -187,7 +187,8 @@ export class CardRechargeService {
       response: dto.responseUrl ?? this.epaycoService.getDefaultResponseUrl(),
       confirmation: this.epaycoService.getConfirmationUrl(),
       billing: {
-        email: currentUser.email ?? card.citizen.email ?? 'cliente@ucaldas.edu.co',
+        email:
+          currentUser.email ?? card.citizen.email ?? 'cliente@ucaldas.edu.co',
         name: currentUser.name ?? card.citizen.name,
       },
       extras: {
@@ -279,7 +280,9 @@ export class CardRechargeService {
         paidAmount > 0 &&
         paidAmount !== transaction.totalAmount
       ) {
-        throw new BadRequestException('Monto pagado no coincide con la recarga');
+        throw new BadRequestException(
+          'Monto pagado no coincide con la recarga',
+        );
       }
 
       await this.creditApprovedTransaction(transaction, {
@@ -335,7 +338,9 @@ export class CardRechargeService {
   ): Promise<{ reference: string; status: string }> {
     const reference = payload.x_id_invoice;
     if (!reference) {
-      throw new BadRequestException('Referencia de recarga no encontrada en retorno ePayco');
+      throw new BadRequestException(
+        'Referencia de recarga no encontrada en retorno ePayco',
+      );
     }
 
     const response = payload.x_response ?? '';
@@ -530,5 +535,4 @@ export class CardRechargeService {
     const suffix = randomBytes(4).toString('hex');
     return `RC-${date}-${suffix}`;
   }
-
 }

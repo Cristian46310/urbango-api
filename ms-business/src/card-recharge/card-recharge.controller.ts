@@ -10,12 +10,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
-import {
-  ApiBearerAuth,
-  ApiBody,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { CardRechargeService } from './card-recharge.service';
 import { Public } from '@/auth/decorators/public.decorator';
@@ -116,7 +111,10 @@ export class CardRechargeController {
     @CurrentUser() currentUser: JwtPayload,
     @Param('reference') reference: string,
   ): Promise<ResponseCardRechargeStatusDto> {
-    return this.cardRechargeService.getTransactionStatus(currentUser, reference);
+    return this.cardRechargeService.getTransactionStatus(
+      currentUser,
+      reference,
+    );
   }
 
   @Post('transactions/:reference/confirm-local-test')
@@ -154,8 +152,7 @@ export class CardRechargeController {
       await this.cardRechargeService.confirmFromEpaycoReturn(payload);
 
     const frontendBase =
-      this.configService.get<string>('FRONTEND_URL') ??
-      'http://localhost:5173';
+      this.configService.get<string>('FRONTEND_URL') ?? 'http://localhost:5173';
     const returnToRaw =
       typeof query.returnTo === 'string' ? query.returnTo.trim() : '';
     const returnTo =
@@ -190,7 +187,9 @@ export class CardRechargeController {
     return 'OK';
   }
 
-  private normalizeWebhookPayload(req: Request): Record<string, string | undefined> {
+  private normalizeWebhookPayload(
+    req: Request,
+  ): Record<string, string | undefined> {
     const source =
       req.method === 'GET'
         ? (req.query as Record<string, string | undefined>)

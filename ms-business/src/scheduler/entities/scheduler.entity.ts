@@ -44,7 +44,11 @@ export class Scheduler {
   @Column({ type: 'timestamp with time zone' })
   endTime!: Date;
 
-  @Column({ type: 'enum', enum: SchedulerStatus, default: SchedulerStatus.SCHEDULED })
+  @Column({
+    type: 'enum',
+    enum: SchedulerStatus,
+    default: SchedulerStatus.SCHEDULED,
+  })
   status!: SchedulerStatus;
 
   @Column({ name: 'tolerance_minutes', type: 'int', default: 0 })

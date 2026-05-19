@@ -40,10 +40,18 @@ export class PaymentMethodCitizen {
   @Column({ type: 'varchar', length: 32, nullable: true, unique: true })
   cardNumber?: string;
 
-  @Column({ type: 'enum', enum: PaymentMethodType, default: PaymentMethodType.PREPAID })
+  @Column({
+    type: 'enum',
+    enum: PaymentMethodType,
+    default: PaymentMethodType.PREPAID,
+  })
   type!: PaymentMethodType;
 
-  @Column({ type: 'enum', enum: PaymentMethodStatus, default: PaymentMethodStatus.ACTIVE })
+  @Column({
+    type: 'enum',
+    enum: PaymentMethodStatus,
+    default: PaymentMethodStatus.ACTIVE,
+  })
   status!: PaymentMethodStatus;
 
   @Column({ type: 'timestamp with time zone', nullable: true })

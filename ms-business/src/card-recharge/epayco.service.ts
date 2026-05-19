@@ -40,7 +40,7 @@ export class EpaycoService {
   isConfigured(): boolean {
     return Boolean(
       this.configService.get<string>('EPAYCO_PUBLIC_KEY') &&
-        this.configService.get<string>('EPAYCO_PRIVATE_KEY'),
+      this.configService.get<string>('EPAYCO_PRIVATE_KEY'),
     );
   }
 
@@ -66,7 +66,9 @@ export class EpaycoService {
   private isLocalCallbackUrl(url: string): boolean {
     try {
       const host = new URL(url).hostname.toLowerCase();
-      return host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local');
+      return (
+        host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local')
+      );
     } catch {
       return false;
     }

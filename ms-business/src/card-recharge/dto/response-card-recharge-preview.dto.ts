@@ -7,7 +7,10 @@ export class ResponseCardRechargePreviewDto {
   @ApiProperty({ example: 45000, description: 'Saldo actual ($X)' })
   currentBalance!: number;
 
-  @ApiProperty({ example: 20000, description: 'Monto seleccionado para recargar' })
+  @ApiProperty({
+    example: 20000,
+    description: 'Monto seleccionado para recargar',
+  })
   rechargeAmount!: number;
 
   @ApiProperty({ example: 598, description: 'Comisión ePayco estimada' })

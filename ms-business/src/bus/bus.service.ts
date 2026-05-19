@@ -111,14 +111,21 @@ export class BusService {
     return this.toResponse(bus);
   }
 
-  async update(id: string, updateBusDto: UpdateBusDto): Promise<ResponseBusDto> {
+  async update(
+    id: string,
+    updateBusDto: UpdateBusDto,
+  ): Promise<ResponseBusDto> {
     const bus = await this.busRepository.findOne({
       where: { id },
       relations: ['enterprise'],
     });
     if (!bus) throw new NotFoundException(`Bus ${id} not found`);
 
-    if (updateBusDto.seatedCapacity !== undefined || updateBusDto.standingCapacity !== undefined || updateBusDto.capacity !== undefined) {
+    if (
+      updateBusDto.seatedCapacity !== undefined ||
+      updateBusDto.standingCapacity !== undefined ||
+      updateBusDto.capacity !== undefined
+    ) {
       this.validateCapacities({
         capacity: updateBusDto.capacity ?? bus.capacity,
         seatedCapacity: updateBusDto.seatedCapacity ?? bus.seatedCapacity,

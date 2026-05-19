@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsUUID, IsNotEmpty, IsEnum, IsNumber, IsOptional, Min } from 'class-validator';
+import {
+  IsUUID,
+  IsNotEmpty,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  Min,
+} from 'class-validator';
 import {
   PaymentMethodStatus,
   PaymentMethodType,

@@ -18,6 +18,6 @@ import { Driver } from '@/driver/entities/driver.entity';
   ],
   controllers: [BusController],
   providers: [BusService, BusStorageService],
-  exports: [BusService], 
+  exports: [BusService],
 })
 export class BusModule {}

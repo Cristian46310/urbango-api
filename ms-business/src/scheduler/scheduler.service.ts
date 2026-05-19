@@ -219,7 +219,8 @@ export class SchedulerService {
     if (updateSchedulerDto.endTime)
       preloadData.endTime = new Date(updateSchedulerDto.endTime);
     if (updateSchedulerDto.date) preloadData.date = updateSchedulerDto.date;
-    if (updateSchedulerDto.status) preloadData.status = updateSchedulerDto.status;
+    if (updateSchedulerDto.status)
+      preloadData.status = updateSchedulerDto.status;
     if (updateSchedulerDto.toleranceMinutes !== undefined)
       preloadData.toleranceMinutes = updateSchedulerDto.toleranceMinutes;
     if (updateSchedulerDto.recurrenceType !== undefined)
