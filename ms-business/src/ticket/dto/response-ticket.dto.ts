@@ -13,11 +13,19 @@ export class ResponseTicketDto {
 
   @ApiProperty()
   @Expose()
-  createdAt!: Date;
+  appliedRate!: number;
 
-  @ApiProperty({ enum: TicketStatus, example: TicketStatus.ACTIVE })
+  @ApiProperty({ enum: TicketStatus })
   @Expose()
   status!: TicketStatus;
+
+  @ApiProperty({ required: false })
+  @Expose()
+  boardedAt?: Date;
+
+  @ApiProperty()
+  @Expose()
+  createdAt!: Date;
 
   @ApiProperty({ required: false, nullable: true })
   @Expose()

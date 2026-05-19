@@ -8,6 +8,13 @@ import {
 import { Bus } from '@/bus/entities/bus.entity';
 import { Driver } from '@/driver/entities/driver.entity';
 
+export enum TurnStatus {
+  SCHEDULED = 'scheduled',
+  IN_PROGRESS = 'in_progress',
+  COMPLETED = 'completed',
+  CANCELLED = 'cancelled',
+}
+
 @Entity({ name: 'turns' })
 export class Turn {
   @PrimaryGeneratedColumn('uuid')
@@ -19,8 +26,33 @@ export class Turn {
   @Column({ type: 'timestamp with time zone', nullable: true })
   endTime!: Date;
 
-  @Column({ type: 'varchar', length: 64, nullable: true })
-  status!: string;
+  @Column({
+    type: 'enum',
+    enum: TurnStatus,
+    enumName: 'turn_status_enum',
+    default: TurnStatus.SCHEDULED,
+  })
+  status!: TurnStatus;
+
+  @Column({
+    name: 'actual_start_time',
+    type: 'timestamp with time zone',
+    nullable: true,
+  })
+  actualStartTime?: Date | null;
+
+  @Column({ name: 'bus_status', type: 'varchar', length: 64, nullable: true })
+  busStatus?: string | null;
+
+  @Column({ name: 'bus_observations', type: 'text', nullable: true })
+  busObservations?: string | null;
+
+  @Column({
+    name: 'gps_activated_at',
+    type: 'timestamp with time zone',
+    nullable: true,
+  })
+  gpsActivatedAt?: Date | null;
 
   @ManyToOne(() => Bus, { nullable: true, eager: true })
   bus!: Bus;

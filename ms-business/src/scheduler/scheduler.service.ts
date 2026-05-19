@@ -2,12 +2,17 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { CreateSchedulerDto } from './dto/create-scheduler.dto';
 import { UpdateSchedulerDto } from './dto/update-scheduler.dto';
-import { Scheduler } from './entities/scheduler.entity';
+import {
+  RecurrenceType,
+  Scheduler,
+  SchedulerStatus,
+} from './entities/scheduler.entity';
 import { Bus } from '@/bus/entities/bus.entity';
 import { BusService } from '@/bus/bus.service';
 import { Route } from '@/route/entities/route.entity';
@@ -15,6 +20,7 @@ import { plainToInstance } from 'class-transformer';
 import { ResponseSchedulerDto } from './dto/response-scheduler.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponseSchedulerListDto } from './dto/response-scheduler-list.dto';
+import { Turn, TurnStatus } from '@/turn/entities/turn.entity';
 
 @Injectable()
 export class SchedulerService {
@@ -26,7 +32,88 @@ export class SchedulerService {
     @InjectRepository(Route)
     private readonly routeRepository: Repository<Route>,
     private readonly busService: BusService,
+    @InjectRepository(Turn)
+    private readonly turnRepository: Repository<Turn>,
   ) {}
+
+  private getDateValue(date: string | undefined, startTime: Date): string {
+    return date ?? startTime.toISOString().slice(0, 10);
+  }
+
+  private parseDateTime(value: string, date?: string): Date {
+    const isTimeOnly = /^\d{2}:\d{2}(:\d{2})?$/.test(value);
+    const normalizedValue = isTimeOnly ? `${date}T${value}` : value;
+
+    if (isTimeOnly && !date) {
+      throw new BadRequestException('date is required when time has no date');
+    }
+
+    return new Date(normalizedValue);
+  }
+
+  private validateTimeRange(startTime: Date, endTime: Date) {
+    if (Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime())) {
+      throw new BadRequestException('Invalid scheduler time range');
+    }
+
+    if (startTime >= endTime) {
+      throw new BadRequestException('endTime must be after startTime');
+    }
+  }
+
+  private async validateBusAvailability(
+    busId: string,
+    date: string,
+    startTime: Date,
+    endTime: Date,
+  ) {
+    const overlappingScheduler = await this.schedulerRepository
+      .createQueryBuilder('scheduler')
+      .where('scheduler.bus_id = :busId', { busId })
+      .andWhere('scheduler.date = :date', { date })
+      .andWhere('scheduler.status = :status', {
+        status: SchedulerStatus.SCHEDULED,
+      })
+      .andWhere('scheduler.startTime < :endTime', { endTime })
+      .andWhere('scheduler.endTime > :startTime', { startTime })
+      .getOne();
+
+    if (overlappingScheduler) {
+      throw new ConflictException(
+        'El bus ya tiene una programación en ese horario',
+      );
+    }
+  }
+
+  private async validateDriverAssignment(
+    busId: string,
+    startTime: Date,
+    endTime: Date,
+  ) {
+    const turn = await this.turnRepository.findOne({
+      where: [
+        {
+          bus: { id: busId },
+          startTime: LessThanOrEqual(startTime),
+          endTime: MoreThanOrEqual(endTime),
+          status: TurnStatus.SCHEDULED,
+        },
+        {
+          bus: { id: busId },
+          startTime: LessThanOrEqual(startTime),
+          endTime: MoreThanOrEqual(endTime),
+          status: TurnStatus.IN_PROGRESS,
+        },
+      ],
+      relations: ['bus', 'driver'],
+    });
+
+    if (!turn) {
+      throw new BadRequestException(
+        'No hay conductor asignado para este bus en el horario de la programación',
+      );
+    }
+  }
 
   async create(
     createSchedulerDto: CreateSchedulerDto,
@@ -41,11 +128,29 @@ export class SchedulerService {
     });
     if (!route) throw new BadRequestException('Route not found');
 
+    const startTime = this.parseDateTime(
+      createSchedulerDto.startTime,
+      createSchedulerDto.date,
+    );
+    const endTime = this.parseDateTime(
+      createSchedulerDto.endTime,
+      createSchedulerDto.date,
+    );
+    this.validateTimeRange(startTime, endTime);
+    const date = this.getDateValue(createSchedulerDto.date, startTime);
+
+    await this.validateBusAvailability(bus.id, date, startTime, endTime);
+    await this.validateDriverAssignment(bus.id, startTime, endTime);
+
     const scheduler = this.schedulerRepository.create({
       bus: { id: bus.id } as Bus,
       route: { id: route.id } as Route,
-      startTime: new Date(createSchedulerDto.startTime),
-      endTime: new Date(createSchedulerDto.endTime),
+      date,
+      startTime,
+      endTime,
+      status: createSchedulerDto.status ?? SchedulerStatus.SCHEDULED,
+      toleranceMinutes: createSchedulerDto.toleranceMinutes ?? 0,
+      recurrenceType: createSchedulerDto.recurrenceType ?? RecurrenceType.NONE,
     } as Partial<Scheduler>);
     const saved = await this.schedulerRepository.save(scheduler);
     return plainToInstance(ResponseSchedulerDto, saved);
@@ -113,6 +218,12 @@ export class SchedulerService {
       preloadData.startTime = new Date(updateSchedulerDto.startTime);
     if (updateSchedulerDto.endTime)
       preloadData.endTime = new Date(updateSchedulerDto.endTime);
+    if (updateSchedulerDto.date) preloadData.date = updateSchedulerDto.date;
+    if (updateSchedulerDto.status) preloadData.status = updateSchedulerDto.status;
+    if (updateSchedulerDto.toleranceMinutes !== undefined)
+      preloadData.toleranceMinutes = updateSchedulerDto.toleranceMinutes;
+    if (updateSchedulerDto.recurrenceType !== undefined)
+      preloadData.recurrenceType = updateSchedulerDto.recurrenceType;
 
     const scheduler = await this.schedulerRepository.preload(preloadData);
     if (!scheduler) throw new NotFoundException(`Scheduler ${id} not found`);

@@ -1,11 +1,11 @@
 package com.jmmg.ms_security.services;
 
+import java.util.List;
+import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.UUID;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.jmmg.ms_security.DTOs.auth.ValidateTokenResponseDTO;
@@ -18,14 +18,13 @@ import com.jmmg.ms_security.DTOs.login.RegisterUserDTO;
 import com.jmmg.ms_security.DTOs.login.Verify2FADTO;
 import com.jmmg.ms_security.DTOs.password.ForgotPasswordDTO;
 import com.jmmg.ms_security.DTOs.password.ResetPasswordDTO;
+import com.jmmg.ms_security.infra.config.PasswordResetProperties;
 import com.jmmg.ms_security.models.AuthFactor;
 import com.jmmg.ms_security.models.User;
 import com.jmmg.ms_security.repositories.IUserRepository;
 
 import jakarta.servlet.http.HttpServletRequest;
 import reactor.core.publisher.Mono;
-
-
 
 @Service
 public class SecurityService {
@@ -48,18 +47,21 @@ public class SecurityService {
     private RecaptchaService recaptchaService;
     @Autowired
     private AuthenticatedUserService authenticatedUserService;
+    @Autowired
+    private PasswordResetProperties passwordResetProperties;
 
     public Mono<LoginChallengeDTO> login(LoginDTO loginUser) {
-        //validacion captcha
         return recaptchaService.verifyToken(loginUser.recaptchaToken())
                 .flatMap(isValid -> {
                     if (!isValid) {
                         return Mono.error(new IllegalArgumentException("Token de reCAPTCHA inválido"));
                     }
+
                     var user = new User(loginUser);
                     user = this.userRepository.findByEmail(user.getEmail());
 
-                    if (user != null && user.getPassword().equals(theEncryptionService.convertSHA256(loginUser.password()))) {
+                    if (user != null
+                            && user.getPassword().equals(theEncryptionService.convertSHA256(loginUser.password()))) {
                         AuthFactor authFactor = this.authFactorService.createPendingFactor(user);
 
                         String emailContent = String.format(
@@ -85,7 +87,6 @@ public class SecurityService {
                     return Mono.error(new IllegalArgumentException("Invalid credentials"));
                 });
     }
-    
 
     public String verifyTwoFactor(Verify2FADTO verify2FADTO) {
         User user = this.authFactorService.validateFactor(verify2FADTO.challengeToken(), verify2FADTO.code());
@@ -185,23 +186,28 @@ public class SecurityService {
      */
     public String forgotPassword(ForgotPasswordDTO dto) {
         String genericMessage = "Si el email existe, recibirá instrucciones de recuperación";
-        User user = this.userRepository.findByEmail(dto.email());
+        Boolean isRecaptchaValid = this.recaptchaService.verifyToken(dto.recaptchaToken()).block();
+        if (!Boolean.TRUE.equals(isRecaptchaValid)) {
+            throw new IllegalArgumentException("Token de reCAPTCHA inválido");
+        }
+
+        String normalizedEmail = dto.email().trim().toLowerCase();
+        User user = this.userRepository.findByEmail(normalizedEmail);
         if (user == null) {
             return genericMessage;
         }
 
         AuthFactor resetFactor = this.authFactorService.createPasswordResetFactor(user);
-
-        String resetLink = "https://sistema.com/reset-password?token=" + resetFactor.getToken();
+        String resetLink = this.passwordResetProperties.getBaseUrl() + "?token=" + resetFactor.getToken();
         String emailContent = String.format(
                 "Hola %s,\n\n"
-                + "Recibimos una solicitud para restablecer la contraseña de tu cuenta.\n\n"
-                + "Haz clic en el siguiente enlace para crear una nueva contraseña:\n"
-                + "%s\n\n"
-                + "Este enlace es válido por 30 minutos.\n\n"
-                + "Si no solicitaste este cambio, ignora este mensaje. Tu contraseña no será modificada.\n\n"
-                + "Saludos,\n"
-                + "Sistema de Seguridad",
+                        + "Recibimos una solicitud para restablecer la contraseña de tu cuenta.\n\n"
+                        + "Haz clic en el siguiente enlace para crear una nueva contraseña:\n"
+                        + "%s\n\n"
+                        + "Este enlace es válido por 30 minutos.\n\n"
+                        + "Si no solicitaste este cambio, ignora este mensaje. Tu contraseña no será modificada.\n\n"
+                        + "Saludos,\n"
+                        + "Sistema de Seguridad",
                 user.getName(),
                 resetLink);
 
@@ -229,30 +235,21 @@ public class SecurityService {
         }
         return updated;
     }
-    /*
-    public boolean permissionsValidation(final HttpServletRequest request,
-                                         @RequestBody Permission thePermission) {
-        boolean success=this.theValidatorsService.validationRolePermission(request,thePermission.getUrl(),thePermission.getMethod());
-        return success;
-    }
-     */
 
     public String loginWithGoogle(String idTokenString) {
-        // Valida el token frente a Google antes de confiar en cualquier dato del usuario.
         GoogleIdToken.Payload payload = theGoogleTokenVerifierService.verify(idTokenString);
         if (payload == null) {
             return null;
         }
 
-        String email= payload.getEmail();
-        String name= (String)payload.get("name");
+        String email = payload.getEmail();
+        String name = (String) payload.get("name");
 
-        User user=this.userRepository.findByEmail(email);
-        if(user==null){
-            user=new User();
+        User user = this.userRepository.findByEmail(email);
+        if (user == null) {
+            user = new User();
             user.setEmail(email);
             user.setName(name);
-            // Los usuarios de Google no se autentican con contraseña local, pero el modelo requiere una. Se asigna un valor aleatorio que no se podrá usar para iniciar sesión tradicionalmente.
             user.setPassword(theEncryptionService.convertSHA256(UUID.randomUUID().toString()));
             this.userRepository.save(user);
         }

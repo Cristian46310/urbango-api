@@ -84,6 +84,7 @@ export class CitizenService {
       phone: input.phone,
       userId: input.userId,
       extraInfo: input.extraInfo,
+      birthDate: input.birthDate ? new Date(input.birthDate) : undefined,
       address: input.addressId
         ? ({ id: input.addressId } as Address)
         : undefined,
@@ -164,6 +165,9 @@ export class CitizenService {
       email: updateCitizenDto.email,
       phone: updateCitizenDto.phone,
       extraInfo: updateCitizenDto.extraInfo,
+      birthDate: updateCitizenDto.birthDate
+        ? new Date(updateCitizenDto.birthDate)
+        : undefined,
       address: updateCitizenDto.addressId
         ? ({ id: updateCitizenDto.addressId } as Address)
         : undefined,

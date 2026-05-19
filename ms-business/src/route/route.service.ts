@@ -1,15 +1,18 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Route } from './entities/route.entity';
 import { In, Repository } from 'typeorm';
+import { Route } from './entities/route.entity';
 import { CreateRouteNodesDto } from './dto/create-route-nodes.dto';
 import { Stop } from '@/stop/entities/stop.entity';
 import { Node } from '@/node/entities/node.entity';
 import { UpdateRouteNodesDto } from './dto/update-route-nodes.dto';
-import { ResponseRouteDto } from './dto/response-route.dto';
+import {
+  ResponseRouteDto,
+  ResponseRouteNodeDto,
+} from './dto/response-route.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponseRouteListDto } from './dto/response-route-list.dto';
-import { ResponseStopDto } from '@/stop/dto/response-stop.dto';
+import { BaseNodeDto } from '@/node/dto/base-node.dto';
 
 @Injectable()
 export class RouteService {
@@ -23,26 +26,105 @@ export class RouteService {
   ) {}
 
   private toResponseRouteDto(route: Route): ResponseRouteDto {
+    const orderedNodes = (route.nodes ?? [])
+      .slice()
+      .sort((left, right) => left.order - right.order);
+
+    const nodes = orderedNodes.map(
+      (node): ResponseRouteNodeDto => ({
+        order: node.order,
+        distanceFromPrevious: Number(node.distanceFromPrevious),
+        estimatedTimeMinutes: node.estimatedTimeMinutes,
+        stop: {
+          id: node.stop.id,
+          name: node.stop.name,
+          location: node.stop.location,
+          latitude:
+            node.stop.latitude !== undefined && node.stop.latitude !== null
+              ? Number(node.stop.latitude)
+              : undefined,
+          longitude:
+            node.stop.longitude !== undefined && node.stop.longitude !== null
+              ? Number(node.stop.longitude)
+              : undefined,
+          createdAt: node.stop.createdAt,
+        },
+      }),
+    );
+
     return {
       id: route.id,
+      code: route.code,
       name: route.name,
       description: route.description,
       price: route.price,
-      stops: (route.nodes ?? [])
-        .slice()
-        .sort((left, right) => left.order - right.order)
-        .map(
-          (node): ResponseStopDto => ({
-            id: node.stop.id,
-            name: node.stop.name,
-            location: node.stop.location,
-            createdAt: node.stop.createdAt,
-            latitude: node.stop.latitude,
-            longitude: node.stop.longitude,
-          }),
-        ),
+      stops: nodes.map((node) => node.stop),
+      nodes,
       createdAt: route.createdAt,
     };
+  }
+
+  private validateNodes(nodes: BaseNodeDto[]) {
+    if (nodes.length < 3) {
+      throw new BadRequestException('La ruta debe tener al menos 3 paraderos');
+    }
+
+    const stopIds = nodes.map((node) => node.stopId);
+    if (new Set(stopIds).size !== stopIds.length) {
+      throw new BadRequestException(
+        'La ruta no puede tener paraderos duplicados',
+      );
+    }
+
+    const orders = nodes.map((node) => node.order);
+    if (new Set(orders).size !== orders.length) {
+      throw new BadRequestException('Los ordenes deben ser unicos en la ruta');
+    }
+
+    const sortedOrders = orders.slice().sort((left, right) => left - right);
+    const isSequential = sortedOrders.every(
+      (order, index) => order === index + 1,
+    );
+    if (!isSequential) {
+      throw new BadRequestException('Los ordenes deben ser secuenciales desde 1');
+    }
+
+    const firstNode = nodes.find((node) => node.order === 1);
+    if (
+      firstNode &&
+      (Number(firstNode.distanceFromPrevious) !== 0 ||
+        Number(firstNode.estimatedTimeMinutes) !== 0)
+    ) {
+      throw new BadRequestException(
+        'El primer paradero debe tener distancia y tiempo estimado en 0',
+      );
+    }
+  }
+
+  private async validateStopsExist(stopIds: string[]): Promise<Stop[]> {
+    const stops = await this.stopRepository.findBy({ id: In(stopIds) });
+
+    if (stops.length !== stopIds.length) {
+      throw new BadRequestException('Uno o mas stops no existen');
+    }
+
+    return stops;
+  }
+
+  private async generateRouteCode(): Promise<string> {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const suffix = attempt === 0 ? '' : `${attempt}`;
+      const candidate = `RUT-${Date.now().toString(36).toUpperCase()}${suffix}`;
+      const existing = await this.routeRepository.findOne({
+        where: { code: candidate },
+      });
+
+      if (!existing) return candidate;
+    }
+
+    throw new BadRequestException(
+      'No se pudo generar un codigo unico para la ruta',
+    );
   }
 
   private buildPaginationMeta(page: number, limit: number, totalItems: number) {
@@ -61,56 +143,45 @@ export class RouteService {
   async create(createRouteDto: CreateRouteNodesDto): Promise<ResponseRouteDto> {
     const { name, description, price, nodes } = createRouteDto;
 
-    // 1. Crear la ruta primero
+    if (!nodes) {
+      throw new BadRequestException('La ruta debe tener al menos 3 paraderos');
+    }
+
+    this.validateNodes(nodes);
+
+    const stopIds = nodes.map((node) => node.stopId);
+    const stops = await this.validateStopsExist(stopIds);
+    const code = await this.generateRouteCode();
+
     const route = this.routeRepository.create({
+      code,
       name,
       description,
       price,
     });
     const savedRoute = await this.routeRepository.save(route);
 
-    // 2. Si vienen nodos, crear las relaciones
-    if (nodes && nodes.length > 0) {
-      // Validar que los stops existan
-      const stopIds = nodes.map((node) => node.stopId);
-      const stops = await this.stopRepository.findBy({ id: In(stopIds) });
-
-      if (stops.length !== stopIds.length) {
-        throw new BadRequestException('Uno o más stops no existen');
-      }
-
-      // Validar que los órdenes sean únicos
-      const orders = nodes.map((node) => node.order);
-      if (new Set(orders).size !== orders.length) {
-        throw new BadRequestException(
-          'Los órdenes deben ser únicos en la ruta',
-        );
-      }
-
-      // 3. Crear los nodos en orden
-      const createdNodes = nodes.map((nodeDto) => {
-        const stop = stops.find((s) => s.id === nodeDto.stopId);
-        return this.nodeRepository.create({
-          route: savedRoute,
-          stop: stop!,
-          order: nodeDto.order,
-        });
+    const createdNodes = nodes.map((nodeDto) => {
+      const stop = stops.find((s) => s.id === nodeDto.stopId);
+      return this.nodeRepository.create({
+        route: savedRoute,
+        stop: stop!,
+        order: nodeDto.order,
+        distanceFromPrevious: nodeDto.distanceFromPrevious,
+        estimatedTimeMinutes: nodeDto.estimatedTimeMinutes,
       });
+    });
 
-      await this.nodeRepository.save(createdNodes);
+    await this.nodeRepository.save(createdNodes);
 
-      // Cargar la ruta con sus nodos ordenados
-      const createdRoute = await this.routeRepository.findOne({
-        where: { id: savedRoute.id },
-        relations: ['nodes'],
-      });
-      if (!createdRoute) {
-        throw new BadRequestException('Ruta no encontrada');
-      }
-      return this.toResponseRouteDto(createdRoute);
+    const createdRoute = await this.routeRepository.findOne({
+      where: { id: savedRoute.id },
+      relations: ['nodes'],
+    });
+    if (!createdRoute) {
+      throw new BadRequestException('Ruta no encontrada');
     }
-
-    return this.toResponseRouteDto(savedRoute);
+    return this.toResponseRouteDto(createdRoute);
   }
 
   async findAll(
@@ -146,7 +217,6 @@ export class RouteService {
     id: string,
     updateRouteDto: UpdateRouteNodesDto,
   ): Promise<ResponseRouteDto> {
-    // 1. Validar que la ruta existe
     const route = await this.routeRepository.findOne({ where: { id } });
     if (!route) {
       throw new BadRequestException('Ruta no encontrada');
@@ -154,28 +224,13 @@ export class RouteService {
 
     const { name, description, price, nodes } = updateRouteDto;
 
-    // 2. Validar todos los nodos ANTES de hacer cualquier cambio
     let validatedStops: Stop[] = [];
-    if (nodes !== undefined && nodes.length > 0) {
-      // Validar que los stops existan
+    if (nodes !== undefined) {
+      this.validateNodes(nodes);
       const stopIds = nodes.map((node) => node.stopId);
-      validatedStops = await this.stopRepository.findBy({ id: In(stopIds) });
-
-      if (validatedStops.length !== stopIds.length) {
-        throw new BadRequestException('Uno o más stops no existen');
-      }
-
-      // Validar que los órdenes sean únicos
-      const orders = nodes.map((node) => node.order);
-      if (new Set(orders).size !== orders.length) {
-        throw new BadRequestException(
-          'Los órdenes deben ser únicos en la ruta',
-        );
-      }
+      validatedStops = await this.validateStopsExist(stopIds);
     }
 
-    // 3. Si todas las validaciones pasaron, proceder con las actualizaciones
-    // Actualizar los campos básicos de la ruta si vienen en el DTO
     const updateData: Partial<Route> = {};
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
@@ -185,27 +240,23 @@ export class RouteService {
       await this.routeRepository.update(id, updateData);
     }
 
-    // 4. Actualizar nodos si vienen en el DTO
     if (nodes !== undefined) {
-      // Eliminar los nodos existentes de la ruta
       await this.nodeRepository.delete({ route: { id } });
 
-      // Crear los nuevos nodos en orden
-      if (nodes.length > 0) {
-        const createdNodes = nodes.map((nodeDto) => {
-          const stop = validatedStops.find((s) => s.id === nodeDto.stopId);
-          return this.nodeRepository.create({
-            route,
-            stop: stop!,
-            order: nodeDto.order,
-          });
+      const createdNodes = nodes.map((nodeDto) => {
+        const stop = validatedStops.find((s) => s.id === nodeDto.stopId);
+        return this.nodeRepository.create({
+          route,
+          stop: stop!,
+          order: nodeDto.order,
+          distanceFromPrevious: nodeDto.distanceFromPrevious,
+          estimatedTimeMinutes: nodeDto.estimatedTimeMinutes,
         });
+      });
 
-        await this.nodeRepository.save(createdNodes);
-      }
+      await this.nodeRepository.save(createdNodes);
     }
 
-    // 5. Retornar la ruta actualizada con sus nodos
     const updatedRoute = await this.routeRepository.findOne({
       where: { id },
       relations: ['nodes'],

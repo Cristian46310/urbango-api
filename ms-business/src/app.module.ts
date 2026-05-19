@@ -21,6 +21,8 @@ import { PaymentMethodCitizenModule } from './payment-method-citizen/payment-met
 import { EnterpriseModule } from './enterprise/enterprise.module';
 import { DriverModule } from './driver/driver.module';
 import { TurnModule } from './turn/turn.module';
+import { BoardingModule } from './boarding/boarding.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { IncidentModule } from './incident/incident.module';
 import { CardRechargeModule } from './card-recharge/card-recharge.module';
 import { SharedModule } from './shared/shared.module';
@@ -57,6 +59,8 @@ import { SharedModule } from './shared/shared.module';
     EnterpriseModule,
     DriverModule,
     TurnModule,
+    BoardingModule,
+    AnalyticsModule,
     IncidentModule,
     CardRechargeModule,
     SharedModule,

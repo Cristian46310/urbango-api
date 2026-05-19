@@ -71,6 +71,11 @@ export class TicketService {
       buyedAt: createTicketDto.buyedAt
         ? new Date(createTicketDto.buyedAt)
         : undefined,
+      appliedRate: createTicketDto.appliedRate,
+      status: createTicketDto.status,
+      boardedAt: createTicketDto.boardedAt
+        ? new Date(createTicketDto.boardedAt)
+        : undefined,
     };
     const ticket = this.ticketRepository.create(ticketData);
 
@@ -151,6 +156,11 @@ export class TicketService {
         : undefined,
       buyedAt: updateTicketDto.buyedAt
         ? new Date(updateTicketDto.buyedAt)
+        : undefined,
+      appliedRate: updateTicketDto.appliedRate,
+      status: updateTicketDto.status,
+      boardedAt: updateTicketDto.boardedAt
+        ? new Date(updateTicketDto.boardedAt)
         : undefined,
     };
     const ticket = await this.ticketRepository.preload(preloadData);

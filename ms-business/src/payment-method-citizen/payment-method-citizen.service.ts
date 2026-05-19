@@ -7,7 +7,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreatePaymentMethodCitizenDto } from './dto/create-payment-method-citizen.dto';
 import { UpdatePaymentMethodCitizenDto } from './dto/update-payment-method-citizen.dto';
-import { PaymentMethodCitizen } from './entities/payment-method-citizen.entity';
+import {
+  PaymentMethodCitizen,
+  PaymentMethodStatus,
+  PaymentMethodType,
+} from './entities/payment-method-citizen.entity';
 import { Citizen } from '@/citizen/entities/citizen.entity';
 import { PaymentMethod } from '@/payment-method/entities/payment-method.entity';
 import { plainToInstance } from 'class-transformer';
@@ -42,7 +46,9 @@ export class PaymentMethodCitizenService {
     const pmcData: Partial<PaymentMethodCitizen> = {
       citizen: { id: citizen.id } as Citizen,
       paymentMethod: { id: pm.id } as PaymentMethod,
-      balance: 0,
+      balance: createDto.balance ?? 0,
+      type: createDto.type ?? PaymentMethodType.PREPAID,
+      status: createDto.status ?? PaymentMethodStatus.ACTIVE,
     };
 
     if (pm.isRechargeable) {
@@ -152,6 +158,9 @@ export class PaymentMethodCitizenService {
       if (!pm) throw new BadRequestException('Payment method not found');
       preloadData.paymentMethod = { id: pm.id } as PaymentMethod;
     }
+    if (updateDto.balance !== undefined) preloadData.balance = updateDto.balance;
+    if (updateDto.type !== undefined) preloadData.type = updateDto.type;
+    if (updateDto.status !== undefined) preloadData.status = updateDto.status;
     const pmc = await this.pmcRepository.preload(preloadData);
     if (!pmc)
       throw new NotFoundException(`PaymentMethodCitizen ${id} not found`);
