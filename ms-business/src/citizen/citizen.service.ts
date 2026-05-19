@@ -25,15 +25,50 @@ export class CitizenService {
     private readonly addressRepository: Repository<Address>,
   ) {}
 
-  async create(input: CreateCitizenInput) {
-    const existing = await this.citizenRepository.findOne({
-      where: { userId: input.userId },
-    });
-    if (existing) {
-      throw new ConflictException(
-        'Ya existe un perfil de ciudadano para este usuario',
-      );
+  private async assertUniqueCitizenFields(
+    fields: { document?: string; email?: string; userId?: string },
+    excludeId?: string,
+  ): Promise<void> {
+    if (fields.userId) {
+      const existingByUser = await this.citizenRepository.findOne({
+        where: { userId: fields.userId },
+      });
+      if (existingByUser && existingByUser.id !== excludeId) {
+        throw new ConflictException(
+          'Ya existe un perfil de ciudadano para este usuario',
+        );
+      }
     }
+
+    if (fields.document) {
+      const existingByDocument = await this.citizenRepository.findOne({
+        where: { document: fields.document },
+      });
+      if (existingByDocument && existingByDocument.id !== excludeId) {
+        throw new ConflictException(
+          'Ya existe un ciudadano con este documento',
+        );
+      }
+    }
+
+    if (fields.email) {
+      const existingByEmail = await this.citizenRepository.findOne({
+        where: { email: fields.email },
+      });
+      if (existingByEmail && existingByEmail.id !== excludeId) {
+        throw new ConflictException(
+          'Ya existe un ciudadano con este correo electrónico',
+        );
+      }
+    }
+  }
+
+  async create(input: CreateCitizenInput) {
+    await this.assertUniqueCitizenFields({
+      userId: input.userId,
+      document: input.document,
+      email: input.email,
+    });
 
     if (input.addressId) {
       const addr = await this.addressRepository.findOne({
@@ -49,6 +84,7 @@ export class CitizenService {
       phone: input.phone,
       userId: input.userId,
       extraInfo: input.extraInfo,
+      birthDate: input.birthDate ? new Date(input.birthDate) : undefined,
       address: input.addressId
         ? ({ id: input.addressId } as Address)
         : undefined,
@@ -108,6 +144,14 @@ export class CitizenService {
   }
 
   async update(id: string, updateCitizenDto: UpdateCitizenDto) {
+    await this.assertUniqueCitizenFields(
+      {
+        document: updateCitizenDto.document,
+        email: updateCitizenDto.email,
+      },
+      id,
+    );
+
     if (updateCitizenDto.addressId) {
       const addr = await this.addressRepository.findOne({
         where: { id: updateCitizenDto.addressId },
@@ -121,6 +165,9 @@ export class CitizenService {
       email: updateCitizenDto.email,
       phone: updateCitizenDto.phone,
       extraInfo: updateCitizenDto.extraInfo,
+      birthDate: updateCitizenDto.birthDate
+        ? new Date(updateCitizenDto.birthDate)
+        : undefined,
       address: updateCitizenDto.addressId
         ? ({ id: updateCitizenDto.addressId } as Address)
         : undefined,

@@ -15,6 +15,7 @@ import { CreateCitizenDto } from './dto/create-citizen.dto';
 import { UpdateCitizenDto } from './dto/update-citizen.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import { Authenticated } from '@/auth/decorators/authenticated.decorator';
 import type { JwtPayload } from '@/auth/types';
 
 @ApiTags('Citizens')
@@ -24,6 +25,7 @@ export class CitizenController {
   constructor(private readonly citizenService: CitizenService) {}
 
   @Post()
+  @Authenticated()
   @ApiOperation({
     summary: 'Registrar perfil de ciudadano (userId desde token)',
   })
@@ -41,6 +43,7 @@ export class CitizenController {
   }
 
   @Get('me')
+  @Authenticated()
   @ApiOperation({
     summary: 'Obtener perfil de ciudadano del usuario autenticado',
   })
@@ -52,6 +55,10 @@ export class CitizenController {
   }
 
   @Get()
+  @ApiOperation({
+    summary:
+      'Listar ciudadanos paginado (requiere permiso RBAC de administrador). Para el perfil propio use GET /citizen/me',
+  })
   findAll(@Query() pagination: PaginationQueryDto) {
     return this.citizenService.findAll(pagination);
   }

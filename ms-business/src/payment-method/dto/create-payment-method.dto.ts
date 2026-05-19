@@ -1,5 +1,11 @@
-import { IsString, IsNotEmpty, MaxLength } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import {
+  IsString,
+  IsNotEmpty,
+  MaxLength,
+  IsBoolean,
+  IsOptional,
+} from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreatePaymentMethodDto {
   @ApiProperty({
@@ -10,4 +16,12 @@ export class CreatePaymentMethodDto {
   @IsNotEmpty()
   @MaxLength(128)
   name: string;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Tarjeta prepagada recargable con ePayco',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isRechargeable?: boolean;
 }

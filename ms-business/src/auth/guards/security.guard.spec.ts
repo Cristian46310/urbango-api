@@ -4,6 +4,7 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { of } from 'rxjs';
 import { SecurityGuard } from './security.guard';
+import { JwtValidationService } from '../services/jwt-validation.service';
 
 describe('SecurityGuard', () => {
   let guard: SecurityGuard;
@@ -11,6 +12,9 @@ describe('SecurityGuard', () => {
   const httpService = { post: jest.fn() };
   const configService = {
     get: jest.fn().mockReturnValue('http://localhost:8080'),
+  };
+  const jwtValidationService = {
+    validateToken: jest.fn(),
   };
 
   const buildContext = (
@@ -33,6 +37,7 @@ describe('SecurityGuard', () => {
       httpService as unknown as HttpService,
       configService as unknown as ConfigService,
       reflector as unknown as Reflector,
+      jwtValidationService as unknown as JwtValidationService,
     );
     jest.clearAllMocks();
     reflector.getAllAndOverride.mockReturnValue(false);
@@ -50,10 +55,14 @@ describe('SecurityGuard', () => {
   });
 
   it('authorizes when ms-security returns allowed', async () => {
-    const token = Buffer.from(
-      JSON.stringify({ id: 'u1', roles: ['ADMIN'] }),
-    ).toString('base64');
-    const jwt = `h.${token}.s`;
+    const jwt = 'header.payload.signature';
+    jwtValidationService.validateToken.mockResolvedValue({
+      id: 'u1',
+      name: 'Test',
+      email: 'test@example.com',
+      roles: ['ADMIN'],
+      createdAt: Date.now(),
+    });
     httpService.post.mockReturnValue(of({ data: { allowed: true } }));
 
     await expect(

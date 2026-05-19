@@ -7,6 +7,9 @@ export class ResponsePaymentMethodDto {
   @ApiProperty()
   name: string;
 
+  @ApiProperty({ description: 'Indica si admite recarga vía ePayco' })
+  isRechargeable: boolean;
+
   @ApiProperty()
   createdAt: Date;
 }

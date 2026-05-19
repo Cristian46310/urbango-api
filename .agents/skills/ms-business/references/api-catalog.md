@@ -85,10 +85,12 @@ Documentación interactiva: `/docs`
 | Método | Ruta |
 |--------|------|
 | POST | `/bus` |
+| GET | `/bus/fleet` | Flota de la empresa del conductor autenticado |
 | GET | `/bus` |
 | GET | `/bus/:id` |
 | PATCH | `/bus/:id` |
 | DELETE | `/bus/:id` |
+| POST | `/bus/:id/photo` | Multipart, campo `photo` |
 
 ## turn
 
@@ -151,6 +153,32 @@ Documentación interactiva: `/docs`
 | GET | `/payment-method-citizen/:id` |
 | PATCH | `/payment-method-citizen/:id` |
 | DELETE | `/payment-method-citizen/:id` |
+
+## card-recharge (ePayco — HU-ENTR-2-013)
+
+| Método | Ruta | Auth |
+|--------|------|------|
+| GET | `/card-recharge/config` | JWT (`@Authenticated`) |
+| GET | `/card-recharge/cards` | JWT |
+| POST | `/card-recharge/cards/register` | JWT — crea/obtiene tarjeta prepagada |
+| POST | `/card-recharge/preview` | JWT |
+| POST | `/card-recharge/checkout` | JWT — crea referencia y sesión ePayco |
+| GET | `/card-recharge/transactions/:reference/status` | JWT |
+| POST | `/card-recharge/webhook/confirmation` | Público (ePayco) |
+
+## payment-method (lectura ciudadano)
+
+| Método | Ruta | Auth |
+|--------|------|------|
+| GET | `/payment-method/rechargeable` | JWT (`@Authenticated`) |
+| GET | `/payment-method` | JWT |
+| GET | `/payment-method/:id` | JWT |
+
+## payment-method-citizen (ciudadano)
+
+| Método | Ruta | Auth |
+|--------|------|------|
+| POST | `/payment-method-citizen/me` | JWT — vincula método al ciudadano del token |
 
 ## incident-reports
 

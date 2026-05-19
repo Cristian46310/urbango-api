@@ -7,13 +7,18 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreatePaymentMethodCitizenDto } from './dto/create-payment-method-citizen.dto';
 import { UpdatePaymentMethodCitizenDto } from './dto/update-payment-method-citizen.dto';
-import { PaymentMethodCitizen } from './entities/payment-method-citizen.entity';
+import {
+  PaymentMethodCitizen,
+  PaymentMethodStatus,
+  PaymentMethodType,
+} from './entities/payment-method-citizen.entity';
 import { Citizen } from '@/citizen/entities/citizen.entity';
 import { PaymentMethod } from '@/payment-method/entities/payment-method.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponsePaymentMethodCitizenDto } from './dto/response-payment-method-citizen.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponsePaymentMethodCitizenListDto } from './dto/response-payment-method-citizen-list.dto';
+import { generateTransportCardNumber } from '@/card-recharge/utils/card-number.util';
 
 @Injectable()
 export class PaymentMethodCitizenService {
@@ -38,12 +43,61 @@ export class PaymentMethodCitizenService {
     });
     if (!pm) throw new BadRequestException('Payment method not found');
 
-    const pmc = this.pmcRepository.create({
+    const pmcData: Partial<PaymentMethodCitizen> = {
       citizen: { id: citizen.id } as Citizen,
       paymentMethod: { id: pm.id } as PaymentMethod,
-    } as Partial<PaymentMethodCitizen>);
+      balance: createDto.balance ?? 0,
+      type: createDto.type ?? PaymentMethodType.PREPAID,
+      status: createDto.status ?? PaymentMethodStatus.ACTIVE,
+    };
+
+    if (pm.isRechargeable) {
+      pmcData.cardNumber = await this.generateUniqueCardNumber();
+    }
+
+    const pmc = this.pmcRepository.create(pmcData);
     const saved = await this.pmcRepository.save(pmc);
-    return plainToInstance(ResponsePaymentMethodCitizenDto, saved);
+    const withRelations = await this.pmcRepository.findOne({
+      where: { id: saved.id },
+      relations: ['paymentMethod', 'citizen'],
+    });
+    return plainToInstance(
+      ResponsePaymentMethodCitizenDto,
+      withRelations ?? saved,
+      { enableImplicitConversion: true },
+    );
+  }
+
+  async createForCitizenUser(
+    userId: string,
+    paymentMethodId: string,
+  ): Promise<ResponsePaymentMethodCitizenDto> {
+    const citizen = await this.citizenRepository.findOne({
+      where: { userId },
+    });
+    if (!citizen) {
+      throw new BadRequestException(
+        'Debe registrar su perfil de ciudadano antes de solicitar una tarjeta',
+      );
+    }
+
+    const existing = await this.pmcRepository.findOne({
+      where: {
+        citizen: { id: citizen.id },
+        paymentMethod: { id: paymentMethodId },
+      },
+      relations: ['paymentMethod', 'citizen'],
+    });
+    if (existing) {
+      return plainToInstance(ResponsePaymentMethodCitizenDto, existing, {
+        enableImplicitConversion: true,
+      });
+    }
+
+    return this.create({
+      citizenId: citizen.id,
+      paymentMethodId,
+    });
   }
 
   private buildPaginationMeta(page: number, limit: number, totalItems: number) {
@@ -104,6 +158,10 @@ export class PaymentMethodCitizenService {
       if (!pm) throw new BadRequestException('Payment method not found');
       preloadData.paymentMethod = { id: pm.id } as PaymentMethod;
     }
+    if (updateDto.balance !== undefined)
+      preloadData.balance = updateDto.balance;
+    if (updateDto.type !== undefined) preloadData.type = updateDto.type;
+    if (updateDto.status !== undefined) preloadData.status = updateDto.status;
     const pmc = await this.pmcRepository.preload(preloadData);
     if (!pmc)
       throw new NotFoundException(`PaymentMethodCitizen ${id} not found`);
@@ -117,5 +175,18 @@ export class PaymentMethodCitizenService {
       throw new NotFoundException(`PaymentMethodCitizen ${id} not found`);
     await this.pmcRepository.delete(id);
     return;
+  }
+
+  private async generateUniqueCardNumber(): Promise<string> {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate = generateTransportCardNumber();
+      const exists = await this.pmcRepository.exists({
+        where: { cardNumber: candidate },
+      });
+      if (!exists) return candidate;
+    }
+    throw new BadRequestException(
+      'No se pudo generar un número de tarjeta único',
+    );
   }
 }

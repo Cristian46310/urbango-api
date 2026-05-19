@@ -18,22 +18,20 @@ export class ResponseStopDto {
   @Expose()
   location!: string;
   @ApiProperty({
-    example: '2023-01-01T00:00:00.000Z',
-  })
-  @Expose()
-  createdAt!: Date;
-
-  @ApiProperty({
-    example: -12.3456,
+    example: 5.070275,
     required: false,
   })
   @Expose()
   latitude?: number;
-
   @ApiProperty({
-    example: 78.9012,
+    example: -75.513817,
     required: false,
   })
   @Expose()
   longitude?: number;
+  @ApiProperty({
+    example: '2023-01-01T00:00:00.000Z',
+  })
+  @Expose()
+  createdAt!: Date;
 }

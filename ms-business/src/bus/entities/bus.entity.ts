@@ -12,6 +12,7 @@ import { Turn } from '@/turn/entities/turn.entity';
 import { Scheduler } from '@/scheduler/entities/scheduler.entity';
 import { Gps } from '@/incident/entities/gps.entity';
 import { IncidentBus } from '@/incident/entities/incident-bus.entity';
+import { BusStatus } from '../enums/bus-status.enum';
 
 @Entity('buses')
 export class Bus {
@@ -29,6 +30,24 @@ export class Bus {
 
   @Column({ type: 'int', nullable: true })
   capacity?: number;
+
+  @Column({ type: 'int', nullable: true })
+  year?: number;
+
+  @Column({ type: 'int', nullable: true })
+  seatedCapacity?: number;
+
+  @Column({ type: 'int', nullable: true })
+  standingCapacity?: number;
+
+  @Column({ type: 'varchar', default: BusStatus.OPERATIVO })
+  status: BusStatus = BusStatus.OPERATIVO;
+
+  @Column({ type: 'text', nullable: true })
+  photoUrl?: string;
+
+  @Column({ type: 'text', nullable: true })
+  qrCode?: string;
 
   @ManyToOne(() => Enterprise, { onDelete: 'SET NULL', eager: true })
   enterprise?: Enterprise;

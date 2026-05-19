@@ -18,9 +18,11 @@ import {
   ApiCreatedResponse,
   ApiOkResponse,
   ApiNotFoundResponse,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { ResponsePaymentMethodDto } from './dto/response-payment-method.dto';
 import { ResponsePaymentMethodListDto } from './dto/response-payment-method-list.dto';
+import { Authenticated } from '@/auth/decorators/authenticated.decorator';
 
 @ApiTags('payment-method')
 @Controller('payment-method')
@@ -28,13 +30,30 @@ export class PaymentMethodController {
   constructor(private readonly paymentMethodService: PaymentMethodService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create payment method' })
+  @Authenticated()
+  @ApiBearerAuth('bearer')
+  @ApiOperation({
+    summary: 'Create payment method (solo JWT; catálogo en desarrollo)',
+  })
   @ApiCreatedResponse({ type: ResponsePaymentMethodDto })
   create(@Body() createPaymentMethodDto: CreatePaymentMethodDto) {
     return this.paymentMethodService.create(createPaymentMethodDto);
   }
 
+  @Get('rechargeable')
+  @Authenticated()
+  @ApiBearerAuth('bearer')
+  @ApiOperation({
+    summary: 'Catálogo de métodos recargables (solo JWT, sin permiso RBAC)',
+  })
+  @ApiOkResponse({ type: [ResponsePaymentMethodDto] })
+  findRechargeable(): Promise<ResponsePaymentMethodDto[]> {
+    return this.paymentMethodService.findRechargeable();
+  }
+
   @Get()
+  @Authenticated()
+  @ApiBearerAuth('bearer')
   @ApiOperation({ summary: 'List payment methods (paginated)' })
   @ApiOkResponse({ type: ResponsePaymentMethodListDto })
   findAll(@Query() pagination: PaginationQueryDto) {
@@ -42,6 +61,8 @@ export class PaymentMethodController {
   }
 
   @Get(':id')
+  @Authenticated()
+  @ApiBearerAuth('bearer')
   @ApiOkResponse({ type: ResponsePaymentMethodDto })
   @ApiNotFoundResponse({ description: 'Payment method not found' })
   findOne(@Param('id') id: string) {

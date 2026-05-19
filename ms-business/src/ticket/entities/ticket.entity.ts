@@ -15,7 +15,6 @@ export enum TicketStatus {
   ACTIVE = 'active',
   COMPLETED = 'completed',
 }
-
 @Entity('tickets')
 export class Ticket {
   @PrimaryGeneratedColumn('uuid')
@@ -36,6 +35,9 @@ export class Ticket {
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   buyedAt!: Date;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  appliedRate!: number;
+
   @Column({ type: 'integer' })
   amount!: number;
 
@@ -45,6 +47,9 @@ export class Ticket {
     default: TicketStatus.ACTIVE,
   })
   status!: TicketStatus;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  boardedAt?: Date;
 
   @Column({ type: 'timestamp', nullable: true })
   completedAt?: Date | null;

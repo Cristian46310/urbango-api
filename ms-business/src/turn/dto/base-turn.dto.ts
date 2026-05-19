@@ -4,7 +4,9 @@ import {
   IsString,
   IsOptional,
   IsDateString,
+  IsEnum,
 } from 'class-validator';
+import { TurnStatus } from '../entities/turn.entity';
 
 export class BaseTurnDto {
   @ApiProperty({
@@ -23,10 +25,10 @@ export class BaseTurnDto {
   @IsOptional()
   endTime?: string;
 
-  @ApiProperty({ description: 'Estado', example: 'active' })
-  @IsString()
+  @ApiProperty({ description: 'Estado', enum: TurnStatus, required: false })
+  @IsEnum(TurnStatus)
   @IsOptional()
-  status?: string;
+  status?: TurnStatus;
 
   @ApiProperty({ description: 'Bus id', example: 'uuid' })
   @IsString()

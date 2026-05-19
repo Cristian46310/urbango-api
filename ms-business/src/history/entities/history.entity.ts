@@ -9,6 +9,11 @@ import {
 import { Node } from '@/node/entities/node.entity';
 import { Ticket } from '@/ticket/entities/ticket.entity';
 
+export enum HistoryEventType {
+  BOARDING = 'boarding',
+  ALIGHTING = 'alighting',
+}
+
 @Entity('histories')
 @Index(['ticket', 'order'], { unique: true })
 export class History {
@@ -25,6 +30,19 @@ export class History {
     onDelete: 'CASCADE',
   })
   ticket?: Ticket;
+
+  @Column({
+    type: 'enum',
+    enum: HistoryEventType,
+    default: HistoryEventType.BOARDING,
+  })
+  eventType!: HistoryEventType;
+
+  @Column({
+    type: 'timestamp with time zone',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
+  eventTimestamp!: Date;
 
   @CreateDateColumn()
   createdAt!: Date;

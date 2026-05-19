@@ -12,7 +12,7 @@ export class CreateStopDto extends BaseStopDto {
   @Type(() => Number)
   @IsNumber()
   @IsNotEmpty()
-  latitude!: number;
+  declare latitude: number;
 
   @ApiProperty({
     description: 'Longitud de la parada',
@@ -22,5 +22,5 @@ export class CreateStopDto extends BaseStopDto {
   @Type(() => Number)
   @IsNumber()
   @IsNotEmpty()
-  longitude!: number;
+  declare longitude: number;
 }

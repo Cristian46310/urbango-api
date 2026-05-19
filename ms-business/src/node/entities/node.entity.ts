@@ -18,6 +18,19 @@ export class Node {
   // Order of the node in the route
   @Column()
   order!: number;
+
+  @Column({
+    name: 'distance_from_previous',
+    type: 'decimal',
+    precision: 8,
+    scale: 2,
+    default: 0,
+  })
+  distanceFromPrevious!: number;
+
+  @Column({ name: 'estimated_time_minutes', type: 'int', default: 0 })
+  estimatedTimeMinutes!: number;
+
   // que carge el stop al cargar el nodo y que no se puede eliminar un stop si tiene nodos asociados
   @ManyToOne(() => Stop, { onDelete: 'RESTRICT', eager: true })
   @JoinColumn({ name: 'stopId' })

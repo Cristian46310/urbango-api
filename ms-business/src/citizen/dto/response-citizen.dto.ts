@@ -14,6 +14,10 @@ export class ResponseCitizenDto {
   @Expose()
   extraInfo?: string;
 
+  @ApiProperty({ required: false })
+  @Expose()
+  birthDate?: Date;
+
   @ApiProperty()
   @Expose()
   createdAt!: Date;

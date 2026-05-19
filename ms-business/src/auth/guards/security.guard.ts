@@ -6,6 +6,8 @@ import { ConfigService } from '@nestjs/config';
 import { AxiosError } from 'axios';
 import { firstValueFrom } from 'rxjs';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { IS_AUTHENTICATED_KEY } from '../decorators/authenticated.decorator';
+import { JwtValidationService } from '../services/jwt-validation.service';
 import { JwtPayload } from '../types';
 
 interface AuthRequest {
@@ -22,6 +24,7 @@ export class SecurityGuard implements CanActivate {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
     private readonly reflector: Reflector,
+    private readonly jwtValidationService: JwtValidationService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -29,6 +32,11 @@ export class SecurityGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
+
+    const isAuthenticatedOnly = this.reflector.getAllAndOverride<boolean>(
+      IS_AUTHENTICATED_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
     if (isPublic) {
       return true;
@@ -45,10 +53,38 @@ export class SecurityGuard implements CanActivate {
     }
 
     const token = authHeader.substring(7);
+
+    try {
+      request.user = await this.jwtValidationService.validateToken(token);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        const response = error.getResponse();
+        const reason =
+          typeof response === 'object' &&
+          response !== null &&
+          'message' in response &&
+          typeof (response as { message?: string }).message === 'string'
+            ? (response as { message: string }).message
+            : 'Invalid or expired token';
+
+        throw new HttpException(
+          { allowed: false, reason },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      throw new HttpException(
+        { allowed: false, reason: 'Invalid or expired token' },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    if (isAuthenticatedOnly) {
+      return true;
+    }
+
     const method = request.method;
     const url = this.getRequestPath(request);
-
-    request.user = this.decodeJwtPayload(token) as JwtPayload;
 
     const msSecurityUrl =
       this.configService.get<string>('MS_SECURITY_URL') ??
@@ -125,44 +161,5 @@ export class SecurityGuard implements CanActivate {
     const rawUrl = request.originalUrl ?? request.url ?? '/';
     const questionMarkIndex = rawUrl.indexOf('?');
     return questionMarkIndex >= 0 ? rawUrl.slice(0, questionMarkIndex) : rawUrl;
-  }
-
-  private decodeJwtPayload(token: string): Partial<JwtPayload> {
-    const payloadSegment = token.split('.')[1];
-
-    if (!payloadSegment) {
-      return {};
-    }
-
-    const normalizedPayload = payloadSegment
-      .replace(/-/g, '+')
-      .replace(/_/g, '/');
-    const padding = normalizedPayload.length % 4;
-    const paddedPayload =
-      normalizedPayload + (padding ? '='.repeat(4 - padding) : '');
-
-    try {
-      const payloadJson = Buffer.from(paddedPayload, 'base64').toString('utf8');
-      const payload = JSON.parse(payloadJson) as Record<string, unknown>;
-
-      return {
-        id:
-          typeof payload.id === 'string'
-            ? payload.id
-            : typeof payload.sub === 'string'
-              ? payload.sub
-              : '',
-        name: typeof payload.name === 'string' ? payload.name : '',
-        email: typeof payload.email === 'string' ? payload.email : '',
-        roles: Array.isArray(payload.roles)
-          ? payload.roles.filter(
-              (role): role is string => typeof role === 'string',
-            )
-          : [],
-        createdAt: Date.now(),
-      };
-    } catch {
-      return {};
-    }
   }
 }

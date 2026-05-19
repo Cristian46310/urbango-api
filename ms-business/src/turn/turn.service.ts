@@ -2,12 +2,13 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { CreateTurnDto } from './dto/create-turn.dto';
 import { UpdateTurnDto } from './dto/update-turn.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Turn } from './entities/turn.entity';
+import { LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
+import { Turn, TurnStatus } from './entities/turn.entity';
 import { Bus } from '@/bus/entities/bus.entity';
 import { Driver } from '@/driver/entities/driver.entity';
 import { plainToInstance } from 'class-transformer';
@@ -94,6 +95,66 @@ export class TurnService {
     });
     if (!turn) throw new NotFoundException(`Turn ${id} not found`);
     return plainToInstance(ResponseTurnDto, turn);
+  }
+
+  async startTurn(driverId: string, busStatus: string, observations?: string) {
+    if (!busStatus?.trim()) {
+      throw new BadRequestException('busStatus es requerido');
+    }
+
+    const now = new Date();
+    const scheduledTurn = await this.turnRepository.findOne({
+      where: {
+        driver: { id: driverId },
+        startTime: LessThanOrEqual(now),
+        endTime: MoreThanOrEqual(now),
+        status: TurnStatus.SCHEDULED,
+      },
+      relations: ['bus', 'driver'],
+    });
+
+    if (!scheduledTurn) {
+      const unavailableTurn = await this.turnRepository.findOne({
+        where: {
+          driver: { id: driverId },
+          startTime: LessThanOrEqual(now),
+          endTime: MoreThanOrEqual(now),
+        },
+      });
+
+      if (unavailableTurn) {
+        throw new ConflictException('Turno ya iniciado o no disponible');
+      }
+
+      throw new NotFoundException('No hay turno programado para este horario');
+    }
+
+    if (scheduledTurn.actualStartTime) {
+      throw new ConflictException('Turno ya iniciado');
+    }
+
+    if (!scheduledTurn.bus) {
+      throw new BadRequestException('El turno no tiene bus asignado');
+    }
+
+    scheduledTurn.actualStartTime = now;
+    scheduledTurn.busStatus = busStatus.trim();
+    scheduledTurn.busObservations = observations?.trim() || null;
+    scheduledTurn.gpsActivatedAt = now;
+    scheduledTurn.status = TurnStatus.IN_PROGRESS;
+
+    const saved = await this.turnRepository.save(scheduledTurn);
+
+    return {
+      turnId: saved.id,
+      bus: {
+        id: saved.bus.id,
+        placa: saved.bus.plate,
+        modelo: saved.bus.model,
+      },
+      actualStartTime: saved.actualStartTime!,
+      status: saved.status,
+    };
   }
 
   async update(id: string, updateTurnDto: UpdateTurnDto) {

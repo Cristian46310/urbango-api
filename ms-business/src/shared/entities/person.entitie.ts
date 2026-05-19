@@ -26,6 +26,9 @@ export class Person {
   @Column({ nullable: true })
   phone?: string;
 
+  @Column({ name: 'birth_date', type: 'date', nullable: true })
+  birthDate?: Date;
+
   /** ID del usuario en ms-security (JWT sub / id). */
   @Column({ name: 'user_id', nullable: true, unique: true })
   userId?: string;

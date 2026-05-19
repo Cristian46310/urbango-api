@@ -1,12 +1,13 @@
 import { Agent } from 'http';
 import { Agent as HttpsAgent } from 'https';
 import { HttpModule } from '@nestjs/axios';
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { JwtValidationService } from './services/jwt-validation.service';
 import { Person } from '@/shared/entities/person.entitie';
 
+@Global()
 @Module({
   imports: [
     HttpModule.register({

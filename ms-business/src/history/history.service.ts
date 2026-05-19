@@ -63,6 +63,10 @@ export class HistoryService {
         ? ({ id: createHistoryDto.nodeId } as Node)
         : undefined,
       order: createHistoryDto.order,
+      eventType: createHistoryDto.eventType,
+      eventTimestamp: createHistoryDto.eventTimestamp
+        ? new Date(createHistoryDto.eventTimestamp)
+        : undefined,
     };
     const hist = this.historyRepository.create(histData);
 
@@ -131,6 +135,10 @@ export class HistoryService {
         ? ({ id: updateHistoryDto.nodeId } as Node)
         : undefined,
       order: updateHistoryDto.order,
+      eventType: updateHistoryDto.eventType,
+      eventTimestamp: updateHistoryDto.eventTimestamp
+        ? new Date(updateHistoryDto.eventTimestamp)
+        : undefined,
     };
     const hist = await this.historyRepository.preload(preloadData);
     if (!hist) throw new NotFoundException(`History ${id} not found`);
@@ -215,13 +223,8 @@ export class HistoryService {
           stop: h.node?.stop
             ? plainToInstance(ResponseStopDto, h.node.stop)
             : null,
-          validatedAt: h.createdAt,
-          type:
-            h.order === histories[0].order
-              ? 'boarding'
-              : h.order === histories[histories.length - 1].order
-                ? 'alighting'
-                : 'intermediate',
+          validatedAt: h.eventTimestamp ?? h.createdAt,
+          type: h.eventType,
         })),
         totalTime: { minutes, formatted: `${minutes} min` },
         citizen: plainToInstance(CitizenSummaryDto, {

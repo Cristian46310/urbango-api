@@ -1,43 +1,153 @@
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { BadRequestException } from '@nestjs/common';
 import { SchedulerService } from './scheduler.service';
-import { Scheduler } from './entities/scheduler.entity';
+import {
+  RecurrenceType,
+  Scheduler,
+  SchedulerStatus,
+} from './entities/scheduler.entity';
 import { Bus } from '@/bus/entities/bus.entity';
 import { Route } from '@/route/entities/route.entity';
-import { provideMockRepo } from '@/test/helpers/repository-provider';
-import { createMockRepository } from '@/test/helpers/typeorm-mocks';
+import { Turn, TurnStatus } from '@/turn/entities/turn.entity';
 
 describe('SchedulerService', () => {
   let service: SchedulerService;
-  let busRepo: ReturnType<typeof createMockRepository<Bus>>;
+  let schedulerRepository: {
+    create: jest.Mock;
+    save: jest.Mock;
+    createQueryBuilder: jest.Mock;
+    findAndCount: jest.Mock;
+    findOne: jest.Mock;
+    preload: jest.Mock;
+    delete: jest.Mock;
+  };
+  let busRepository: { findOne: jest.Mock };
+  let routeRepository: { findOne: jest.Mock };
+  let turnRepository: { findOne: jest.Mock };
+  let queryBuilder: {
+    where: jest.Mock;
+    andWhere: jest.Mock;
+    getOne: jest.Mock;
+  };
 
   beforeEach(async () => {
+    queryBuilder = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getOne: jest.fn(),
+    };
+    schedulerRepository = {
+      create: jest.fn((data) => data),
+      save: jest.fn(async (scheduler) => ({
+        id: 'scheduler-1',
+        createdAt: new Date(),
+        ...scheduler,
+      })),
+      createQueryBuilder: jest.fn(() => queryBuilder),
+      findAndCount: jest.fn(),
+      findOne: jest.fn(),
+      preload: jest.fn(),
+      delete: jest.fn(),
+    };
+    busRepository = {
+      findOne: jest.fn(),
+    };
+    routeRepository = {
+      findOne: jest.fn(),
+    };
+    turnRepository = {
+      findOne: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SchedulerService,
-        provideMockRepo(Scheduler),
-        provideMockRepo(Bus),
-        provideMockRepo(Route),
+        {
+          provide: getRepositoryToken(Scheduler),
+          useValue: schedulerRepository,
+        },
+        {
+          provide: getRepositoryToken(Bus),
+          useValue: busRepository,
+        },
+        {
+          provide: getRepositoryToken(Route),
+          useValue: routeRepository,
+        },
+        {
+          provide: getRepositoryToken(Turn),
+          useValue: turnRepository,
+        },
       ],
     }).compile();
 
     service = module.get(SchedulerService);
-    busRepo = module.get(getRepositoryToken(Bus));
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
 
-  it('create throws when bus not found', async () => {
-    busRepo.findOne.mockResolvedValue(null);
+  it('creates a scheduler when bus is free and has assigned driver', async () => {
+    busRepository.findOne.mockResolvedValue({ id: 'bus-1' });
+    routeRepository.findOne.mockResolvedValue({ id: 'route-1' });
+    queryBuilder.getOne.mockResolvedValue(null);
+    turnRepository.findOne.mockResolvedValue({
+      id: 'turn-1',
+      status: TurnStatus.SCHEDULED,
+    });
+
+    const result = await service.create({
+      busId: 'bus-1',
+      routeId: 'route-1',
+      date: '2026-05-20',
+      startTime: '08:00:00',
+      endTime: '10:00:00',
+      toleranceMinutes: 5,
+      recurrenceType: RecurrenceType.WEEKDAYS,
+    });
+
+    expect(schedulerRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        date: '2026-05-20',
+        status: SchedulerStatus.SCHEDULED,
+        toleranceMinutes: 5,
+        recurrenceType: RecurrenceType.WEEKDAYS,
+      }),
+    );
+    expect(result.id).toBe('scheduler-1');
+  });
+
+  it('rejects overlapping active scheduler for same bus and date', async () => {
+    busRepository.findOne.mockResolvedValue({ id: 'bus-1' });
+    routeRepository.findOne.mockResolvedValue({ id: 'route-1' });
+    queryBuilder.getOne.mockResolvedValue({ id: 'scheduler-existing' });
+
     await expect(
       service.create({
-        busId: 'missing',
-        routeId: 'r1',
-        departureTime: '08:00',
-        arrivalTime: '09:00',
+        busId: 'bus-1',
+        routeId: 'route-1',
+        date: '2026-05-20',
+        startTime: '08:00:00',
+        endTime: '10:00:00',
+      }),
+    ).rejects.toThrow(ConflictException);
+  });
+
+  it('rejects scheduler when bus has no driver turn covering the time range', async () => {
+    busRepository.findOne.mockResolvedValue({ id: 'bus-1' });
+    routeRepository.findOne.mockResolvedValue({ id: 'route-1' });
+    queryBuilder.getOne.mockResolvedValue(null);
+    turnRepository.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.create({
+        busId: 'bus-1',
+        routeId: 'route-1',
+        date: '2026-05-20',
+        startTime: '08:00:00',
+        endTime: '10:00:00',
       }),
     ).rejects.toThrow(BadRequestException);
   });

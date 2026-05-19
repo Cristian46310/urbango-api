@@ -15,6 +15,7 @@ import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import { Authenticated } from '@/auth/decorators/authenticated.decorator';
 import type { JwtPayload } from '@/auth/types';
 
 @ApiTags('Drivers')
@@ -24,8 +25,10 @@ export class DriverController {
   constructor(private readonly driverService: DriverService) {}
 
   @Post()
+  @Authenticated()
   @ApiOperation({
-    summary: 'Registrar perfil de conductor (userId desde token)',
+    summary:
+      'Registrar perfil de conductor (userId desde token, enterpriseId en body)',
   })
   create(
     @Body() createDriverDto: CreateDriverDto,
@@ -41,6 +44,7 @@ export class DriverController {
   }
 
   @Get('me')
+  @Authenticated()
   @ApiOperation({
     summary: 'Obtener perfil de conductor del usuario autenticado',
   })

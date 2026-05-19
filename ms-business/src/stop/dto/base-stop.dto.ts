@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class BaseStopDto {
   @ApiProperty({
@@ -17,4 +17,22 @@ export class BaseStopDto {
   @IsString()
   @IsNotEmpty()
   location!: string;
+
+  @ApiProperty({
+    description: 'Latitud del paradero para visualizacion en mapa',
+    example: 5.070275,
+    required: false,
+  })
+  @IsNumber()
+  @IsOptional()
+  latitude?: number;
+
+  @ApiProperty({
+    description: 'Longitud del paradero para visualizacion en mapa',
+    example: -75.513817,
+    required: false,
+  })
+  @IsNumber()
+  @IsOptional()
+  longitude?: number;
 }
