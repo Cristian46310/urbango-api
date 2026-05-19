@@ -8,7 +8,19 @@ describe('HistoryController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [HistoryController],
-      providers: [HistoryService],
+      providers: [
+        {
+          provide: HistoryService,
+          useValue: {
+            create: jest.fn(),
+            findAll: jest.fn(),
+            findOne: jest.fn(),
+            update: jest.fn(),
+            remove: jest.fn(),
+            getTripDetails: jest.fn(),
+          },
+        },
+      ],
     }).compile();
 
     controller = module.get<HistoryController>(HistoryController);

@@ -197,31 +197,40 @@ export class HistoryService {
       driver = turn?.driver ?? null;
     }
 
-    const response: ResponseTripDetailsDto = plainToInstance(ResponseTripDetailsDto, {
-      tripId: ticket.id,
-      route: scheduler?.route ? plainToInstance(ResponseRouteDto, scheduler.route) : null,
-      bus: bus ? plainToInstance(ResponseBusDto, bus) : null,
-      driver: driver ? plainToInstance(ResponseDriverDto, driver) : null,
-      turn: turn ? plainToInstance(ResponseTurnDto, turn) : null,
-      scheduler: scheduler ? plainToInstance(ResponseSchedulerDto, scheduler) : null,
-      validations: histories.map((h) => ({
-        order: h.order,
-        stop: h.node?.stop ? plainToInstance(ResponseStopDto, h.node!.stop) : null,
-        validatedAt: h.createdAt,
-        type:
-          h.order === histories[0].order
-            ? 'boarding'
-            : h.order === histories[histories.length - 1].order
-              ? 'alighting'
-              : 'intermediate',
-      })),
-      totalTime: { minutes, formatted: `${minutes} min` },
-      citizen: plainToInstance(CitizenSummaryDto, {
-        id: ticket.citizen?.id ?? '',
-        name: ticket.citizen?.name ?? '',
-        document: ticket.citizen?.document ?? undefined,
-      }),
-    });
+    const response: ResponseTripDetailsDto = plainToInstance(
+      ResponseTripDetailsDto,
+      {
+        tripId: ticket.id,
+        route: scheduler?.route
+          ? plainToInstance(ResponseRouteDto, scheduler.route)
+          : null,
+        bus: bus ? plainToInstance(ResponseBusDto, bus) : null,
+        driver: driver ? plainToInstance(ResponseDriverDto, driver) : null,
+        turn: turn ? plainToInstance(ResponseTurnDto, turn) : null,
+        scheduler: scheduler
+          ? plainToInstance(ResponseSchedulerDto, scheduler)
+          : null,
+        validations: histories.map((h) => ({
+          order: h.order,
+          stop: h.node?.stop
+            ? plainToInstance(ResponseStopDto, h.node.stop)
+            : null,
+          validatedAt: h.createdAt,
+          type:
+            h.order === histories[0].order
+              ? 'boarding'
+              : h.order === histories[histories.length - 1].order
+                ? 'alighting'
+                : 'intermediate',
+        })),
+        totalTime: { minutes, formatted: `${minutes} min` },
+        citizen: plainToInstance(CitizenSummaryDto, {
+          id: ticket.citizen?.id ?? '',
+          name: ticket.citizen?.name ?? '',
+          document: ticket.citizen?.document ?? undefined,
+        }),
+      },
+    );
 
     return response;
   }

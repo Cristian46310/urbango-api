@@ -24,7 +24,9 @@ export class DriverController {
   constructor(private readonly driverService: DriverService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Registrar perfil de conductor (userId desde token)' })
+  @ApiOperation({
+    summary: 'Registrar perfil de conductor (userId desde token)',
+  })
   create(
     @Body() createDriverDto: CreateDriverDto,
     @CurrentUser() currentUser: JwtPayload,
@@ -39,7 +41,9 @@ export class DriverController {
   }
 
   @Get('me')
-  @ApiOperation({ summary: 'Obtener perfil de conductor del usuario autenticado' })
+  @ApiOperation({
+    summary: 'Obtener perfil de conductor del usuario autenticado',
+  })
   findMe(@CurrentUser() currentUser: JwtPayload) {
     if (!currentUser?.id) {
       throw new BadRequestException('Usuario no identificado en el token');

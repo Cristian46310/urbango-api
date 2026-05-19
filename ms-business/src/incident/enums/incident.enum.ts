@@ -2,6 +2,7 @@ export enum IncidentType {
   MECHANICAL = 'mechanical',
   ACCIDENT = 'accident',
   DELAY = 'delay',
+  PASSENGER = 'passenger',
   OTHER = 'other',
 }
 

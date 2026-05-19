@@ -6,6 +6,15 @@ import { ConfigService } from '@nestjs/config';
 import { AxiosError } from 'axios';
 import { firstValueFrom } from 'rxjs';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { JwtPayload } from '../types';
+
+interface AuthRequest {
+  headers: { authorization?: string };
+  method: string;
+  originalUrl?: string;
+  url?: string;
+  user?: JwtPayload;
+}
 
 @Injectable()
 export class SecurityGuard implements CanActivate {
@@ -25,7 +34,7 @@ export class SecurityGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<AuthRequest>();
     const authHeader = request.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -39,7 +48,7 @@ export class SecurityGuard implements CanActivate {
     const method = request.method;
     const url = this.getRequestPath(request);
 
-    request.user = this.decodeJwtPayload(token);
+    request.user = this.decodeJwtPayload(token) as JwtPayload;
 
     const msSecurityUrl =
       this.configService.get<string>('MS_SECURITY_URL') ??
@@ -62,7 +71,10 @@ export class SecurityGuard implements CanActivate {
         return true;
       } else {
         throw new HttpException(
-          { allowed: false, reason: response.data.reason || 'Insufficient role' },
+          {
+            allowed: false,
+            reason: response.data.reason || 'Insufficient role',
+          },
           HttpStatus.FORBIDDEN,
         );
       }
@@ -84,14 +96,14 @@ export class SecurityGuard implements CanActivate {
             ? responseData.reason
             : 'Authorization service unavailable';
 
-        if (status === HttpStatus.UNAUTHORIZED) {
+        if (status === 401) {
           throw new HttpException(
             { allowed: false, reason },
             HttpStatus.UNAUTHORIZED,
           );
         }
 
-        if (status === HttpStatus.FORBIDDEN) {
+        if (status === 403) {
           throw new HttpException(
             { allowed: false, reason: reason || 'Insufficient role' },
             HttpStatus.FORBIDDEN,
@@ -106,22 +118,28 @@ export class SecurityGuard implements CanActivate {
     }
   }
 
-  private getRequestPath(request: { originalUrl?: string; url?: string }): string {
+  private getRequestPath(request: {
+    originalUrl?: string;
+    url?: string;
+  }): string {
     const rawUrl = request.originalUrl ?? request.url ?? '/';
     const questionMarkIndex = rawUrl.indexOf('?');
     return questionMarkIndex >= 0 ? rawUrl.slice(0, questionMarkIndex) : rawUrl;
   }
 
-  private decodeJwtPayload(token: string): Record<string, unknown> {
+  private decodeJwtPayload(token: string): Partial<JwtPayload> {
     const payloadSegment = token.split('.')[1];
 
     if (!payloadSegment) {
       return {};
     }
 
-    const normalizedPayload = payloadSegment.replace(/-/g, '+').replace(/_/g, '/');
+    const normalizedPayload = payloadSegment
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
     const padding = normalizedPayload.length % 4;
-    const paddedPayload = normalizedPayload + (padding ? '='.repeat(4 - padding) : '');
+    const paddedPayload =
+      normalizedPayload + (padding ? '='.repeat(4 - padding) : '');
 
     try {
       const payloadJson = Buffer.from(paddedPayload, 'base64').toString('utf8');
@@ -133,12 +151,15 @@ export class SecurityGuard implements CanActivate {
             ? payload.id
             : typeof payload.sub === 'string'
               ? payload.sub
-              : undefined,
-        name: typeof payload.name === 'string' ? payload.name : undefined,
-        email: typeof payload.email === 'string' ? payload.email : undefined,
+              : '',
+        name: typeof payload.name === 'string' ? payload.name : '',
+        email: typeof payload.email === 'string' ? payload.email : '',
         roles: Array.isArray(payload.roles)
-          ? payload.roles.filter((role): role is string => typeof role === 'string')
+          ? payload.roles.filter(
+              (role): role is string => typeof role === 'string',
+            )
           : [],
+        createdAt: Date.now(),
       };
     } catch {
       return {};

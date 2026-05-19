@@ -10,4 +10,4 @@ alwaysApply: false
 - Contrato estable: `to`, `subject`, `body`, `files` opcional — alineado con consumidores Java/Nest.
 - Ejecutar desde raíz del MS con `uv run`; lint: `ruff check` + `ruff format --check`.
 - No loguear tokens OAuth, `client_secret` ni credenciales Gmail.
-- `secrets/` y `.env` fuera de git. Skill: `.agents/skills/ms-notifications/SKILL.md`.
+- `secrets/` y `.env` fuera de git. Swagger: `http://localhost:8000/docs`. Verificación rápida: `scripts/lint.sh`. Skill: `.agents/skills/ms-notifications/SKILL.md`.

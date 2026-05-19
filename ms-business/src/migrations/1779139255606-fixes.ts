@@ -18,9 +18,7 @@ export class AddMongoUserIdToPersons1779139255606 implements MigrationInterface 
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP INDEX "public"."IDX_persons_mongoUserId"`,
-    );
+    await queryRunner.query(`DROP INDEX "public"."IDX_persons_mongoUserId"`);
     await queryRunner.query(`ALTER TABLE "persons" DROP COLUMN "mongoUserId"`);
   }
 }

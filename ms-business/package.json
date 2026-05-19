@@ -47,6 +47,7 @@
     "@nestjs/testing": "^11.1.19",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
+    "@types/multer": "^2.1.0",
     "@types/node": "^22.19.17",
     "@types/supertest": "^6.0.3",
     "eslint": "^9.39.4",
@@ -79,6 +80,9 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/$1"
+    }
   }
 }

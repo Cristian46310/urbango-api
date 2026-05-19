@@ -8,7 +8,18 @@ describe('SchedulerController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SchedulerController],
-      providers: [SchedulerService],
+      providers: [
+        {
+          provide: SchedulerService,
+          useValue: {
+            create: jest.fn(),
+            findAll: jest.fn(),
+            findOne: jest.fn(),
+            update: jest.fn(),
+            remove: jest.fn(),
+          },
+        },
+      ],
     }).compile();
 
     controller = module.get<SchedulerController>(SchedulerController);

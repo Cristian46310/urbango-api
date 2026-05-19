@@ -22,4 +22,11 @@ export class ResponseTicketDto {
   @ApiProperty({ required: false, nullable: true })
   @Expose()
   completedAt?: Date | null;
+
+  @ApiProperty({
+    example: 2500,
+    description: 'Tarifa cobrada al crear el ticket',
+  })
+  @Expose()
+  amount!: number;
 }
