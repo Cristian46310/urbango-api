@@ -4,24 +4,26 @@ Guía para agentes y revisores de PR en el monorepo UCaldas.
 
 ## Mapa rápido
 
-| Si el diff toca… | Skill | Verificación local |
-|------------------|-------|-------------------|
-| `ms-business/**` | `ms-business` | `.agents/skills/ms-business/scripts/test.sh` |
-| `ms-security/**` | `ms-security` | `.agents/skills/ms-security/scripts/build-verify.sh` |
+| Si el diff toca… | Skill | Verificación local (rápida) |
+|------------------|-------|----------------------------|
+| `ms-business/**` | `ms-business` | `.agents/skills/ms-business/scripts/verify.sh` (lint + build) |
+| `ms-security/**` | `ms-security` | `.agents/skills/ms-security/scripts/build.sh` (solo compile) |
 | `ms-notifications/**` | `ms-notifications` | `.agents/skills/ms-notifications/scripts/lint.sh` |
 | `docker-compose.yml`, `docs/`, integraciones | `monorepo-overview` | — |
 
 Índice completo: [AGENTS.md](../AGENTS.md).
 
-## Workflows GitHub Actions
+## Workflows GitHub Actions (CI completo)
 
-| Workflow | Directorio | Comandos |
-|----------|------------|----------|
+| Workflow | Directorio | Comandos CI |
+|----------|------------|-------------|
 | `ms-security.yml` | `ms-security` | `mvn -B clean verify`, `mvn checkstyle:check` |
 | `ms-notifications.yml` | `ms-notifications` | `uv sync --locked --group dev`, ruff check/format |
-| `ms-business.yml` | `ms-business` | `pnpm install`, lint, test, build |
+| `ms-business.yml` | `ms-business` | `pnpm install`, lint, **test**, build |
 
 Ramas: `main`, `dev` (push y pull_request).
+
+Los scripts en `.agents/skills/*/scripts/` omiten tests/checkstyle a propósito para iteración rápida; antes de merge conviene que el CI del MS esté en verde.
 
 ## Contratos que no romper sin aviso
 
