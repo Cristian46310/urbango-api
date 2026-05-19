@@ -22,6 +22,7 @@ import { EnterpriseModule } from './enterprise/enterprise.module';
 import { DriverModule } from './driver/driver.module';
 import { TurnModule } from './turn/turn.module';
 import { IncidentModule } from './incident/incident.module';
+import { CardRechargeModule } from './card-recharge/card-recharge.module';
 import { SharedModule } from './shared/shared.module';
 
 @Module({
@@ -57,6 +58,7 @@ import { SharedModule } from './shared/shared.module';
     DriverModule,
     TurnModule,
     IncidentModule,
+    CardRechargeModule,
     SharedModule,
   ],
   controllers: [AppController],

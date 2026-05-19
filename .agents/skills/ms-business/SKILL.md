@@ -24,7 +24,7 @@ Regla del proyecto (detalle en `ms-business/docs/ARCHITECTURE.md`):
 
 ## Módulos registrados
 
-`AuthModule`, `RouteModule`, `StopModule`, `NodeModule`, `AddressModule`, `CitizenModule`, `TicketModule`, `HistoryModule`, `BusModule`, `SchedulerModule`, `PaymentMethodModule`, `PaymentMethodCitizenModule`, `EnterpriseModule`, `DriverModule`, `TurnModule`, `IncidentModule`, `SharedModule`.
+`AuthModule`, `RouteModule`, `StopModule`, `NodeModule`, `AddressModule`, `CitizenModule`, `TicketModule`, `HistoryModule`, `BusModule`, `SchedulerModule`, `PaymentMethodModule`, `PaymentMethodCitizenModule`, `CardRechargeModule`, `EnterpriseModule`, `DriverModule`, `TurnModule`, `IncidentModule`, `SharedModule`.
 
 Catálogo por dominio: [references/domains-and-modules.md](references/domains-and-modules.md).
 

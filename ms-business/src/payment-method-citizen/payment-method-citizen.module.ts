@@ -12,5 +12,6 @@ import { PaymentMethod } from '@/payment-method/entities/payment-method.entity';
   ],
   controllers: [PaymentMethodCitizenController],
   providers: [PaymentMethodCitizenService],
+  exports: [PaymentMethodCitizenService],
 })
 export class PaymentMethodCitizenModule {}

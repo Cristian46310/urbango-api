@@ -13,6 +13,9 @@ export class PaymentMethod {
   @Column({ type: 'varchar', length: 128 })
   name!: string;
 
+  @Column({ type: 'boolean', default: false })
+  isRechargeable!: boolean;
+
   @CreateDateColumn({ type: 'timestamp with time zone' })
   createdAt!: Date;
 }

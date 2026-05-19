@@ -4,11 +4,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.UUID;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.jmmg.ms_security.DTOs.auth.ValidateTokenResponseDTO;
 import com.jmmg.ms_security.DTOs.email.EmailSendBody;
 import com.jmmg.ms_security.DTOs.user.GetUserDetailDTO;
+import com.jmmg.ms_security.DTOs.user.RoleSummaryDTO;
 import com.jmmg.ms_security.DTOs.login.LoginChallengeDTO;
 import com.jmmg.ms_security.DTOs.login.LoginDTO;
 import com.jmmg.ms_security.DTOs.login.RegisterUserDTO;
@@ -140,6 +143,39 @@ public class SecurityService {
             return null;
         }
         return this.userService.getDetailById(user.getId());
+    }
+
+    public ValidateTokenResponseDTO validateToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return null;
+        }
+
+        String token = authHeader.substring(7);
+        User user = this.authenticatedUserService.getAuthenticatedUser(request);
+        if (user == null) {
+            return null;
+        }
+
+        GetUserDetailDTO detail = this.userService.getDetailById(user.getId());
+        if (detail == null) {
+            return null;
+        }
+
+        List<String> roles = detail.roles() == null
+                ? List.of()
+                : detail.roles().stream()
+                        .map(RoleSummaryDTO::name)
+                        .toList();
+
+        long createdAt = this.theJwtService.getCreatedAtFromToken(token);
+
+        return new ValidateTokenResponseDTO(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                roles,
+                createdAt);
     }
 
     /**

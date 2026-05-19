@@ -51,6 +51,10 @@ export class CitizenController {
   }
 
   @Get()
+  @ApiOperation({
+    summary:
+      'Listar ciudadanos paginado (requiere permiso RBAC de administrador). Para el perfil propio use GET /citizen/me',
+  })
   findAll(@Query() pagination: PaginationQueryDto) {
     return this.citizenService.findAll(pagination);
   }

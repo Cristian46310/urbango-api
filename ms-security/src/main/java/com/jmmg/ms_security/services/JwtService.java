@@ -68,12 +68,7 @@ public class JwtService {
 }
     public User getUserFromToken(String token) {
         try {
-            Jws<Claims> claimsJws = Jwts.parserBuilder()
-                    .setSigningKey(this.getSecretKey())
-                    .build()
-                    .parseClaimsJws(token);
-
-            Claims claims = claimsJws.getBody();
+            Claims claims = parseClaims(token);
 
             User user = new User();
             user.setId((String) claims.get("id"));
@@ -84,5 +79,25 @@ public class JwtService {
             // En caso de que el token sea inválido o haya expirado
             return null;
         }
+    }
+
+    public long getCreatedAtFromToken(String token) {
+        try {
+            Object createdAt = parseClaims(token).get("createdAt");
+            if (createdAt instanceof Number number) {
+                return number.longValue();
+            }
+        } catch (Exception ignored) {
+            // Token inválido: el llamador ya validó al usuario
+        }
+        return System.currentTimeMillis();
+    }
+
+    private Claims parseClaims(String token) {
+        Jws<Claims> claimsJws = Jwts.parserBuilder()
+                .setSigningKey(this.getSecretKey())
+                .build()
+                .parseClaimsJws(token);
+        return claimsJws.getBody();
     }
 }

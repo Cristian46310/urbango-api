@@ -13,6 +13,7 @@ import com.jmmg.ms_security.DTOs.login.MicrosoftAuthResultDTO;
 import com.jmmg.ms_security.DTOs.login.MicrosoftAuthorizeDTO;
 import com.jmmg.ms_security.DTOs.login.MicrosoftCallbackDTO;
 import com.jmmg.ms_security.DTOs.login.RegisterUserDTO;
+import com.jmmg.ms_security.DTOs.auth.ValidateTokenResponseDTO;
 import com.jmmg.ms_security.DTOs.user.GetUserDetailDTO;
 import com.jmmg.ms_security.DTOs.login.Verify2FADTO;
 import com.jmmg.ms_security.models.GitHubAuthMode;
@@ -151,5 +152,14 @@ public class SecurityController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         return ResponseEntity.ok(me);
+    }
+
+    @PostMapping("validate-token")
+    public ResponseEntity<ValidateTokenResponseDTO> validateToken(HttpServletRequest request) {
+        ValidateTokenResponseDTO payload = this.theSecurityService.validateToken(request);
+        if (payload == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        return ResponseEntity.ok(payload);
     }
 }

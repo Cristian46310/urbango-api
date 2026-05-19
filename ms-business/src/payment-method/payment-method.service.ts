@@ -39,6 +39,21 @@ export class PaymentMethodService {
     };
   }
 
+  async findRechargeable(): Promise<ResponsePaymentMethodDto[]> {
+    const items = await this.pmRepository.find({
+      where: { isRechargeable: true },
+      order: { name: 'ASC' },
+    });
+    return plainToInstance(ResponsePaymentMethodDto, items);
+  }
+
+  async findDefaultRechargeable(): Promise<PaymentMethod | null> {
+    return this.pmRepository.findOne({
+      where: { isRechargeable: true },
+      order: { createdAt: 'ASC' },
+    });
+  }
+
   async findAll(
     pagination: PaginationQueryDto,
   ): Promise<ResponsePaymentMethodListDto> {

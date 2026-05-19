@@ -154,6 +154,32 @@ Documentación interactiva: `/docs`
 | PATCH | `/payment-method-citizen/:id` |
 | DELETE | `/payment-method-citizen/:id` |
 
+## card-recharge (ePayco — HU-ENTR-2-013)
+
+| Método | Ruta | Auth |
+|--------|------|------|
+| GET | `/card-recharge/config` | JWT (`@Authenticated`) |
+| GET | `/card-recharge/cards` | JWT |
+| POST | `/card-recharge/cards/register` | JWT — crea/obtiene tarjeta prepagada |
+| POST | `/card-recharge/preview` | JWT |
+| POST | `/card-recharge/checkout` | JWT — crea referencia y sesión ePayco |
+| GET | `/card-recharge/transactions/:reference/status` | JWT |
+| POST | `/card-recharge/webhook/confirmation` | Público (ePayco) |
+
+## payment-method (lectura ciudadano)
+
+| Método | Ruta | Auth |
+|--------|------|------|
+| GET | `/payment-method/rechargeable` | JWT (`@Authenticated`) |
+| GET | `/payment-method` | JWT |
+| GET | `/payment-method/:id` | JWT |
+
+## payment-method-citizen (ciudadano)
+
+| Método | Ruta | Auth |
+|--------|------|------|
+| POST | `/payment-method-citizen/me` | JWT — vincula método al ciudadano del token |
+
 ## incident-reports
 
 | Método | Ruta | Auth |

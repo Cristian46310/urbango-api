@@ -7,6 +7,7 @@ import { AxiosError } from 'axios';
 import { firstValueFrom } from 'rxjs';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { IS_AUTHENTICATED_KEY } from '../decorators/authenticated.decorator';
+import { JwtValidationService } from '../services/jwt-validation.service';
 
 @Injectable()
 export class SecurityGuard implements CanActivate {
@@ -14,6 +15,7 @@ export class SecurityGuard implements CanActivate {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
     private readonly reflector: Reflector,
+    private readonly jwtValidationService: JwtValidationService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -42,14 +44,38 @@ export class SecurityGuard implements CanActivate {
     }
 
     const token = authHeader.substring(7);
-    const method = request.method;
-    const url = this.getRequestPath(request);
 
-    request.user = this.decodeJwtPayload(token);
+    try {
+      request.user = await this.jwtValidationService.validateToken(token);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        const response = error.getResponse();
+        const reason =
+          typeof response === 'object' &&
+          response !== null &&
+          'message' in response &&
+          typeof (response as { message?: string }).message === 'string'
+            ? (response as { message: string }).message
+            : 'Invalid or expired token';
+
+        throw new HttpException(
+          { allowed: false, reason },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      throw new HttpException(
+        { allowed: false, reason: 'Invalid or expired token' },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
 
     if (isAuthenticatedOnly) {
       return true;
     }
+
+    const method = request.method;
+    const url = this.getRequestPath(request);
 
     const msSecurityUrl =
       this.configService.get<string>('MS_SECURITY_URL') ??
@@ -120,42 +146,5 @@ export class SecurityGuard implements CanActivate {
     const rawUrl = request.originalUrl ?? request.url ?? '/';
     const questionMarkIndex = rawUrl.indexOf('?');
     return questionMarkIndex >= 0 ? rawUrl.slice(0, questionMarkIndex) : rawUrl;
-  }
-
-  private decodeJwtPayload(token: string): Record<string, unknown> {
-    const payloadSegment = token.split('.')[1];
-
-    if (!payloadSegment) {
-      return {};
-    }
-
-    const normalizedPayload = payloadSegment.replace(/-/g, '+').replace(/_/g, '/');
-    const padding = normalizedPayload.length % 4;
-    const paddedPayload = normalizedPayload + (padding ? '='.repeat(4 - padding) : '');
-
-    try {
-      const payloadJson = Buffer.from(paddedPayload, 'base64').toString('utf8');
-      const payload = JSON.parse(payloadJson) as Record<string, unknown>;
-
-      return {
-        id:
-          typeof payload.id === 'string'
-            ? payload.id
-            : typeof payload.sub === 'string'
-              ? payload.sub
-              : undefined,
-        name: typeof payload.name === 'string' ? payload.name : undefined,
-        email: typeof payload.email === 'string' ? payload.email : undefined,
-        enterpriseId:
-          typeof payload.enterpriseId === 'string'
-            ? payload.enterpriseId
-            : undefined,
-        roles: Array.isArray(payload.roles)
-          ? payload.roles.filter((role): role is string => typeof role === 'string')
-          : [],
-      };
-    } catch {
-      return {};
-    }
   }
 }

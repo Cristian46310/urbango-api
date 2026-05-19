@@ -7,12 +7,17 @@ import {
   Param,
   Delete,
   Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { PaymentMethodCitizenService } from './payment-method-citizen.service';
 import { CreatePaymentMethodCitizenDto } from './dto/create-payment-method-citizen.dto';
 import { UpdatePaymentMethodCitizenDto } from './dto/update-payment-method-citizen.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Authenticated } from '@/auth/decorators/authenticated.decorator';
+import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import type { JwtPayload } from '@/auth/types';
+import { RegisterPaymentMethodCitizenDto } from './dto/register-payment-method-citizen.dto';
 
 @ApiTags('payment-method-citizen')
 @Controller('payment-method-citizen')
@@ -20,6 +25,26 @@ export class PaymentMethodCitizenController {
   constructor(
     private readonly paymentMethodCitizenService: PaymentMethodCitizenService,
   ) {}
+
+  @Post('me')
+  @Authenticated()
+  @ApiBearerAuth('bearer')
+  @ApiOperation({
+    summary:
+      'Vincular método de pago al ciudadano autenticado (solo JWT, sin RBAC)',
+  })
+  createForMe(
+    @CurrentUser() currentUser: JwtPayload,
+    @Body() dto: RegisterPaymentMethodCitizenDto,
+  ) {
+    if (!currentUser?.id) {
+      throw new BadRequestException('Usuario no identificado en el token');
+    }
+    return this.paymentMethodCitizenService.createForCitizenUser(
+      currentUser.id,
+      dto.paymentMethodId,
+    );
+  }
 
   @Post()
   @ApiOperation({ summary: 'Register payment method for citizen' })

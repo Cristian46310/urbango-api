@@ -1,6 +1,7 @@
 import {
   Entity,
   PrimaryGeneratedColumn,
+  Column,
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
@@ -20,6 +21,12 @@ export class PaymentMethodCitizen {
   @ManyToOne(() => PaymentMethod, { nullable: false })
   @JoinColumn({ name: 'payment_method_id' })
   paymentMethod!: PaymentMethod;
+
+  @Column({ type: 'int', default: 0 })
+  balance!: number;
+
+  @Column({ type: 'varchar', length: 32, nullable: true, unique: true })
+  cardNumber?: string;
 
   @CreateDateColumn({ type: 'timestamp with time zone' })
   createdAt!: Date;

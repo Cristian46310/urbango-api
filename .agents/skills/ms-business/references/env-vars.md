@@ -34,7 +34,24 @@ DB_URL=postgresql://...
 
 README del módulo incidentes documenta el bloque Supabase + notificaciones.
 
+## ePayco (recarga tarjeta — HU-ENTR-2-013)
+
+| Variable | Descripción |
+|----------|-------------|
+| `EPAYCO_PUBLIC_KEY` | Llave pública Apify |
+| `EPAYCO_PRIVATE_KEY` | Llave privada Apify |
+| `EPAYCO_CUSTOMER_ID` | Customer ID (validación webhook) |
+| `EPAYCO_P_KEY` | P_KEY (validación webhook) |
+| `EPAYCO_TEST_MODE` | `true` en sandbox (default) |
+| `EPAYCO_FEE_PERCENT` | Comisión mostrada al usuario (default 2.99) |
+| `EPAYCO_MERCHANT_NAME` | Nombre en checkout |
+| `MS_BUSINESS_PUBLIC_URL` | URL pública del API (webhook) |
+| `FRONTEND_URL` | URL base del frontend (página de respuesta) |
+| `EPAYCO_CONFIRMATION_URL` | Opcional: override URL webhook |
+| `EPAYCO_RESPONSE_URL` | Opcional: override URL de retorno usuario |
+
 ## Seguridad
 
 - No commitear `.env`.
 - `SUPABASE_SERVICE_ROLE_KEY` solo en servidor, nunca en frontend.
+- `EPAYCO_PRIVATE_KEY` y `EPAYCO_P_KEY` solo en servidor.
