@@ -165,7 +165,7 @@ curl -X POST http://localhost:3000/api/bus/<BUS_ID>/photo \
 
 ## Notas Importantes
 
-- El `enterpriseId` se extrae automáticamente del JWT (campo agregado en ms-security)
+- El `enterpriseId` se resuelve desde el perfil de conductor en ms-business (`persons.enterpriseId`)
 - El endpoint POST /api/bus genera automáticamente el código QR con los datos del bus
-- Los administradores de empresa solo pueden crear buses para su propia empresa (validado por `user.enterpriseId`)
+- Los administradores de empresa solo pueden crear buses para su propia empresa (validado contra la empresa del conductor)
 - Las fotos se almacenan en Supabase Storage (bucket: `bus-photos`)

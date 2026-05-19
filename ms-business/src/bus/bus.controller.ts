@@ -45,10 +45,7 @@ export class BusController {
     if (!user?.id) {
       throw new BadRequestException('Usuario no identificado en el token');
     }
-    return this.busService.resolveEnterpriseIdForUser(
-      user.id,
-      user.enterpriseId,
-    );
+    return this.busService.resolveEnterpriseIdForUser(user.id);
   }
 
   @Post()

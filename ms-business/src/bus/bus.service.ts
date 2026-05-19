@@ -30,29 +30,20 @@ export class BusService {
     private readonly driverRepository: Repository<Driver>,
   ) {}
 
-  /**
-   * Empresa desde JWT (ms-security) o, si falta, desde el perfil de conductor en persons.
-   */
-  async resolveEnterpriseIdForUser(
-    userId: string,
-    jwtEnterpriseId?: string,
-  ): Promise<string> {
-    if (jwtEnterpriseId) {
-      return jwtEnterpriseId;
-    }
-
+  /** Empresa asociada al perfil de conductor del usuario (ms-business). */
+  async resolveEnterpriseIdForUser(userId: string): Promise<string> {
     const driver = await this.driverRepository.findOne({
       where: { userId },
       relations: ['enterprise'],
     });
 
-    const fromDriverProfile = driver?.enterprise?.id;
-    if (fromDriverProfile) {
-      return fromDriverProfile;
+    const enterpriseId = driver?.enterprise?.id;
+    if (enterpriseId) {
+      return enterpriseId;
     }
 
     throw new BadRequestException(
-      'Tu usuario no está asociado a una empresa. Registra tu perfil de conductor con empresa o pide al administrador que asigne enterpriseId en tu cuenta.',
+      'Tu usuario no está asociado a una empresa. Registra tu perfil de conductor indicando la empresa.',
     );
   }
 

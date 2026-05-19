@@ -85,7 +85,7 @@ Documentación interactiva: `/docs`
 | Método | Ruta |
 |--------|------|
 | POST | `/bus` |
-| GET | `/bus/fleet` | Flota de la empresa (JWT + `enterpriseId`) |
+| GET | `/bus/fleet` | Flota de la empresa del conductor autenticado |
 | GET | `/bus` |
 | GET | `/bus/:id` |
 | PATCH | `/bus/:id` |
