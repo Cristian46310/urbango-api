@@ -6,7 +6,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { DataSource, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { BoardingRequestDto } from './dto/boarding-request.dto';
 import { BoardingResponseDto } from './dto/boarding-response.dto';
 import {
@@ -43,16 +43,21 @@ export class BoardingService {
       const now = new Date();
       const today = this.formatDateInTimeZone(now, 'America/Bogota');
 
-      const scheduler = await queryRunner.manager.findOne(Scheduler, {
+      const candidates = await queryRunner.manager.find(Scheduler, {
         where: {
           bus: { id: dto.busId },
           date: today,
-          startTime: LessThanOrEqual(now),
-          endTime: MoreThanOrEqual(now),
           status: SchedulerStatus.SCHEDULED,
         },
         relations: ['bus', 'route'],
         lock: { mode: 'pessimistic_write' },
+      });
+
+      const scheduler = candidates.find((item) => {
+        const windowStart = new Date(
+          item.startTime.getTime() - item.toleranceMinutes * 60 * 1000,
+        );
+        return now >= windowStart && now <= item.endTime;
       });
 
       if (!scheduler) {

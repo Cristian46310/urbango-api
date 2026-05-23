@@ -7,7 +7,7 @@ import {
 } from 'typeorm';
 import { Incident } from './incident.entity';
 import { Bus } from '@/bus/entities/bus.entity';
-import { IncidentPhoto } from './incident-photo.entity';
+import { IncidentPhoto } from '@/incident-photo/entities/incident-photo.entity';
 
 @Entity('incident_buses')
 export class IncidentBus {

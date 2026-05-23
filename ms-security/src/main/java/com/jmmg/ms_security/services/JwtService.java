@@ -10,6 +10,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.jmmg.ms_security.DTOs.auth.ValidatedTokenClaims;
 import com.jmmg.ms_security.infra.config.JwtProperties;
 import com.jmmg.ms_security.models.User;
 import com.jmmg.ms_security.repositories.IUserRoleRepository;
@@ -62,30 +63,67 @@ public class JwtService {
             .compact();
 }
     public User getUserFromToken(String token) {
-        try {
-            Claims claims = parseClaims(token);
-
-            User user = new User();
-            user.setId((String) claims.get("id"));
-            user.setName((String) claims.get("name"));
-            user.setEmail((String) claims.get("email"));
-            return user;
-        } catch (Exception e) {
-            // En caso de que el token sea inválido o haya expirado
+        ValidatedTokenClaims claims = parseValidToken(token);
+        if (claims == null) {
             return null;
         }
+
+        User user = new User();
+        user.setId(claims.id());
+        user.setName(claims.name());
+        user.setEmail(claims.email());
+        return user;
     }
 
     public long getCreatedAtFromToken(String token) {
-        try {
-            Object createdAt = parseClaims(token).get("createdAt");
-            if (createdAt instanceof Number number) {
-                return number.longValue();
-            }
-        } catch (Exception ignored) {
-            // Token inválido: el llamador ya validó al usuario
+        ValidatedTokenClaims claims = parseValidToken(token);
+        if (claims == null) {
+            return System.currentTimeMillis();
         }
-        return System.currentTimeMillis();
+        return claims.createdAt();
+    }
+
+    /**
+     * Parsea y valida el JWT una sola vez (firma, expiración y claims mínimos).
+     */
+    @SuppressWarnings("unchecked")
+    public ValidatedTokenClaims parseValidToken(String token) {
+        try {
+            Claims claims = parseClaims(token);
+
+            String id = (String) claims.get("id");
+            if (id == null || id.isBlank()) {
+                id = claims.getSubject();
+            }
+            if (id == null || id.isBlank()) {
+                return null;
+            }
+
+            Object createdAt = claims.get("createdAt");
+            long createdAtMillis = createdAt instanceof Number number
+                    ? number.longValue()
+                    : claims.getIssuedAt() != null
+                            ? claims.getIssuedAt().getTime()
+                            : System.currentTimeMillis();
+
+            List<String> rolesFromToken = List.of();
+            Object rolesClaim = claims.get("roles");
+            if (rolesClaim instanceof List<?> rolesList) {
+                rolesFromToken = rolesList.stream()
+                        .filter(String.class::isInstance)
+                        .map(String.class::cast)
+                        .toList();
+            }
+
+            return new ValidatedTokenClaims(
+                    id,
+                    (String) claims.get("name"),
+                    (String) claims.get("email"),
+                    rolesFromToken,
+                    createdAtMillis);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private Claims parseClaims(String token) {

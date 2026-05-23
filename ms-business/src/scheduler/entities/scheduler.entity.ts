@@ -15,6 +15,7 @@ export enum SchedulerStatus {
   COMPLETED = 'completado',
 }
 
+/** HU-011: lunes a viernes, fines de semana, diaria, o sin recurrencia */
 export enum RecurrenceType {
   NONE = 'none',
   WEEKDAYS = 'weekdays',
@@ -35,12 +36,14 @@ export class Scheduler {
   @JoinColumn({ name: 'route_id' })
   route!: Route;
 
-  @Column({ type: 'date', default: () => 'CURRENT_DATE' })
+  @Column({ type: 'date' })
   date!: string;
 
+  /** Hora de salida programada */
   @Column({ type: 'timestamp with time zone' })
   startTime!: Date;
 
+  /** Fin estimado del servicio (salida + duración de la ruta) */
   @Column({ type: 'timestamp with time zone' })
   endTime!: Date;
 

@@ -219,6 +219,7 @@ export class BusService {
       excludeExtraneousValues: true,
     });
     dto.enterpriseId = bus.enterprise?.id;
+    dto.photoUrl = bus.photo?.publicUrl ?? bus.photoUrl;
     return dto;
   }
 

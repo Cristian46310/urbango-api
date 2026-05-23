@@ -31,10 +31,6 @@ export class ResponseTurnDto {
   @Expose()
   busObservations?: string;
 
-  @ApiProperty({ required: false })
-  @Expose()
-  gpsActivatedAt?: Date;
-
   @ApiProperty()
   @Expose()
   createdAt!: Date;

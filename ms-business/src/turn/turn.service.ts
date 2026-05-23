@@ -140,7 +140,6 @@ export class TurnService {
     scheduledTurn.actualStartTime = now;
     scheduledTurn.busStatus = busStatus.trim();
     scheduledTurn.busObservations = observations?.trim() || null;
-    scheduledTurn.gpsActivatedAt = now;
     scheduledTurn.status = TurnStatus.IN_PROGRESS;
 
     const saved = await this.turnRepository.save(scheduledTurn);

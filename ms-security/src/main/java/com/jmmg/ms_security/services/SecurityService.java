@@ -10,8 +10,8 @@ import org.springframework.stereotype.Service;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.jmmg.ms_security.DTOs.auth.ValidateTokenResponseDTO;
 import com.jmmg.ms_security.DTOs.email.EmailSendBody;
+import com.jmmg.ms_security.DTOs.auth.ValidatedTokenClaims;
 import com.jmmg.ms_security.DTOs.user.GetUserDetailDTO;
-import com.jmmg.ms_security.DTOs.user.RoleSummaryDTO;
 import com.jmmg.ms_security.DTOs.login.LoginChallengeDTO;
 import com.jmmg.ms_security.DTOs.login.LoginDTO;
 import com.jmmg.ms_security.DTOs.login.RegisterUserDTO;
@@ -153,30 +153,23 @@ public class SecurityService {
         }
 
         String token = authHeader.substring(7);
-        User user = this.authenticatedUserService.getAuthenticatedUser(request);
-        if (user == null) {
+        ValidatedTokenClaims claims = this.theJwtService.parseValidToken(token);
+        if (claims == null) {
             return null;
         }
 
-        GetUserDetailDTO detail = this.userService.getDetailById(user.getId());
-        if (detail == null) {
+        if (!this.userRepository.existsById(claims.id())) {
             return null;
         }
 
-        List<String> roles = detail.roles() == null
-                ? List.of()
-                : detail.roles().stream()
-                        .map(RoleSummaryDTO::name)
-                        .toList();
-
-        long createdAt = this.theJwtService.getCreatedAtFromToken(token);
+        List<String> roles = this.userService.getRoleNamesByUserId(claims.id());
 
         return new ValidateTokenResponseDTO(
-                user.getId(),
-                user.getName(),
-                user.getEmail(),
+                claims.id(),
+                claims.name(),
+                claims.email(),
                 roles,
-                createdAt);
+                claims.createdAt());
     }
 
     /**

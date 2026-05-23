@@ -6,7 +6,7 @@ import {
   IncidentStatus,
 } from '../enums/incident.enum';
 import { ResponseIncidentDriverDto } from './response-incident-driver.dto';
-import { ResponseIncidentPhotoDto } from './response-incident-photo.dto';
+import { ResponseIncidentPhotoDto } from '@/incident-photo/dto/response-incident-photo.dto';
 
 export class ResponseIncidentDto {
   @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })

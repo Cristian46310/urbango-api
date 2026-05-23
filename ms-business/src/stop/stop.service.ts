@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateStopDto } from './dto/create-stop.dto';
 import { UpdateStopDto } from './dto/update-stop.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -27,11 +31,19 @@ export class StopService {
     private readonly stopRepository: Repository<Stop>,
   ) {}
   async create(createStopDto: CreateStopDto): Promise<ResponseStopDto> {
-    const stop = this.stopRepository.create(createStopDto);
+    const code = await this.generateStopCode();
+    const stop = this.stopRepository.create({ ...createStopDto, code });
     return plainToInstance(
       ResponseStopDto,
       await this.stopRepository.save(stop),
     );
+  }
+  private async generateStopCode(): Promise<string> {
+    const lastStop = await this.stopRepository.findOne({
+      order: { code: 'DESC' },
+    });
+    const lastNumber = lastStop ? parseInt(lastStop.code.split('-')[1]) : 0;
+    return `PAR-${lastNumber + 1}`;
   }
 
   private buildPaginationMeta(page: number, limit: number, totalItems: number) {

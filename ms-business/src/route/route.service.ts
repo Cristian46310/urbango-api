@@ -37,6 +37,7 @@ export class RouteService {
         estimatedTimeMinutes: node.estimatedTimeMinutes,
         stop: {
           id: node.stop.id,
+          code: node.stop.code,
           name: node.stop.name,
           location: node.stop.location,
           latitude:
@@ -47,6 +48,7 @@ export class RouteService {
             node.stop.longitude !== undefined && node.stop.longitude !== null
               ? Number(node.stop.longitude)
               : undefined,
+          tipo: node.stop.tipo,
           createdAt: node.stop.createdAt,
         },
       }),

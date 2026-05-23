@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { StopType } from '../entities/stop.entity';
 
 export class BaseStopDto {
   @ApiProperty({
@@ -35,4 +36,14 @@ export class BaseStopDto {
   @IsNumber()
   @IsOptional()
   longitude?: number;
+
+  @ApiProperty({
+    description: 'Tipo de paradero',
+    enum: StopType,
+    default: StopType.REGULAR,
+    required: false,
+  })
+  @IsEnum(StopType)
+  @IsOptional()
+  tipo?: StopType;
 }

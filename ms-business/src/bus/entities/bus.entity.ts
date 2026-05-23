@@ -10,7 +10,8 @@ import {
 } from 'typeorm';
 import { Turn } from '@/turn/entities/turn.entity';
 import { Scheduler } from '@/scheduler/entities/scheduler.entity';
-import { Gps } from '@/incident/entities/gps.entity';
+import { Gps } from '@/gps/entities/gps.entity';
+import { BusPhoto } from '@/bus-photo/entities/bus-photo.entity';
 import { IncidentBus } from '@/incident/entities/incident-bus.entity';
 import { BusStatus } from '../enums/bus-status.enum';
 
@@ -60,6 +61,9 @@ export class Bus {
 
   @OneToOne(() => Gps, (gps) => gps.bus, { nullable: true, eager: true })
   gps?: Gps;
+
+  @OneToOne(() => BusPhoto, (photo) => photo.bus, { nullable: true, eager: true })
+  photo?: BusPhoto;
 
   @OneToMany(() => IncidentBus, (incidentBus) => incidentBus.bus)
   incidentBuses?: IncidentBus[];

@@ -10,7 +10,7 @@ import { Turn } from '@/turn/entities/turn.entity';
 import { Driver } from '@/driver/entities/driver.entity';
 import { Enterprise } from '@/enterprise/entities/enterprise.entity';
 import { IncidentBus } from './incident-bus.entity';
-import { IncidentComment } from './incident-comment.entity';
+import { IncidentComment } from '@/incident-comment/entities/incident-comment.entity';
 import {
   IncidentType,
   IncidentSeverity,

@@ -10,6 +10,7 @@ import {
 import { Bus } from '@/bus/entities/bus.entity';
 import { Route } from '@/route/entities/route.entity';
 import { Turn, TurnStatus } from '@/turn/entities/turn.entity';
+import { BusService } from '@/bus/bus.service';
 
 describe('SchedulerService', () => {
   let service: SchedulerService;
@@ -19,16 +20,24 @@ describe('SchedulerService', () => {
     createQueryBuilder: jest.Mock;
     findAndCount: jest.Mock;
     findOne: jest.Mock;
-    preload: jest.Mock;
     delete: jest.Mock;
   };
   let busRepository: { findOne: jest.Mock };
   let routeRepository: { findOne: jest.Mock };
   let turnRepository: { findOne: jest.Mock };
+  let busService: { assertBusAvailableForScheduling: jest.Mock };
   let queryBuilder: {
     where: jest.Mock;
     andWhere: jest.Mock;
     getOne: jest.Mock;
+  };
+
+  const routeWithNodes = {
+    id: 'route-1',
+    nodes: [
+      { estimatedTimeMinutes: 30 },
+      { estimatedTimeMinutes: 45 },
+    ],
   };
 
   beforeEach(async () => {
@@ -47,7 +56,6 @@ describe('SchedulerService', () => {
       createQueryBuilder: jest.fn(() => queryBuilder),
       findAndCount: jest.fn(),
       findOne: jest.fn(),
-      preload: jest.fn(),
       delete: jest.fn(),
     };
     busRepository = {
@@ -58,6 +66,9 @@ describe('SchedulerService', () => {
     };
     turnRepository = {
       findOne: jest.fn(),
+    };
+    busService = {
+      assertBusAvailableForScheduling: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -79,6 +90,10 @@ describe('SchedulerService', () => {
           provide: getRepositoryToken(Turn),
           useValue: turnRepository,
         },
+        {
+          provide: BusService,
+          useValue: busService,
+        },
       ],
     }).compile();
 
@@ -90,20 +105,20 @@ describe('SchedulerService', () => {
   });
 
   it('creates a scheduler when bus is free and has assigned driver', async () => {
-    busRepository.findOne.mockResolvedValue({ id: 'bus-1' });
-    routeRepository.findOne.mockResolvedValue({ id: 'route-1' });
+    busRepository.findOne.mockResolvedValue({ id: 'bus-1', status: 'operativo' });
+    routeRepository.findOne.mockResolvedValue(routeWithNodes);
     queryBuilder.getOne.mockResolvedValue(null);
     turnRepository.findOne.mockResolvedValue({
       id: 'turn-1',
       status: TurnStatus.SCHEDULED,
+      driver: { id: 'driver-1' },
     });
 
     const result = await service.create({
       busId: 'bus-1',
       routeId: 'route-1',
       date: '2026-05-20',
-      startTime: '08:00:00',
-      endTime: '10:00:00',
+      departureTime: '08:00:00',
       toleranceMinutes: 5,
       recurrenceType: RecurrenceType.WEEKDAYS,
     });
@@ -117,11 +132,13 @@ describe('SchedulerService', () => {
       }),
     );
     expect(result.id).toBe('scheduler-1');
+    expect(result.departureTime).toBeDefined();
+    expect(result.endTime).toBeDefined();
   });
 
   it('rejects overlapping active scheduler for same bus and date', async () => {
-    busRepository.findOne.mockResolvedValue({ id: 'bus-1' });
-    routeRepository.findOne.mockResolvedValue({ id: 'route-1' });
+    busRepository.findOne.mockResolvedValue({ id: 'bus-1', status: 'operativo' });
+    routeRepository.findOne.mockResolvedValue(routeWithNodes);
     queryBuilder.getOne.mockResolvedValue({ id: 'scheduler-existing' });
 
     await expect(
@@ -129,15 +146,14 @@ describe('SchedulerService', () => {
         busId: 'bus-1',
         routeId: 'route-1',
         date: '2026-05-20',
-        startTime: '08:00:00',
-        endTime: '10:00:00',
+        departureTime: '08:00:00',
       }),
     ).rejects.toThrow(ConflictException);
   });
 
-  it('rejects scheduler when bus has no driver turn covering the time range', async () => {
-    busRepository.findOne.mockResolvedValue({ id: 'bus-1' });
-    routeRepository.findOne.mockResolvedValue({ id: 'route-1' });
+  it('rejects scheduler when bus has no driver turn for the departure window', async () => {
+    busRepository.findOne.mockResolvedValue({ id: 'bus-1', status: 'operativo' });
+    routeRepository.findOne.mockResolvedValue(routeWithNodes);
     queryBuilder.getOne.mockResolvedValue(null);
     turnRepository.findOne.mockResolvedValue(null);
 
@@ -146,9 +162,30 @@ describe('SchedulerService', () => {
         busId: 'bus-1',
         routeId: 'route-1',
         date: '2026-05-20',
-        startTime: '08:00:00',
-        endTime: '10:00:00',
+        departureTime: '08:00:00',
       }),
     ).rejects.toThrow(BadRequestException);
+  });
+
+  it('computes endTime from route node durations', async () => {
+    busRepository.findOne.mockResolvedValue({ id: 'bus-1', status: 'operativo' });
+    routeRepository.findOne.mockResolvedValue(routeWithNodes);
+    queryBuilder.getOne.mockResolvedValue(null);
+    turnRepository.findOne.mockResolvedValue({
+      id: 'turn-1',
+      driver: { id: 'driver-1' },
+    });
+
+    await service.create({
+      busId: 'bus-1',
+      routeId: 'route-1',
+      date: '2026-05-20',
+      departureTime: '08:00:00',
+    });
+
+    const created = schedulerRepository.create.mock.calls[0][0];
+    const departureMs = created.startTime.getTime();
+    const endMs = created.endTime.getTime();
+    expect(endMs - departureMs).toBe(75 * 60 * 1000);
   });
 });

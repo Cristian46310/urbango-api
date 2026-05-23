@@ -9,18 +9,13 @@ import { Repository } from 'typeorm';
 import { plainToInstance } from 'class-transformer';
 import { Incident } from './entities/incident.entity';
 import { IncidentBus } from './entities/incident-bus.entity';
-import { IncidentPhoto } from './entities/incident-photo.entity';
-import { IncidentComment } from './entities/incident-comment.entity';
 import { Bus } from '@/bus/entities/bus.entity';
 import { Turn } from '@/turn/entities/turn.entity';
 import { Driver } from '@/driver/entities/driver.entity';
-import { Enterprise } from '@/enterprise/entities/enterprise.entity';
 import { CreateIncidentDriverDto } from './dto/create-incident-driver.dto';
-import {
-  IncidentStorageFile,
-  IncidentStorageService,
-} from './incident-storage.service';
 import { IncidentNotificationService } from './incident-notification.service';
+import { IncidentPhotoService } from '@/incident-photo/incident-photo.service';
+import { IncidentStorageFile } from '@/incident-photo/incident-storage.service';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { JwtPayload } from '@/auth/types';
 import {
@@ -32,11 +27,8 @@ import { BusIncidentQueryDto } from './dto/bus-incident-query.dto';
 import { ResponseBusIncidentListDto } from './dto/response-bus-incident-list.dto';
 import { ResponseIncidentDto } from './dto/response-incident.dto';
 import { ResponseIncidentDriverDto } from './dto/response-incident-driver.dto';
-import { ResponseIncidentPhotoDto } from './dto/response-incident-photo.dto';
+import { ResponseIncidentPhotoDto } from '@/incident-photo/dto/response-incident-photo.dto';
 import { ResponseIncidentStatisticsDto } from './dto/response-incident-statistics.dto';
-import { CreateIncidentCommentDto } from './dto/create-incident-comment.dto';
-import { ResponseIncidentCommentDto } from './dto/response-incident-comment.dto';
-import { ResponseIncidentCommentListDto } from './dto/response-incident-comment-list.dto';
 import { UpdateIncidentStatusDto } from './dto/update-incident-status.dto';
 
 const ALLOWED_STATUS_TRANSITIONS: Record<IncidentStatus, IncidentStatus[]> = {
@@ -54,19 +46,13 @@ export class IncidentService {
     private readonly incidentRepository: Repository<Incident>,
     @InjectRepository(IncidentBus)
     private readonly incidentBusRepository: Repository<IncidentBus>,
-    @InjectRepository(IncidentPhoto)
-    private readonly incidentPhotoRepository: Repository<IncidentPhoto>,
-    @InjectRepository(IncidentComment)
-    private readonly incidentCommentRepository: Repository<IncidentComment>,
     @InjectRepository(Bus)
     private readonly busRepository: Repository<Bus>,
     @InjectRepository(Turn)
     private readonly turnRepository: Repository<Turn>,
     @InjectRepository(Driver)
     private readonly driverRepository: Repository<Driver>,
-    @InjectRepository(Enterprise)
-    private readonly enterpriseRepository: Repository<Enterprise>,
-    private readonly incidentStorageService: IncidentStorageService,
+    private readonly incidentPhotoService: IncidentPhotoService,
     private readonly incidentNotificationService: IncidentNotificationService,
   ) {}
 
@@ -278,44 +264,6 @@ export class IncidentService {
     return incident;
   }
 
-  async addComment(
-    incidentId: string,
-    dto: CreateIncidentCommentDto,
-    currentUser: JwtPayload,
-  ): Promise<ResponseIncidentCommentDto> {
-    await this.findIncidentOrFail(incidentId);
-
-    const comment = await this.incidentCommentRepository.save(
-      this.incidentCommentRepository.create({
-        incident: { id: incidentId } as Incident,
-        text: dto.text,
-        authorUserId: currentUser.id,
-        authorName: currentUser.name,
-      }),
-    );
-
-    return plainToInstance(ResponseIncidentCommentDto, comment, {
-      excludeExtraneousValues: true,
-    });
-  }
-
-  async listComments(
-    incidentId: string,
-  ): Promise<ResponseIncidentCommentListDto> {
-    await this.findIncidentOrFail(incidentId);
-
-    const comments = await this.incidentCommentRepository.find({
-      where: { incident: { id: incidentId } },
-      order: { createdAt: 'ASC' },
-    });
-
-    return {
-      items: plainToInstance(ResponseIncidentCommentDto, comments, {
-        excludeExtraneousValues: true,
-      }),
-    };
-  }
-
   async updateStatus(
     incidentId: string,
     dto: UpdateIncidentStatusDto,
@@ -359,18 +307,11 @@ export class IncidentService {
     return this.toResponseIncident(saved, busId);
   }
 
-  /**
-   * Crear incidente desde el driver autenticado
-   */
   async createByDriver(
     currentUser: JwtPayload,
     dto: CreateIncidentDriverDto,
     photos: IncidentStorageFile[] = [],
   ) {
-    if (photos.length > 5) {
-      throw new BadRequestException('You can attach up to 5 photos');
-    }
-
     const driver = await this.driverRepository.findOne({
       where: { userId: currentUser.id },
     });
@@ -381,7 +322,7 @@ export class IncidentService {
       );
     }
 
-    this.logger.debug(`✅ Found driver: ${driver.id} (${driver.email})`);
+    this.logger.debug(`Found driver: ${driver.id} (${driver.email})`);
 
     const now = new Date();
     const activeTurn = await this.turnRepository.findOne({
@@ -425,7 +366,7 @@ export class IncidentService {
     const savedIncident = await this.incidentRepository.save(incident);
 
     this.logger.log(
-      `✅ Incident ${savedIncident.id} created by driver ${driver.id} for bus ${activeTurn.bus.id}`,
+      `Incident ${savedIncident.id} created by driver ${driver.id} for bus ${activeTurn.bus.id}`,
     );
 
     const incidentBus = await this.incidentBusRepository.save(
@@ -437,23 +378,13 @@ export class IncidentService {
     );
 
     if (photos.length > 0) {
-      const storedPhotos = await this.incidentStorageService.uploadMany(photos);
-
-      await this.incidentPhotoRepository.save(
-        storedPhotos.map((photo) =>
-          this.incidentPhotoRepository.create({
-            incidentBus,
-            path: photo.path,
-            publicUrl: photo.publicUrl,
-            originalName: photo.originalName,
-            mimeType: photo.mimeType,
-            size: photo.size,
-          }),
-        ),
+      const savedPhotos = await this.incidentPhotoService.attachPhotos(
+        incidentBus,
+        photos,
       );
 
       this.logger.log(
-        `📸 ${storedPhotos.length} photos uploaded for incident ${savedIncident.id}`,
+        `${savedPhotos.length} photos uploaded for incident ${savedIncident.id}`,
       );
     }
 
@@ -468,7 +399,7 @@ export class IncidentService {
       );
 
       this.logger.log(
-        `📧 Supervisor notification sent for incident ${savedIncident.id}`,
+        `Supervisor notification sent for incident ${savedIncident.id}`,
       );
     }
 

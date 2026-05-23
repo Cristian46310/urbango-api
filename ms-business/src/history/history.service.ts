@@ -216,7 +216,10 @@ export class HistoryService {
         driver: driver ? plainToInstance(ResponseDriverDto, driver) : null,
         turn: turn ? plainToInstance(ResponseTurnDto, turn) : null,
         scheduler: scheduler
-          ? plainToInstance(ResponseSchedulerDto, scheduler)
+          ? plainToInstance(ResponseSchedulerDto, {
+              ...scheduler,
+              departureTime: scheduler.startTime,
+            })
           : null,
         validations: histories.map((h) => ({
           order: h.order,

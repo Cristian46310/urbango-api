@@ -47,13 +47,6 @@ export class Turn {
   @Column({ name: 'bus_observations', type: 'text', nullable: true })
   busObservations?: string | null;
 
-  @Column({
-    name: 'gps_activated_at',
-    type: 'timestamp with time zone',
-    nullable: true,
-  })
-  gpsActivatedAt?: Date | null;
-
   @ManyToOne(() => Bus, { nullable: true, eager: true })
   bus!: Bus;
 

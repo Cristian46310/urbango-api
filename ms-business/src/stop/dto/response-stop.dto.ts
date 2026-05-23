@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
+import { StopType } from '../entities/stop.entity';
 
 export class ResponseStopDto {
   @ApiProperty({
@@ -7,28 +8,46 @@ export class ResponseStopDto {
   })
   @Expose()
   id!: string;
+
+  @ApiProperty({
+    example: 'PAR-001',
+  })
+  @Expose()
+  code!: string;
+
   @ApiProperty({
     example: 'Parque Principal',
   })
   @Expose()
   name!: string;
+
   @ApiProperty({
     example: 'Calle 123',
   })
   @Expose()
   location!: string;
+
   @ApiProperty({
     example: 5.070275,
     required: false,
   })
   @Expose()
   latitude?: number;
+
   @ApiProperty({
     example: -75.513817,
     required: false,
   })
   @Expose()
   longitude?: number;
+
+  @ApiProperty({
+    enum: StopType,
+    example: StopType.REGULAR,
+  })
+  @Expose()
+  tipo!: StopType;
+
   @ApiProperty({
     example: '2023-01-01T00:00:00.000Z',
   })
