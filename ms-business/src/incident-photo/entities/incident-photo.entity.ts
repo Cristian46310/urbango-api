@@ -4,6 +4,7 @@ import {
   Column,
   ManyToOne,
   CreateDateColumn,
+  JoinColumn,
 } from 'typeorm';
 import { IncidentBus } from '@/incident/entities/incident-bus.entity';
 
@@ -15,23 +16,12 @@ export class IncidentPhoto {
   @ManyToOne(() => IncidentBus, (incidentBus) => incidentBus.photos, {
     onDelete: 'CASCADE',
   })
+  @JoinColumn({ name: 'incident_bus_id' })
   incidentBus!: IncidentBus;
 
   @Column()
-  path!: string;
+  photoUrl!: string;
 
-  @Column({ nullable: true })
-  publicUrl?: string;
-
-  @Column({ nullable: true })
-  originalName?: string;
-
-  @Column({ nullable: true })
-  mimeType?: string;
-
-  @Column({ type: 'int', nullable: true })
-  size?: number;
-
-  @CreateDateColumn({ type: 'timestamp with time zone' })
+  @CreateDateColumn()
   createdAt!: Date;
 }

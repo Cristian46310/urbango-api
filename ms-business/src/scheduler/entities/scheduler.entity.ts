@@ -28,7 +28,7 @@ export class Scheduler {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @ManyToOne(() => Bus, { nullable: false })
+  @ManyToOne(() => Bus, { onDelete: 'CASCADE', eager: true })
   @JoinColumn({ name: 'bus_id' })
   bus!: Bus;
 
@@ -40,11 +40,11 @@ export class Scheduler {
   date!: string;
 
   /** Hora de salida programada */
-  @Column({ type: 'timestamp with time zone' })
+  @Column()
   startTime!: Date;
 
   /** Fin estimado del servicio (salida + duración de la ruta) */
-  @Column({ type: 'timestamp with time zone' })
+  @Column()
   endTime!: Date;
 
   @Column({
@@ -54,7 +54,7 @@ export class Scheduler {
   })
   status!: SchedulerStatus;
 
-  @Column({ name: 'tolerance_minutes', type: 'int', default: 0 })
+  @Column({ type: 'int', default: 0 })
   toleranceMinutes!: number;
 
   @Column({

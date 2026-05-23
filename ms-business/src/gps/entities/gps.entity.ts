@@ -4,6 +4,7 @@ import {
   Column,
   OneToOne,
   JoinColumn,
+  CreateDateColumn,
 } from 'typeorm';
 import { Bus } from '@/bus/entities/bus.entity';
 
@@ -24,4 +25,7 @@ export class Gps {
   @OneToOne(() => Bus, (bus) => bus.gps, { onDelete: 'CASCADE' })
   @JoinColumn()
   bus!: Bus;
+
+  @CreateDateColumn()
+  createdAt!: Date;
 }

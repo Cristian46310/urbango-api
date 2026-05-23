@@ -5,21 +5,9 @@ import {
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
-  UpdateDateColumn,
 } from 'typeorm';
 import { Citizen } from '@/citizen/entities/citizen.entity';
 import { PaymentMethod } from '@/payment-method/entities/payment-method.entity';
-
-export enum PaymentMethodType {
-  PREPAID = 'prepaid',
-  CREDIT = 'credit',
-  DEBIT = 'debit',
-}
-
-export enum PaymentMethodStatus {
-  ACTIVE = 'active',
-  BLOCKED = 'blocked',
-}
 
 @Entity({ name: 'payment_method_citizens' })
 export class PaymentMethodCitizen {
@@ -40,26 +28,6 @@ export class PaymentMethodCitizen {
   @Column({ type: 'varchar', length: 32, nullable: true, unique: true })
   cardNumber?: string;
 
-  @Column({
-    type: 'enum',
-    enum: PaymentMethodType,
-    default: PaymentMethodType.PREPAID,
-  })
-  type!: PaymentMethodType;
-
-  @Column({
-    type: 'enum',
-    enum: PaymentMethodStatus,
-    default: PaymentMethodStatus.ACTIVE,
-  })
-  status!: PaymentMethodStatus;
-
-  @Column({ type: 'timestamp with time zone', nullable: true })
-  lastUsedAt!: Date | null;
-
-  @CreateDateColumn({ type: 'timestamp with time zone' })
+  @CreateDateColumn()
   createdAt!: Date;
-
-  @UpdateDateColumn({ type: 'timestamp with time zone' })
-  updatedAt!: Date;
 }

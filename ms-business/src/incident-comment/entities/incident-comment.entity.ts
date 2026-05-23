@@ -4,6 +4,7 @@ import {
   Column,
   ManyToOne,
   CreateDateColumn,
+  JoinColumn,
 } from 'typeorm';
 import { Incident } from '@/incident/entities/incident.entity';
 
@@ -15,6 +16,7 @@ export class IncidentComment {
   @ManyToOne(() => Incident, (incident) => incident.comments, {
     onDelete: 'CASCADE',
   })
+  @JoinColumn({ name: 'incident_id' })
   incident!: Incident;
 
   @Column({ type: 'text' })

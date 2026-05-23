@@ -2,13 +2,10 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  ManyToOne,
   OneToMany,
   CreateDateColumn,
 } from 'typeorm';
-import { Turn } from '@/turn/entities/turn.entity';
-import { Driver } from '@/driver/entities/driver.entity';
-import { Enterprise } from '@/enterprise/entities/enterprise.entity';
+
 import { IncidentBus } from './incident-bus.entity';
 import { IncidentComment } from '@/incident-comment/entities/incident-comment.entity';
 import {
@@ -31,11 +28,11 @@ export class Incident {
   @Column({ type: 'text' })
   description!: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
-  latitude?: number;
+  @Column({ type: 'decimal', precision: 10, scale: 7 })
+  latitude!: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
-  longitude?: number;
+  @Column({ type: 'decimal', precision: 10, scale: 7 })
+  longitude!: number;
 
   @Column({
     type: 'enum',
@@ -44,21 +41,12 @@ export class Incident {
   })
   status!: IncidentStatus;
 
-  @ManyToOne(() => Turn, { eager: true })
-  turn!: Turn;
-
-  @ManyToOne(() => Driver, { eager: true })
-  driver!: Driver;
-
-  @ManyToOne(() => Enterprise, { eager: true })
-  enterprise!: Enterprise;
-
   @OneToMany(() => IncidentBus, (incidentBus) => incidentBus.incident)
-  incidentBuses?: IncidentBus[];
+  incidentBuses!: IncidentBus[];
 
   @OneToMany(() => IncidentComment, (comment) => comment.incident)
   comments?: IncidentComment[];
 
-  @CreateDateColumn({ type: 'timestamp with time zone' })
-  reportedAt!: Date;
+  @CreateDateColumn()
+  createdAt!: Date;
 }

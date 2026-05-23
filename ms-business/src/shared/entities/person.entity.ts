@@ -9,10 +9,6 @@ import {
 
 @Entity('persons')
 @TableInheritance({ column: { type: 'varchar', name: 'type' } })
-@Index(['userId', 'type'], {
-  unique: true,
-  where: '"user_id" IS NOT NULL',
-})
 @Index(['email', 'type'], {
   unique: true,
   where: '"email" IS NOT NULL',
@@ -28,18 +24,18 @@ export class Person {
   @Column()
   document!: string;
 
-  @Column({ nullable: true })
-  email?: string;
+  @Column()
+  email!: string;
+
+  @Column()
+  phone!: string;
 
   @Column({ nullable: true })
-  phone?: string;
-
-  @Column({ name: 'birth_date', type: 'date', nullable: true })
   birthDate?: Date;
 
   /** ID del usuario en ms-security (JWT sub / id). */
-  @Column({ name: 'user_id', nullable: true })
-  userId?: string;
+  @Column({ name: 'user_id' })
+  userId!: string;
 
   @CreateDateColumn()
   createdAt!: Date;

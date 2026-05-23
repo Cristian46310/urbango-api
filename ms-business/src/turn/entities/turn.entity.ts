@@ -34,17 +34,10 @@ export class Turn {
   })
   status!: TurnStatus;
 
-  @Column({
-    name: 'actual_start_time',
-    type: 'timestamp with time zone',
-    nullable: true,
-  })
-  actualStartTime?: Date | null;
-
-  @Column({ name: 'bus_status', type: 'varchar', length: 64, nullable: true })
+  @Column({ type: 'varchar', length: 64, nullable: true })
   busStatus?: string | null;
 
-  @Column({ name: 'bus_observations', type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true })
   busObservations?: string | null;
 
   @ManyToOne(() => Bus, { nullable: true, eager: true })
@@ -53,6 +46,6 @@ export class Turn {
   @ManyToOne(() => Driver, { nullable: true, eager: true })
   driver!: Driver;
 
-  @CreateDateColumn({ type: 'timestamp with time zone' })
+  @CreateDateColumn()
   createdAt!: Date;
 }

@@ -4,13 +4,13 @@ import { Enterprise } from '@/enterprise/entities/enterprise.entity';
 
 @ChildEntity('driver')
 export class Driver extends Person {
-  @Column({ nullable: true })
-  licenseNumber?: string;
+  @Column()
+  licenseNumber!: string;
 
-  @Column({ nullable: true, type: 'date' })
-  licenseExpiry?: Date;
+  @Column({type: 'date' })
+  licenseExpiry!: Date;
 
-  @ManyToOne(() => Enterprise, { onDelete: 'SET NULL', eager: true })
+  @ManyToOne(() => Enterprise, { onDelete: 'CASCADE', eager: true })
   @JoinColumn({ name: 'enterpriseId' })
-  enterprise?: Enterprise;
+  enterprise!: Enterprise;
 }

@@ -2,8 +2,8 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   ManyToOne,
-  Column,
   OneToMany,
+  JoinColumn,
 } from 'typeorm';
 import { Incident } from './incident.entity';
 import { Bus } from '@/bus/entities/bus.entity';
@@ -17,14 +17,13 @@ export class IncidentBus {
   @ManyToOne(() => Incident, (incident) => incident.incidentBuses, {
     onDelete: 'CASCADE',
   })
+  @JoinColumn({ name: 'incident_id' })
   incident!: Incident;
 
-  @ManyToOne(() => Bus, (bus) => bus.incidentBuses, { eager: true })
+  @ManyToOne(() => Bus, (bus) => bus.incidentBuses, { onDelete: 'CASCADE', eager: true })
+  @JoinColumn({ name: 'bus_id' })
   bus!: Bus;
 
-  @Column({ default: true })
-  isPrimary!: boolean;
-
   @OneToMany(() => IncidentPhoto, (photo) => photo.incidentBus)
-  photos?: IncidentPhoto[];
+  photos!: IncidentPhoto[];
 }

@@ -25,18 +25,18 @@ export class Stop {
   @Column()
   location!: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
-  latitude?: number;
+  @Column({ type: 'decimal', precision: 10, scale: 7})
+  latitude!: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
-  longitude?: number;
+  @Column({ type: 'decimal', precision: 10, scale: 7,  })
+  longitude!: number;
 
   @Column({
     type: 'enum',
     enum: StopType,
     default: StopType.REGULAR,
   })
-  tipo!: StopType;
+  type!: StopType;
 
   @CreateDateColumn()
   createdAt!: Date;
