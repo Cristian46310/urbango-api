@@ -5,9 +5,6 @@ export class ResponseRouteNodeDto {
   @ApiProperty({ example: 1 })
   order!: number;
 
-  @ApiProperty({ example: 1.4 })
-  distanceFromPrevious!: number;
-
   @ApiProperty({ example: 5 })
   estimatedTimeMinutes!: number;
 

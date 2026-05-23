@@ -30,7 +30,6 @@ export class BusService {
     private readonly driverRepository: Repository<Driver>,
   ) {}
 
-  /** Empresa asociada al perfil de conductor del usuario (ms-business). */
   async resolveEnterpriseIdForUser(userId: string): Promise<string> {
     const driver = await this.driverRepository.findOne({
       where: { userId },
@@ -75,10 +74,8 @@ export class BusService {
     });
 
     const saved = await this.busRepository.save(bus);
-    saved.qrCode = await this.generateQrCode(saved.id, enterpriseId, saved);
-    const withQr = await this.busRepository.save(saved);
-
-    return this.toResponse(withQr);
+    const qrCode = await this.generateQrCode(saved.id, enterpriseId, saved);
+    return this.toResponse(saved, qrCode);
   }
 
   async findAll(
@@ -90,7 +87,7 @@ export class BusService {
 
     const [items, totalItems] = await this.busRepository.findAndCount({
       where: enterpriseId ? { enterprise: { id: enterpriseId } } : {},
-      relations: ['enterprise'],
+      relations: ['enterprise', 'photos'],
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
@@ -105,7 +102,7 @@ export class BusService {
   async findOne(id: string): Promise<ResponseBusDto> {
     const bus = await this.busRepository.findOne({
       where: { id },
-      relations: ['enterprise'],
+      relations: ['enterprise', 'photos'],
     });
     if (!bus) throw new NotFoundException(`Bus ${id} not found`);
     return this.toResponse(bus);
@@ -117,17 +114,15 @@ export class BusService {
   ): Promise<ResponseBusDto> {
     const bus = await this.busRepository.findOne({
       where: { id },
-      relations: ['enterprise'],
+      relations: ['enterprise', 'photos'],
     });
     if (!bus) throw new NotFoundException(`Bus ${id} not found`);
 
     if (
       updateBusDto.seatedCapacity !== undefined ||
-      updateBusDto.standingCapacity !== undefined ||
-      updateBusDto.capacity !== undefined
+      updateBusDto.standingCapacity !== undefined
     ) {
       this.validateCapacities({
-        capacity: updateBusDto.capacity ?? bus.capacity,
         seatedCapacity: updateBusDto.seatedCapacity ?? bus.seatedCapacity,
         standingCapacity: updateBusDto.standingCapacity ?? bus.standingCapacity,
       });
@@ -171,22 +166,28 @@ export class BusService {
     }
   }
 
+  getTotalCapacity(bus: Bus): number {
+    return (bus.seatedCapacity ?? 0) + (bus.standingCapacity ?? 0);
+  }
+
   private validateCapacities(dto: {
-    capacity?: number;
     seatedCapacity?: number;
     standingCapacity?: number;
   }): void {
-    const { capacity, seatedCapacity, standingCapacity } = dto;
+    const { seatedCapacity, standingCapacity } = dto;
 
+    if (seatedCapacity != null && seatedCapacity < 0) {
+      throw new BadRequestException('Seated capacity cannot be negative');
+    }
+    if (standingCapacity != null && standingCapacity < 0) {
+      throw new BadRequestException('Standing capacity cannot be negative');
+    }
     if (
       seatedCapacity != null &&
       standingCapacity != null &&
-      capacity != null &&
-      seatedCapacity + standingCapacity > capacity
+      seatedCapacity + standingCapacity === 0
     ) {
-      throw new BadRequestException(
-        'Seated plus standing capacity cannot exceed maximum passenger capacity',
-      );
+      throw new BadRequestException('Bus must have at least one seat or standing place');
     }
   }
 
@@ -214,12 +215,15 @@ export class BusService {
     }
   }
 
-  private toResponse(bus: Bus): ResponseBusDto {
+  private toResponse(bus: Bus, qrCode?: string): ResponseBusDto {
     const dto = plainToInstance(ResponseBusDto, bus, {
       excludeExtraneousValues: true,
     });
     dto.enterpriseId = bus.enterprise?.id;
-    dto.photoUrl = bus.photo?.publicUrl ?? bus.photoUrl;
+    dto.photoUrl = bus.photos?.[0]?.photoUrl;
+    if (qrCode) {
+      dto.qrCode = qrCode;
+    }
     return dto;
   }
 

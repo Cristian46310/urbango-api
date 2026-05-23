@@ -5,12 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { LessThanOrEqual, Repository } from 'typeorm';
 import { plainToInstance } from 'class-transformer';
 import { Incident } from './entities/incident.entity';
 import { IncidentBus } from './entities/incident-bus.entity';
 import { Bus } from '@/bus/entities/bus.entity';
-import { Turn } from '@/turn/entities/turn.entity';
+import { Turn, TurnStatus } from '@/turn/entities/turn.entity';
 import { Driver } from '@/driver/entities/driver.entity';
 import { CreateIncidentDriverDto } from './dto/create-incident-driver.dto';
 import { IncidentNotificationService } from './incident-notification.service';
@@ -57,10 +57,9 @@ export class IncidentService {
   ) {}
 
   private isTurnActive(turn: Turn, now: Date) {
-    if (turn.status) {
-      return turn.status.toLowerCase() === 'active';
+    if (turn.status === TurnStatus.IN_PROGRESS) {
+      return true;
     }
-
     return turn.startTime <= now && (!turn.endTime || turn.endTime >= now);
   }
 
@@ -80,7 +79,7 @@ export class IncidentService {
   private createBusIncidentQueryBuilder(busId: string) {
     return this.incidentRepository
       .createQueryBuilder('incident')
-      .innerJoin('incident.incidentBuses', 'ib', 'ib.busId = :busId', {
+      .innerJoin('incident.incidentBuses', 'ib', 'ib.bus_id = :busId', {
         busId,
       });
   }
@@ -98,29 +97,50 @@ export class IncidentService {
     return qb;
   }
 
-  private toResponseIncident(
+  private async resolveDriverForIncident(
     incident: Incident,
     busId: string,
-  ): ResponseIncidentDto {
+  ): Promise<ResponseIncidentDriverDto | undefined> {
+    const turn = await this.turnRepository.findOne({
+      where: {
+        bus: { id: busId },
+        startTime: LessThanOrEqual(incident.createdAt),
+      },
+      relations: ['driver'],
+      order: { startTime: 'DESC' },
+    });
+
+    if (!turn?.driver) {
+      return undefined;
+    }
+
+    return plainToInstance(ResponseIncidentDriverDto, {
+      id: turn.driver.id,
+      name: turn.driver.name,
+    });
+  }
+
+  private async toResponseIncident(
+    incident: Incident,
+    busId: string,
+  ): Promise<ResponseIncidentDto> {
     const incidentBus =
       incident.incidentBuses?.find((ib) => ib.bus?.id === busId) ??
       incident.incidentBuses?.[0];
 
     const photos = incidentBus?.photos ?? [];
+    const driver = await this.resolveDriverForIncident(incident, busId);
 
     return plainToInstance(
       ResponseIncidentDto,
       {
         id: incident.id,
-        reportedAt: incident.reportedAt,
+        createdAt: incident.createdAt,
         type: incident.type,
         severity: incident.severity,
         status: incident.status,
         description: incident.description,
-        driver: plainToInstance(ResponseIncidentDriverDto, {
-          id: incident.driver.id,
-          name: incident.driver.name,
-        }),
+        driver,
         photos: plainToInstance(ResponseIncidentPhotoDto, photos),
       },
       { excludeExtraneousValues: true },
@@ -201,21 +221,22 @@ export class IncidentService {
       this.createBusIncidentQueryBuilder(busId),
       query,
     )
-      .leftJoinAndSelect('incident.driver', 'driver')
       .leftJoinAndSelect('incident.incidentBuses', 'incidentBuses')
       .leftJoinAndSelect('incidentBuses.bus', 'bus')
       .leftJoinAndSelect('incidentBuses.photos', 'photos')
-      .orderBy('incident.reportedAt', 'DESC')
+      .orderBy('incident.createdAt', 'DESC')
       .skip((page - 1) * limit)
       .take(limit);
 
     const incidents = await listQb.getMany();
     const statistics = await this.computeStatistics(busId, query);
 
+    const items = await Promise.all(
+      incidents.map((incident) => this.toResponseIncident(incident, busId)),
+    );
+
     return {
-      items: incidents.map((incident) =>
-        this.toResponseIncident(incident, busId),
-      ),
+      items,
       meta: this.buildPaginationMeta(page, limit, totalItems),
       statistics,
     };
@@ -226,16 +247,11 @@ export class IncidentService {
     const limit = paginationQuery.limit ?? 10;
     const [items, totalItems] = await this.incidentRepository.findAndCount({
       relations: [
-        'turn',
-        'turn.bus',
-        'turn.driver',
-        'driver',
-        'enterprise',
         'incidentBuses',
         'incidentBuses.bus',
         'incidentBuses.photos',
       ],
-      order: { reportedAt: 'DESC' },
+      order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
     });
@@ -250,7 +266,6 @@ export class IncidentService {
     const incident = await this.incidentRepository.findOne({
       where: { id: incidentId },
       relations: [
-        'driver',
         'incidentBuses',
         'incidentBuses.bus',
         'incidentBuses.photos',
@@ -280,24 +295,17 @@ export class IncidentService {
     incident.status = dto.status;
     const saved = await this.incidentRepository.save(incident);
 
-    const busId =
-      saved.incidentBuses?.find((ib) => ib.isPrimary)?.bus?.id ??
-      saved.incidentBuses?.[0]?.bus?.id;
-
+    const busId = saved.incidentBuses?.[0]?.bus?.id;
     if (!busId) {
       return plainToInstance(
         ResponseIncidentDto,
         {
           id: saved.id,
-          reportedAt: saved.reportedAt,
+          createdAt: saved.createdAt,
           type: saved.type,
           severity: saved.severity,
           status: saved.status,
           description: saved.description,
-          driver: plainToInstance(ResponseIncidentDriverDto, {
-            id: saved.driver.id,
-            name: saved.driver.name,
-          }),
           photos: [],
         },
         { excludeExtraneousValues: true },
@@ -322,8 +330,6 @@ export class IncidentService {
       );
     }
 
-    this.logger.debug(`Found driver: ${driver.id} (${driver.email})`);
-
     const now = new Date();
     const activeTurn = await this.turnRepository.findOne({
       where: {
@@ -345,9 +351,9 @@ export class IncidentService {
       );
     }
 
-    if (!activeTurn.bus || !activeTurn.bus.enterprise) {
+    if (!activeTurn.bus) {
       throw new BadRequestException(
-        'Active turn must have an assigned bus and enterprise.',
+        'Active turn must have an assigned bus.',
       );
     }
 
@@ -357,49 +363,29 @@ export class IncidentService {
       description: dto.description,
       latitude: dto.latitude,
       longitude: dto.longitude,
-      reportedAt: dto.timestamp || now,
-      turn: activeTurn,
-      driver: driver,
-      enterprise: activeTurn.bus.enterprise,
     });
 
     const savedIncident = await this.incidentRepository.save(incident);
-
-    this.logger.log(
-      `Incident ${savedIncident.id} created by driver ${driver.id} for bus ${activeTurn.bus.id}`,
-    );
 
     const incidentBus = await this.incidentBusRepository.save(
       this.incidentBusRepository.create({
         incident: savedIncident,
         bus: activeTurn.bus,
-        isPrimary: true,
       }),
     );
 
     if (photos.length > 0) {
-      const savedPhotos = await this.incidentPhotoService.attachPhotos(
-        incidentBus,
-        photos,
-      );
-
-      this.logger.log(
-        `${savedPhotos.length} photos uploaded for incident ${savedIncident.id}`,
-      );
+      await this.incidentPhotoService.attachPhotos(incidentBus, photos);
     }
 
-    const criticalSeverities = [
-      IncidentSeverity.HIGH,
-      IncidentSeverity.CRITICAL,
-    ];
-    if (criticalSeverities.includes(savedIncident.severity)) {
+    if (
+      [IncidentSeverity.HIGH, IncidentSeverity.CRITICAL].includes(
+        savedIncident.severity,
+      )
+    ) {
       await this.incidentNotificationService.notifySupervisorIfNeeded(
         savedIncident,
         incidentBus,
-      );
-
-      this.logger.log(
-        `Supervisor notification sent for incident ${savedIncident.id}`,
       );
     }
 

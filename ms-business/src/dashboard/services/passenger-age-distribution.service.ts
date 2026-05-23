@@ -111,7 +111,7 @@ export class PassengerAgeDistributionService {
       .leftJoinAndSelect('ticket.citizen', 'citizen')
       .leftJoin('ticket.scheduler', 'scheduler')
       .leftJoin('scheduler.route', 'route')
-      .where('ticket.boardedAt BETWEEN :startDate AND :endDate', {
+      .where('ticket.createdAt BETWEEN :startDate AND :endDate', {
         startDate: range.start,
         endDate: range.end,
       });
@@ -125,7 +125,7 @@ export class PassengerAgeDistributionService {
     for (const ticket of tickets) {
       const bucketKey = this.getBucketKey(
         ticket.citizen?.birthDate,
-        ticket.boardedAt,
+        ticket.createdAt,
       );
       counts[bucketKey] += 1;
     }

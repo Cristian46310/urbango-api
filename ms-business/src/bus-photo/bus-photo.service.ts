@@ -30,11 +30,7 @@ export class BusPhotoService {
       {
         id: photo.id,
         busId: photo.bus.id,
-        publicUrl: photo.publicUrl,
-        originalName: photo.originalName,
-        mimeType: photo.mimeType,
-        size: photo.size,
-        createdAt: photo.createdAt,
+        photoUrl: photo.photoUrl,
       },
       { excludeExtraneousValues: true },
     );
@@ -57,25 +53,15 @@ export class BusPhotoService {
     });
 
     if (photo) {
-      photo.path = stored.path;
-      photo.publicUrl = stored.publicUrl;
-      photo.originalName = stored.originalName;
-      photo.mimeType = stored.mimeType;
-      photo.size = stored.size;
+      photo.photoUrl = stored.publicUrl;
     } else {
       photo = this.busPhotoRepository.create({
         bus,
-        path: stored.path,
-        publicUrl: stored.publicUrl,
-        originalName: stored.originalName,
-        mimeType: stored.mimeType,
-        size: stored.size,
+        photoUrl: stored.publicUrl,
       });
     }
 
     const saved = await this.busPhotoRepository.save(photo);
-    await this.busRepository.update(busId, { photoUrl: stored.publicUrl });
-
     return this.toResponse(saved);
   }
 
@@ -132,6 +118,5 @@ export class BusPhotoService {
     }
 
     await this.busPhotoRepository.delete(id);
-    await this.busRepository.update(photo.bus.id, { photoUrl: undefined });
   }
 }

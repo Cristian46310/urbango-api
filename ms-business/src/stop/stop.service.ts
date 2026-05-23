@@ -32,7 +32,12 @@ export class StopService {
   ) {}
   async create(createStopDto: CreateStopDto): Promise<ResponseStopDto> {
     const code = await this.generateStopCode();
-    const stop = this.stopRepository.create({ ...createStopDto, code });
+    const { type, ...rest } = createStopDto;
+    const stop = this.stopRepository.create({
+      ...rest,
+      type,
+      code,
+    });
     return plainToInstance(
       ResponseStopDto,
       await this.stopRepository.save(stop),
@@ -88,7 +93,11 @@ export class StopService {
     id: string,
     updateStopDto: UpdateStopDto,
   ): Promise<ResponseStopDto> {
-    const stop = await this.stopRepository.preload({ id, ...updateStopDto });
+    const stop = await this.stopRepository.preload({
+      id,
+      ...updateStopDto,
+      type: updateStopDto.type,
+    });
     if (!stop) {
       throw new NotFoundException(`Stop with id ${id} not found`);
     }

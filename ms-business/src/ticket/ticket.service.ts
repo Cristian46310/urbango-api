@@ -36,6 +36,15 @@ export class TicketService {
     private readonly nodeRepository: Repository<Node>,
   ) {}
 
+  private toResponse(ticket: Ticket): ResponseTicketDto {
+    return plainToInstance(ResponseTicketDto, {
+      id: ticket.id,
+      status: ticket.status,
+      createdAt: ticket.createdAt,
+      routePrice: ticket.scheduler?.route?.price,
+    });
+  }
+
   async create(createTicketDto: CreateTicketDto) {
     if (createTicketDto.citizenId) {
       const cit = await this.citizenRepository.findOne({
@@ -49,19 +58,15 @@ export class TicketService {
       });
       if (!pmc) throw new BadRequestException('Payment method not found');
     }
-    let amount: number | undefined;
-    if (createTicketDto.schedulerId) {
-      const sch = await this.schedulerRepository.findOne({
-        where: { id: createTicketDto.schedulerId },
-        relations: ['route'],
-      });
-      if (!sch) throw new BadRequestException('Scheduler not found');
-      amount = sch.route.price;
-    } else {
-      throw new BadRequestException(
-        'schedulerId is required to determine ticket amount',
-      );
+    if (!createTicketDto.schedulerId) {
+      throw new BadRequestException('schedulerId is required');
     }
+
+    const sch = await this.schedulerRepository.findOne({
+      where: { id: createTicketDto.schedulerId },
+      relations: ['route'],
+    });
+    if (!sch) throw new BadRequestException('Scheduler not found');
 
     const ticketData: Partial<Ticket> = {
       citizen: createTicketDto.citizenId
@@ -72,23 +77,17 @@ export class TicketService {
             id: createTicketDto.paymentMethodCitizenId,
           } as PaymentMethodCitizen)
         : undefined,
-      scheduler: createTicketDto.schedulerId
-        ? ({ id: createTicketDto.schedulerId } as Scheduler)
-        : undefined,
-      buyedAt: createTicketDto.buyedAt
-        ? new Date(createTicketDto.buyedAt)
-        : undefined,
-      appliedRate: createTicketDto.appliedRate ?? amount,
-      amount,
-      status: createTicketDto.status,
-      boardedAt: createTicketDto.boardedAt
-        ? new Date(createTicketDto.boardedAt)
-        : undefined,
+      scheduler: { id: createTicketDto.schedulerId } as Scheduler,
+      status: createTicketDto.status ?? TicketStatus.ACTIVE,
     };
     const ticket = this.ticketRepository.create(ticketData);
 
     const saved = await this.ticketRepository.save(ticket);
-    return plainToInstance(ResponseTicketDto, saved);
+    const withRelations = await this.ticketRepository.findOne({
+      where: { id: saved.id },
+      relations: ['scheduler', 'scheduler.route'],
+    });
+    return this.toResponse(withRelations ?? saved);
   }
 
   private buildPaginationMeta(page: number, limit: number, totalItems: number) {
@@ -108,14 +107,14 @@ export class TicketService {
     const page = paginationQuery.page ?? 1;
     const limit = paginationQuery.limit ?? 10;
     const [items, totalItems] = await this.ticketRepository.findAndCount({
-      relations: ['citizen', 'scheduler'],
+      relations: ['citizen', 'scheduler', 'scheduler.route'],
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
     });
 
     return {
-      items: plainToInstance(ResponseTicketDto, items),
+      items: items.map((item) => this.toResponse(item)),
       meta: this.buildPaginationMeta(page, limit, totalItems),
     };
   }
@@ -123,10 +122,10 @@ export class TicketService {
   async findOne(id: string) {
     const ticket = await this.ticketRepository.findOne({
       where: { id },
-      relations: ['citizen', 'scheduler'],
+      relations: ['citizen', 'scheduler', 'scheduler.route'],
     });
     if (!ticket) throw new NotFoundException(`Ticket ${id} not found`);
-    return plainToInstance(ResponseTicketDto, ticket);
+    return this.toResponse(ticket);
   }
 
   async update(id: string, updateTicketDto: UpdateTicketDto) {
@@ -162,19 +161,16 @@ export class TicketService {
       scheduler: updateTicketDto.schedulerId
         ? ({ id: updateTicketDto.schedulerId } as Scheduler)
         : undefined,
-      buyedAt: updateTicketDto.buyedAt
-        ? new Date(updateTicketDto.buyedAt)
-        : undefined,
-      appliedRate: updateTicketDto.appliedRate,
       status: updateTicketDto.status,
-      boardedAt: updateTicketDto.boardedAt
-        ? new Date(updateTicketDto.boardedAt)
-        : undefined,
     };
     const ticket = await this.ticketRepository.preload(preloadData);
     if (!ticket) throw new NotFoundException(`Ticket ${id} not found`);
     const saved = await this.ticketRepository.save(ticket);
-    return plainToInstance(ResponseTicketDto, saved);
+    const withRelations = await this.ticketRepository.findOne({
+      where: { id: saved.id },
+      relations: ['scheduler', 'scheduler.route'],
+    });
+    return this.toResponse(withRelations ?? saved);
   }
 
   async remove(id: string) {
@@ -188,7 +184,6 @@ export class TicketService {
     ticketId: string,
     alightTicketDto: AlightTicketDto,
   ): Promise<AlightResponseDto> {
-    // 1. Buscar ticket con todas las relaciones
     const ticket = await this.ticketRepository.findOne({
       where: { id: ticketId },
       relations: [
@@ -206,19 +201,16 @@ export class TicketService {
       throw new NotFoundException(`Ticket ${ticketId} not found`);
     }
 
-    // 2. Validar que ticket esté ACTIVE
     if (ticket.status !== TicketStatus.ACTIVE) {
       throw new BadRequestException(
         `Ticket is not active. Current status: ${ticket.status}`,
       );
     }
 
-    // 3. Validar que el bus coincida
     if (ticket.scheduler?.bus?.id !== alightTicketDto.busId) {
       throw new BadRequestException('Bus ID does not match the ticket bus');
     }
 
-    // 4. Buscar el nodo (paradero) de descenso
     const alightNode = await this.nodeRepository.findOne({
       where: { id: alightTicketDto.nodeId },
       relations: ['stop', 'route'],
@@ -230,39 +222,36 @@ export class TicketService {
       );
     }
 
-    // 5. Validar que el nodo pertenece a la ruta del ticket
     if (alightNode.route?.id !== ticket.scheduler?.route?.id) {
       throw new BadRequestException('Node does not belong to the ticket route');
     }
 
-    // 6. Registrar evento de descenso en History
-    const lastOrder = (ticket.histories?.length ?? 0) + 1;
     const alightHistory = this.historyRepository.create({
       ticket,
       node: alightNode,
-      order: lastOrder,
     });
 
     await this.historyRepository.save(alightHistory);
 
-    // 7. Actualizar ticket: status a COMPLETED y completedAt a now
     const now = new Date();
     ticket.status = TicketStatus.COMPLETED;
-    ticket.completedAt = now;
 
     await this.ticketRepository.save(ticket);
 
-    // 8. Calcular tiempo total de viaje
     let totalTravelTime = 0;
-    if (ticket.histories && ticket.histories.length > 0) {
-      const firstTime = ticket.histories[0]?.createdAt?.getTime() ?? 0;
-      const lastTime = now.getTime();
-      const totalMs = lastTime - firstTime;
-      const minutes = Math.round(totalMs / 60000);
-      totalTravelTime = minutes;
+    const allHistories = [
+      ...(ticket.histories ?? []),
+      { ...alightHistory, createdAt: now },
+    ];
+    if (allHistories.length > 0) {
+      const times = allHistories.map((h) =>
+        ('createdAt' in h && h.createdAt ? h.createdAt : now).getTime(),
+      );
+      const firstTime = Math.min(...times);
+      const lastTime = Math.max(...times);
+      totalTravelTime = Math.round((lastTime - firstTime) / 60000);
     }
 
-    // 9. Retornar respuesta de éxito
     const response = new AlightResponseDto();
     response.message = 'Viaje completado - Gracias por usar nuestro servicio';
     response.ticketId = ticket.id;

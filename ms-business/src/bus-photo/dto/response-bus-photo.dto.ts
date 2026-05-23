@@ -12,21 +12,5 @@ export class ResponseBusPhotoDto {
 
   @ApiPropertyOptional({ example: 'https://storage.example.com/photo.jpg' })
   @Expose()
-  publicUrl?: string;
-
-  @ApiPropertyOptional({ example: 'bus-front.jpg' })
-  @Expose()
-  originalName?: string;
-
-  @ApiPropertyOptional({ example: 'image/jpeg' })
-  @Expose()
-  mimeType?: string;
-
-  @ApiPropertyOptional({ example: 102400 })
-  @Expose()
-  size?: number;
-
-  @ApiProperty({ example: '2026-05-23T12:00:00.000Z' })
-  @Expose()
-  createdAt!: Date;
+  photoUrl?: string;
 }

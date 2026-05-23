@@ -20,6 +20,7 @@ import { PaymentMethodModule } from './payment-method/payment-method.module';
 import { PaymentMethodCitizenModule } from './payment-method-citizen/payment-method-citizen.module';
 import { EnterpriseModule } from './enterprise/enterprise.module';
 import { DriverModule } from './driver/driver.module';
+import { SupervisorModule } from './supervisor/supervisor.module';
 import { TurnModule } from './turn/turn.module';
 import { BoardingModule } from './boarding/boarding.module';
 import { IncidentModule } from './incident/incident.module';
@@ -62,6 +63,7 @@ import { IncidentPhotoModule } from './incident-photo/incident-photo.module';
     PaymentMethodCitizenModule,
     EnterpriseModule,
     DriverModule,
+    SupervisorModule,
     TurnModule,
     BoardingModule,
     GpsModule,

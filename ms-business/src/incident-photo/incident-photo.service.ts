@@ -34,11 +34,7 @@ export class IncidentPhotoService {
       storedPhotos.map((photo) =>
         this.incidentPhotoRepository.create({
           incidentBus,
-          path: photo.path,
-          publicUrl: photo.publicUrl,
-          originalName: photo.originalName,
-          mimeType: photo.mimeType,
-          size: photo.size,
+          photoUrl: photo.publicUrl,
         }),
       ),
     );

@@ -5,6 +5,7 @@ import { NotificationService } from './services/notification.service';
 import { IncidentSeverity } from './enums/incident.enum';
 import { Incident } from './entities/incident.entity';
 import { IncidentBus } from './entities/incident-bus.entity';
+import { provideMockRepo } from '@/test/helpers/repository-provider';
 
 describe('IncidentNotificationService', () => {
   let service: IncidentNotificationService;
@@ -19,6 +20,7 @@ describe('IncidentNotificationService', () => {
           useValue: { get: jest.fn().mockReturnValue(undefined) },
         },
         { provide: NotificationService, useValue: mockNotification },
+        provideMockRepo(IncidentBus),
       ],
     }).compile();
 

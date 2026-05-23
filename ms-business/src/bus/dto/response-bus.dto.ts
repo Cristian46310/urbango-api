@@ -19,10 +19,6 @@ export class ResponseBusDto {
   @Expose()
   color?: string;
 
-  @ApiProperty({ example: 40 })
-  @Expose()
-  capacity?: number;
-
   @ApiProperty({ example: 2023 })
   @Expose()
   year?: number;

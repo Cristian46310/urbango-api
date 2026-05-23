@@ -35,18 +35,20 @@ export class PaymentMethodIncomeService {
       .createQueryBuilder('ticket')
       .innerJoin('ticket.paymentMethodCitizen', 'pmc')
       .innerJoin('pmc.paymentMethod', 'pm')
+      .innerJoin('ticket.scheduler', 'scheduler')
+      .innerJoin('scheduler.route', 'route')
       .where('ticket.status = :status', { status: TicketStatus.COMPLETED })
-      .andWhere('ticket.completedAt >= :from', { from: range.from })
-      .andWhere('ticket.completedAt < :to', { to: range.to })
-      .andWhere('ticket.amount > 0')
+      .andWhere('ticket.createdAt >= :from', { from: range.from })
+      .andWhere('ticket.createdAt < :to', { to: range.to })
+      .andWhere('route.price > 0')
       .select(
-        "TO_CHAR(DATE_TRUNC('month', ticket.completedAt), 'YYYY-MM')",
+        "TO_CHAR(DATE_TRUNC('month', ticket.createdAt), 'YYYY-MM')",
         'month',
       )
       .addSelect('pm.id', 'paymentMethodId')
       .addSelect('pm.name', 'paymentMethodName')
-      .addSelect('SUM(ticket.amount)', 'income')
-      .groupBy("DATE_TRUNC('month', ticket.completedAt)")
+      .addSelect('SUM(route.price)', 'income')
+      .groupBy("DATE_TRUNC('month', ticket.createdAt)")
       .addGroupBy('pm.id')
       .addGroupBy('pm.name')
       .getRawMany<IncomeAggregateRow>();
@@ -148,10 +150,12 @@ export class PaymentMethodIncomeService {
     return this.ticketRepository
       .createQueryBuilder('ticket')
       .leftJoin('ticket.paymentMethodCitizen', 'pmc')
+      .leftJoin('ticket.scheduler', 'scheduler')
+      .leftJoin('scheduler.route', 'route')
       .where('ticket.status = :status', { status: TicketStatus.COMPLETED })
-      .andWhere('ticket.completedAt >= :from', { from })
-      .andWhere('ticket.completedAt < :to', { to })
-      .andWhere('(pmc.id IS NULL OR ticket.amount <= 0)')
+      .andWhere('ticket.createdAt >= :from', { from })
+      .andWhere('ticket.createdAt < :to', { to })
+      .andWhere('(pmc.id IS NULL OR route.price <= 0)')
       .getCount();
   }
 }

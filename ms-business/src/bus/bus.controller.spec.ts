@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BusController } from './bus.controller';
 import { BusService } from './bus.service';
 import { BusPhotoService } from '@/bus-photo/bus-photo.service';
+import { SecurityGuard } from '@/auth/guards/security.guard';
 
 describe('BusController', () => {
   let controller: BusController;
@@ -29,7 +30,10 @@ describe('BusController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(SecurityGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<BusController>(BusController);
   });

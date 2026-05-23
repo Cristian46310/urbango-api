@@ -15,7 +15,7 @@ export class ResponseIncidentDto {
 
   @ApiProperty({ example: '2026-05-18T12:00:00.000Z' })
   @Expose()
-  reportedAt!: Date;
+  createdAt!: Date;
 
   @ApiProperty({ enum: IncidentType, example: IncidentType.MECHANICAL })
   @Expose()
@@ -33,10 +33,10 @@ export class ResponseIncidentDto {
   @Expose()
   description!: string;
 
-  @ApiProperty({ type: ResponseIncidentDriverDto })
+  @ApiProperty({ type: ResponseIncidentDriverDto, required: false })
   @Expose()
   @Type(() => ResponseIncidentDriverDto)
-  driver!: ResponseIncidentDriverDto;
+  driver?: ResponseIncidentDriverDto;
 
   @ApiProperty({ type: [ResponseIncidentPhotoDto] })
   @Expose()

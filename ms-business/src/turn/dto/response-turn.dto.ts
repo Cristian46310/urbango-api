@@ -21,10 +21,6 @@ export class ResponseTurnDto {
 
   @ApiProperty({ required: false })
   @Expose()
-  actualStartTime?: Date;
-
-  @ApiProperty({ required: false })
-  @Expose()
   busStatus?: string;
 
   @ApiProperty({ required: false })

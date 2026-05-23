@@ -11,7 +11,7 @@ import { Node } from '@/node/entities/node.entity';
 import { Ticket } from '@/ticket/entities/ticket.entity';
 
 @Entity('histories')
-@Index(['ticket', 'order'], { unique: true })
+@Index(['ticket', 'node'], { unique: true })
 export class History {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

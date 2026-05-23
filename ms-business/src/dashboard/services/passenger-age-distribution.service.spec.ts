@@ -43,25 +43,25 @@ describe('PassengerAgeDistributionService', () => {
     queryBuilder.getMany
       .mockResolvedValueOnce([
         {
-          boardedAt: new Date('2025-04-10T10:00:00.000Z'),
+          createdAt: new Date('2025-04-10T10:00:00.000Z'),
           citizen: { birthDate: new Date('2010-01-01') },
         },
         {
-          boardedAt: new Date('2025-04-10T10:00:00.000Z'),
+          createdAt: new Date('2025-04-10T10:00:00.000Z'),
           citizen: { birthDate: new Date('2003-01-01') },
         },
         {
-          boardedAt: new Date('2025-04-10T10:00:00.000Z'),
+          createdAt: new Date('2025-04-10T10:00:00.000Z'),
           citizen: { birthDate: new Date('1990-01-01') },
         },
         {
-          boardedAt: new Date('2025-04-10T10:00:00.000Z'),
+          createdAt: new Date('2025-04-10T10:00:00.000Z'),
           citizen: {},
         },
       ])
       .mockResolvedValueOnce([
         {
-          boardedAt: new Date('2025-03-10T10:00:00.000Z'),
+          createdAt: new Date('2025-03-10T10:00:00.000Z'),
           citizen: { birthDate: new Date('2003-01-01') },
         },
       ]);

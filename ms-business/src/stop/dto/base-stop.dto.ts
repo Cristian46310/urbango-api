@@ -45,5 +45,5 @@ export class BaseStopDto {
   })
   @IsEnum(StopType)
   @IsOptional()
-  tipo?: StopType;
+  type?: StopType;
 }

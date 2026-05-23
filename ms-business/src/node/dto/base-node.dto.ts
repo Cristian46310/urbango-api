@@ -15,11 +15,6 @@ export class BaseNodeDto {
   @IsNotEmpty()
   stopId!: string;
 
-  @ApiProperty({ example: 1.4, minimum: 0 })
-  @IsNumber()
-  @Min(0)
-  distanceFromPrevious!: number;
-
   @ApiProperty({ example: 5, minimum: 0 })
   @IsInt()
   @Min(0)

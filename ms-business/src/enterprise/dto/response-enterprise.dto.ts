@@ -14,10 +14,6 @@ export class ResponseEnterpriseDto {
   @Expose()
   nit!: string;
 
-  @ApiProperty({ example: 'supervisor@transu.com', required: false })
-  @Expose()
-  supervisorEmail?: string;
-
   @ApiProperty({ example: '2023-01-01T00:00:00.000Z' })
   @Expose()
   createdAt!: Date;

@@ -46,7 +46,7 @@ export class ResponseStopDto {
     example: StopType.REGULAR,
   })
   @Expose()
-  tipo!: StopType;
+  type!: StopType;
 
   @ApiProperty({
     example: '2023-01-01T00:00:00.000Z',
