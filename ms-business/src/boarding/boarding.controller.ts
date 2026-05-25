@@ -22,6 +22,6 @@ export class BoardingController {
     @Body() boardingRequestDto: BoardingRequestDto,
     @Req() req: RequestWithCitizen,
   ): Promise<BoardingResponseDto> {
-    return this.boardingService.board(boardingRequestDto, req.user?.citizenId);
+    return this.boardingService.board(boardingRequestDto,   req.user?.citizenId);
   }
 }
