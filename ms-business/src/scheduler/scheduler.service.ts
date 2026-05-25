@@ -210,8 +210,7 @@ export class SchedulerService {
       endTime,
       status: SchedulerStatus.SCHEDULED,
       toleranceMinutes,
-      recurrenceType:
-        createSchedulerDto.recurrenceType ?? RecurrenceType.NONE,
+      recurrenceType: createSchedulerDto.recurrenceType ?? RecurrenceType.NONE,
     });
     const saved = await this.schedulerRepository.save(scheduler);
     return this.toResponseDto(saved);
@@ -229,9 +228,7 @@ export class SchedulerService {
     };
   }
 
-  async findAll(
-    query: SchedulerQueryDto,
-  ): Promise<ResponseSchedulerListDto> {
+  async findAll(query: SchedulerQueryDto): Promise<ResponseSchedulerListDto> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
     const where: FindOptionsWhere<Scheduler> = {

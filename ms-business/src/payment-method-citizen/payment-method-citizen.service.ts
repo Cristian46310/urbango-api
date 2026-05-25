@@ -106,6 +106,29 @@ export class PaymentMethodCitizenService {
     };
   }
 
+  async findAllForCitizenUser(
+    userId: string,
+  ): Promise<ResponsePaymentMethodCitizenDto[]> {
+    const citizen = await this.citizenRepository.findOne({
+      where: { userId },
+    });
+    if (!citizen) {
+      throw new BadRequestException(
+        'Debe registrar su perfil de ciudadano antes de usar métodos de pago',
+      );
+    }
+
+    const items = await this.pmcRepository.find({
+      where: { citizen: { id: citizen.id } },
+      relations: ['paymentMethod', 'citizen'],
+      order: { createdAt: 'DESC' },
+    });
+
+    return plainToInstance(ResponsePaymentMethodCitizenDto, items, {
+      enableImplicitConversion: true,
+    });
+  }
+
   async findAll(
     pagination: PaginationQueryDto,
   ): Promise<ResponsePaymentMethodCitizenListDto> {

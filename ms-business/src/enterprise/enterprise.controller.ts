@@ -3,7 +3,7 @@ import {
   Get,
   Post,
   Body,
-  Patch,
+  Put,
   Param,
   Delete,
   Query,
@@ -54,7 +54,7 @@ export class EnterpriseController {
     return this.enterpriseService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   @ApiOperation({ summary: 'Actualizar empresa (requiere permisos RBAC)' })
   update(
     @Param('id') id: string,

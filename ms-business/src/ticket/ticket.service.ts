@@ -1,6 +1,7 @@
 import {
   Injectable,
   BadRequestException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { CreateTicketDto } from './dto/create-ticket.dto';
@@ -14,10 +15,13 @@ import { Citizen } from '@/citizen/entities/citizen.entity';
 import { PaymentMethodCitizen } from '@/payment-method-citizen/entities/payment-method-citizen.entity';
 import { Scheduler } from '@/scheduler/entities/scheduler.entity';
 import { History } from '@/history/entities/history.entity';
+import { HistoryEventType } from '@/history/enums/history-event-type.enum';
 import { Node } from '@/node/entities/node.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponseTicketDto } from './dto/response-ticket.dto';
+import { ResponseCitizenTicketDto } from './dto/response-citizen-ticket.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
+import { TicketQueryDto } from './dto/ticket-query.dto';
 
 @Injectable()
 export class TicketService {
@@ -41,7 +45,35 @@ export class TicketService {
       id: ticket.id,
       status: ticket.status,
       createdAt: ticket.createdAt,
+      boardedAt: ticket.boardedAt,
+      completedAt: ticket.completedAt,
       routePrice: ticket.scheduler?.route?.price,
+    });
+  }
+
+  private toCitizenResponse(ticket: Ticket): ResponseCitizenTicketDto {
+    const base = this.toResponse(ticket);
+    const reference = ticket.boardedAt ?? ticket.createdAt;
+    const end = ticket.completedAt;
+    let totalTravelTimeMinutes: number | undefined;
+    if (end) {
+      totalTravelTimeMinutes = Math.max(
+        0,
+        Math.round((end.getTime() - reference.getTime()) / 60000),
+      );
+    }
+
+    const firstHistory = [...(ticket.histories ?? [])].sort(
+      (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+    )[0];
+
+    return plainToInstance(ResponseCitizenTicketDto, {
+      ...base,
+      routeName: ticket.scheduler?.route?.name,
+      routeId: ticket.scheduler?.route?.id,
+      busPlate: ticket.scheduler?.bus?.plate,
+      totalTravelTimeMinutes,
+      tripDetailHistoryId: firstHistory?.id,
     });
   }
 
@@ -119,6 +151,36 @@ export class TicketService {
     };
   }
 
+  async findForCitizen(citizenId: string, query: TicketQueryDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const where: { citizen: { id: string }; status?: TicketStatus } = {
+      citizen: { id: citizenId },
+    };
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    const [items, totalItems] = await this.ticketRepository.findAndCount({
+      where,
+      relations: [
+        'citizen',
+        'scheduler',
+        'scheduler.route',
+        'scheduler.bus',
+        'histories',
+      ],
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return {
+      items: items.map((item) => this.toCitizenResponse(item)),
+      meta: this.buildPaginationMeta(page, limit, totalItems),
+    };
+  }
+
   async findOne(id: string) {
     const ticket = await this.ticketRepository.findOne({
       where: { id },
@@ -183,6 +245,7 @@ export class TicketService {
   async alightTicket(
     ticketId: string,
     alightTicketDto: AlightTicketDto,
+    citizenId: string,
   ): Promise<AlightResponseDto> {
     const ticket = await this.ticketRepository.findOne({
       where: { id: ticketId },
@@ -199,6 +262,12 @@ export class TicketService {
 
     if (!ticket) {
       throw new NotFoundException(`Ticket ${ticketId} not found`);
+    }
+
+    if (ticket.citizen?.id !== citizenId) {
+      throw new ForbiddenException(
+        'Este boleto no pertenece al ciudadano autenticado',
+      );
     }
 
     if (ticket.status !== TicketStatus.ACTIVE) {
@@ -229,12 +298,14 @@ export class TicketService {
     const alightHistory = this.historyRepository.create({
       ticket,
       node: alightNode,
+      eventType: HistoryEventType.ALIGHTING,
     });
 
     await this.historyRepository.save(alightHistory);
 
     const now = new Date();
     ticket.status = TicketStatus.COMPLETED;
+    ticket.completedAt = now;
 
     await this.ticketRepository.save(ticket);
 

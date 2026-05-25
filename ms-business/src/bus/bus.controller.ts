@@ -3,7 +3,7 @@ import {
   Get,
   Post,
   Body,
-  Patch,
+  Put,
   Param,
   Delete,
   Query,
@@ -104,7 +104,7 @@ export class BusController {
     return this.busService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   @UseGuards(SecurityGuard)
   @ApiBearerAuth()
   @ApiOperation({

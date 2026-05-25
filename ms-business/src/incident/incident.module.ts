@@ -15,17 +15,15 @@ import { IncidentPhotoModule } from '@/incident-photo/incident-photo.module';
 @Module({
   imports: [
     AuthModule,
-    TypeOrmModule.forFeature([
-      Incident,
-      IncidentBus,
-      Bus,
-      Turn,
-      Driver,
-    ]),
+    TypeOrmModule.forFeature([Incident, IncidentBus, Bus, Turn, Driver]),
     IncidentPhotoModule,
   ],
   controllers: [IncidentController],
-  providers: [IncidentService, IncidentNotificationService, NotificationService],
+  providers: [
+    IncidentService,
+    IncidentNotificationService,
+    NotificationService,
+  ],
   exports: [IncidentService, TypeOrmModule],
 })
 export class IncidentModule {}

@@ -10,8 +10,8 @@ import {
   ResponseRouteDto,
   ResponseRouteNodeDto,
 } from './dto/response-route.dto';
-import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponseRouteListDto } from './dto/response-route-list.dto';
+import { RouteQueryDto } from './dto/route-query.dto';
 import { BaseNodeDto } from '@/node/dto/base-node.dto';
 
 @Injectable()
@@ -32,6 +32,7 @@ export class RouteService {
 
     const nodes = orderedNodes.map(
       (node): ResponseRouteNodeDto => ({
+        id: node.id,
         order: node.order,
         estimatedTimeMinutes: node.estimatedTimeMinutes,
         stop: {
@@ -182,17 +183,25 @@ export class RouteService {
     return this.toResponseRouteDto(createdRoute);
   }
 
-  async findAll(
-    paginationQuery: PaginationQueryDto,
-  ): Promise<ResponseRouteListDto> {
-    const page = paginationQuery.page ?? 1;
-    const limit = paginationQuery.limit ?? 10;
-    const [routes, totalItems] = await this.routeRepository.findAndCount({
-      relations: ['nodes', 'nodes.stop'],
-      order: { createdAt: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+  async findAll(query: RouteQueryDto): Promise<ResponseRouteListDto> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const qb = this.routeRepository
+      .createQueryBuilder('route')
+      .leftJoinAndSelect('route.nodes', 'node')
+      .leftJoinAndSelect('node.stop', 'stop')
+      .orderBy('route.createdAt', 'DESC');
+
+    if (query.name?.trim()) {
+      qb.andWhere('LOWER(route.name) LIKE LOWER(:name)', {
+        name: `%${query.name.trim()}%`,
+      });
+    }
+
+    const [routes, totalItems] = await qb
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
 
     return {
       items: routes.map((route) => this.toResponseRouteDto(route)),

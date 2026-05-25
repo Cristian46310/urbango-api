@@ -14,9 +14,9 @@ Documentación interactiva: `/docs`
 | Método | Ruta |
 |--------|------|
 | POST | `/route` |
-| GET | `/route` |
+| GET | `/route` | Query: `page`, `limit`, `name` (filtro parcial) |
 | GET | `/route/:id` |
-| PATCH | `/route/:id` |
+| PUT | `/route/:id` |
 | DELETE | `/route/:id` |
 
 ## stop
@@ -27,7 +27,7 @@ Documentación interactiva: `/docs`
 | GET | `/stop` |
 | GET | `/stop/nearby` |
 | GET | `/stop/:id` |
-| PATCH | `/stop/:id` |
+| PUT | `/stop/:id` |
 | DELETE | `/stop/:id` |
 
 ## node
@@ -37,7 +37,7 @@ Documentación interactiva: `/docs`
 | POST | `/node/route/:routeId/stop/:stopId` |
 | GET | `/node` |
 | GET | `/node/:id` |
-| PATCH | `/node/:id` |
+| PUT | `/node/:id` |
 | DELETE | `/node/:id` |
 
 ## address
@@ -47,7 +47,7 @@ Documentación interactiva: `/docs`
 | POST | `/address` |
 | GET | `/address` |
 | GET | `/address/:id` |
-| PATCH | `/address/:id` |
+| PUT | `/address/:id` |
 | DELETE | `/address/:id` |
 
 ## citizen
@@ -57,7 +57,7 @@ Documentación interactiva: `/docs`
 | POST | `/citizen` |
 | GET | `/citizen` |
 | GET | `/citizen/:id` |
-| PATCH | `/citizen/:id` |
+| PUT | `/citizen/:id` |
 | DELETE | `/citizen/:id` |
 
 ## driver
@@ -67,7 +67,7 @@ Documentación interactiva: `/docs`
 | POST | `/driver` |
 | GET | `/driver` |
 | GET | `/driver/:id` |
-| PATCH | `/driver/:id` |
+| PUT | `/driver/:id` |
 | DELETE | `/driver/:id` |
 
 ## enterprise
@@ -77,7 +77,7 @@ Documentación interactiva: `/docs`
 | POST | `/enterprise` |
 | GET | `/enterprise` |
 | GET | `/enterprise/:id` |
-| PATCH | `/enterprise/:id` |
+| PUT | `/enterprise/:id` |
 | DELETE | `/enterprise/:id` |
 
 ## bus
@@ -88,18 +88,25 @@ Documentación interactiva: `/docs`
 | GET | `/bus/fleet` | Flota de la empresa del conductor autenticado |
 | GET | `/bus` |
 | GET | `/bus/:id` |
-| PATCH | `/bus/:id` |
+| PUT | `/bus/:id` |
 | DELETE | `/bus/:id` |
 | POST | `/bus/:id/photo` | Multipart, campo `photo` |
 
+## boarding
+
+| Método | Ruta | Auth |
+|--------|------|------|
+| POST | `/boarding` | JWT (`@Authenticated`) — abordaje ciudadano |
+
 ## turn
 
-| Método | Ruta |
-|--------|------|
+| Método | Ruta | Auth |
+|--------|------|------|
+| POST | `/turn/start` | JWT (`@Authenticated`) — inicia turno conductor; body opcional `latitude`, `longitude` para GPS |
 | POST | `/turn` |
 | GET | `/turn` |
 | GET | `/turn/:id` |
-| PATCH | `/turn/:id` |
+| PUT | `/turn/:id` |
 | DELETE | `/turn/:id` |
 
 ## scheduler
@@ -109,18 +116,20 @@ Documentación interactiva: `/docs`
 | POST | `/scheduler` |
 | GET | `/scheduler` |
 | GET | `/scheduler/:id` |
-| PATCH | `/scheduler/:id` |
+| PUT | `/scheduler/:id` |
 | DELETE | `/scheduler/:id` |
 
 ## ticket
 
-| Método | Ruta |
-|--------|------|
+| Método | Ruta | Auth |
+|--------|------|------|
 | POST | `/ticket` |
+| GET | `/ticket/me` | JWT — boletos del ciudadano; query `status`, `page`, `limit`; items con `routeName`, `busPlate`, `totalTravelTimeMinutes` |
+| GET | `/ticket/:id/trip-details` | JWT — HU-005: ruta, validaciones, bus, conductor, tiempo total |
 | GET | `/ticket` |
 | GET | `/ticket/:id` |
-| PATCH | `/ticket/:id` |
-| POST | `/ticket/:id/alight` |
+| PUT | `/ticket/:id` |
+| POST | `/ticket/:id/alight` | JWT — descenso (solo dueño del boleto) |
 | DELETE | `/ticket/:id` |
 
 ## history
@@ -131,7 +140,7 @@ Documentación interactiva: `/docs`
 | GET | `/history` |
 | GET | `/history/:id` |
 | GET | `/history/:id/trip-details` |
-| PATCH | `/history/:id` |
+| PUT | `/history/:id` |
 | DELETE | `/history/:id` |
 
 ## payment-method
@@ -141,7 +150,7 @@ Documentación interactiva: `/docs`
 | POST | `/payment-method` |
 | GET | `/payment-method` |
 | GET | `/payment-method/:id` |
-| PATCH | `/payment-method/:id` |
+| PUT | `/payment-method/:id` |
 | DELETE | `/payment-method/:id` |
 
 ## payment-method-citizen
@@ -151,7 +160,7 @@ Documentación interactiva: `/docs`
 | POST | `/payment-method-citizen` |
 | GET | `/payment-method-citizen` |
 | GET | `/payment-method-citizen/:id` |
-| PATCH | `/payment-method-citizen/:id` |
+| PUT | `/payment-method-citizen/:id` |
 | DELETE | `/payment-method-citizen/:id` |
 
 ## card-recharge (ePayco — HU-ENTR-2-013)
@@ -184,12 +193,12 @@ Documentación interactiva: `/docs`
 
 | Método | Ruta | Auth |
 |--------|------|------|
-| GET | `/incident-reports` | Público (listado paginado) |
+| GET | `/incident-reports` | JWT (listado paginado) |
 | GET | `/incident-reports/bus/:busId` | JWT (`type`, `status`, `page`, `limit` en query) |
 | POST | `/incident-reports/driver` | JWT + rol `DRIVER`, multipart fotos |
 | GET | `/incident-reports/:incidentId/comments` | JWT |
 | POST | `/incident-reports/:incidentId/comments` | JWT |
-| PATCH | `/incident-reports/:incidentId/status` | JWT |
+| PUT | `/incident-reports/:incidentId/status` | JWT |
 
 ## dashboard
 

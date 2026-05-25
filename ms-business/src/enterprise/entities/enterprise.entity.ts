@@ -23,7 +23,6 @@ export class Enterprise {
   @OneToMany(() => Bus, (bus) => bus.enterprise)
   buses!: Bus[];
 
-  
   @OneToMany(() => Driver, (driver) => driver.enterprise)
   drivers!: Driver[];
 

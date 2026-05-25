@@ -74,7 +74,7 @@ export class BusPhotoService {
     });
     if (existing) {
       throw new ConflictException(
-        `Bus ${busId} already has a photo. Use PATCH or POST .../photo on the bus to replace it.`,
+        `Bus ${busId} already has a photo. Use PUT or POST .../photo on the bus to replace it.`,
       );
     }
 

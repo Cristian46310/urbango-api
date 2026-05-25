@@ -26,6 +26,9 @@ export class Turn {
   @Column({ type: 'timestamp with time zone', nullable: true })
   endTime!: Date;
 
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  actualStartTime?: Date | null;
+
   @Column({
     type: 'enum',
     enum: TurnStatus,

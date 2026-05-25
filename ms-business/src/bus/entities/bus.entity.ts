@@ -52,11 +52,14 @@ export class Bus {
   @OneToMany(() => Scheduler, (scheduler) => scheduler.bus)
   schedulers?: Scheduler[];
 
-    @OneToOne(() => Gps, (gps) => gps.bus, { onDelete: 'CASCADE', eager: true })
-    @JoinColumn({ name: 'gps_id' })
-    gps!: Gps;
+  @OneToOne(() => Gps, (gps) => gps.bus, { onDelete: 'CASCADE', eager: true })
+  @JoinColumn({ name: 'gps_id' })
+  gps!: Gps;
 
-  @OneToMany(() => BusPhoto, (photo) => photo.bus, { onDelete: 'CASCADE', eager: true })
+  @OneToMany(() => BusPhoto, (photo) => photo.bus, {
+    onDelete: 'CASCADE',
+    eager: true,
+  })
   photos?: BusPhoto[];
 
   @OneToMany(() => IncidentBus, (incidentBus) => incidentBus.bus)

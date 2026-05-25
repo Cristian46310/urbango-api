@@ -70,6 +70,7 @@ export class BusService {
 
     const bus = this.busRepository.create({
       ...createBusDto,
+      color: createBusDto.color?.trim() || 'Sin especificar',
       enterprise: { id: enterpriseId } as Enterprise,
     });
 
@@ -187,7 +188,9 @@ export class BusService {
       standingCapacity != null &&
       seatedCapacity + standingCapacity === 0
     ) {
-      throw new BadRequestException('Bus must have at least one seat or standing place');
+      throw new BadRequestException(
+        'Bus must have at least one seat or standing place',
+      );
     }
   }
 

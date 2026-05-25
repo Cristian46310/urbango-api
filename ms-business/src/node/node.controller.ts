@@ -3,7 +3,7 @@ import {
   Get,
   Post,
   Body,
-  Patch,
+  Put,
   Param,
   Delete,
   Query,
@@ -57,7 +57,7 @@ export class NodeController {
     return await this.nodeService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   @ApiOperation({ summary: 'Actualizar un nodo por id' })
   @ApiParam({ name: 'id', description: 'Id del nodo', format: 'uuid' })
   @ApiOkResponse({ type: ResponseNodeDto })

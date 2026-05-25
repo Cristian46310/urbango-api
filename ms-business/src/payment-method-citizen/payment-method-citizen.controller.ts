@@ -3,7 +3,7 @@ import {
   Get,
   Post,
   Body,
-  Patch,
+  Put,
   Param,
   Delete,
   Query,
@@ -25,6 +25,22 @@ export class PaymentMethodCitizenController {
   constructor(
     private readonly paymentMethodCitizenService: PaymentMethodCitizenService,
   ) {}
+
+  @Get('me')
+  @Authenticated()
+  @ApiBearerAuth('bearer')
+  @ApiOperation({
+    summary:
+      'Listar métodos de pago del ciudadano autenticado (abordaje, recargas, etc.)',
+  })
+  findAllForMe(@CurrentUser() currentUser: JwtPayload) {
+    if (!currentUser?.id) {
+      throw new BadRequestException('Usuario no identificado en el token');
+    }
+    return this.paymentMethodCitizenService.findAllForCitizenUser(
+      currentUser.id,
+    );
+  }
 
   @Post('me')
   @Authenticated()
@@ -67,7 +83,7 @@ export class PaymentMethodCitizenController {
     return this.paymentMethodCitizenService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   update(
     @Param('id') id: string,
     @Body() updatePaymentMethodCitizenDto: UpdatePaymentMethodCitizenDto,

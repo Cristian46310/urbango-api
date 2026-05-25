@@ -1,6 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export class ResponseNodeDto {
+  @ApiProperty({
+    example: '64b345ef-b653-47d7-96c7-c22f1ff58b17',
+    description: 'ID del nodo (usar en POST /boarding como nodeId)',
+  })
+  id!: string;
+
   @ApiProperty({ example: 1 })
   order!: number;
 

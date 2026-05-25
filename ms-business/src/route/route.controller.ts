@@ -3,7 +3,7 @@ import {
   Get,
   Post,
   Body,
-  Patch,
+  Put,
   Param,
   Delete,
   Query,
@@ -20,8 +20,8 @@ import { RouteService } from './route.service';
 import { UpdateRouteDto } from './dto/update-route.dto';
 import { CreateRouteNodesDto } from './dto/create-route-nodes.dto';
 import { ResponseRouteDto } from './dto/response-route.dto';
-import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponseRouteListDto } from './dto/response-route-list.dto';
+import { RouteQueryDto } from './dto/route-query.dto';
 
 @ApiTags('Routes')
 @Controller('route')
@@ -38,8 +38,8 @@ export class RouteController {
   @Get()
   @ApiOperation({ summary: 'Listar todas las rutas' })
   @ApiOkResponse({ type: ResponseRouteListDto })
-  async findAll(@Query() paginationQuery: PaginationQueryDto) {
-    return await this.routeService.findAll(paginationQuery);
+  async findAll(@Query() query: RouteQueryDto) {
+    return await this.routeService.findAll(query);
   }
 
   @Get(':id')
@@ -50,7 +50,7 @@ export class RouteController {
     return await this.routeService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   @ApiOperation({ summary: 'Actualizar una ruta por id' })
   @ApiParam({ name: 'id', description: 'Id de la ruta', format: 'uuid' })
   @ApiOkResponse({ type: ResponseRouteDto })

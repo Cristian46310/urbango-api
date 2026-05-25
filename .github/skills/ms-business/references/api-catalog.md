@@ -16,7 +16,7 @@ Documentación interactiva: `/docs`
 | POST | `/route` |
 | GET | `/route` |
 | GET | `/route/:id` |
-| PATCH | `/route/:id` |
+| PUT | `/route/:id` |
 | DELETE | `/route/:id` |
 
 ## stop
@@ -27,7 +27,7 @@ Documentación interactiva: `/docs`
 | GET | `/stop` |
 | GET | `/stop/nearby` |
 | GET | `/stop/:id` |
-| PATCH | `/stop/:id` |
+| PUT | `/stop/:id` |
 | DELETE | `/stop/:id` |
 
 ## node
@@ -37,7 +37,7 @@ Documentación interactiva: `/docs`
 | POST | `/node/route/:routeId/stop/:stopId` |
 | GET | `/node` |
 | GET | `/node/:id` |
-| PATCH | `/node/:id` |
+| PUT | `/node/:id` |
 | DELETE | `/node/:id` |
 
 ## address
@@ -47,7 +47,7 @@ Documentación interactiva: `/docs`
 | POST | `/address` |
 | GET | `/address` |
 | GET | `/address/:id` |
-| PATCH | `/address/:id` |
+| PUT | `/address/:id` |
 | DELETE | `/address/:id` |
 
 ## citizen
@@ -57,7 +57,7 @@ Documentación interactiva: `/docs`
 | POST | `/citizen` |
 | GET | `/citizen` |
 | GET | `/citizen/:id` |
-| PATCH | `/citizen/:id` |
+| PUT | `/citizen/:id` |
 | DELETE | `/citizen/:id` |
 
 ## driver
@@ -67,7 +67,7 @@ Documentación interactiva: `/docs`
 | POST | `/driver` |
 | GET | `/driver` |
 | GET | `/driver/:id` |
-| PATCH | `/driver/:id` |
+| PUT | `/driver/:id` |
 | DELETE | `/driver/:id` |
 
 ## enterprise
@@ -77,7 +77,7 @@ Documentación interactiva: `/docs`
 | POST | `/enterprise` |
 | GET | `/enterprise` |
 | GET | `/enterprise/:id` |
-| PATCH | `/enterprise/:id` |
+| PUT | `/enterprise/:id` |
 | DELETE | `/enterprise/:id` |
 
 ## bus
@@ -87,7 +87,7 @@ Documentación interactiva: `/docs`
 | POST | `/bus` |
 | GET | `/bus` |
 | GET | `/bus/:id` |
-| PATCH | `/bus/:id` |
+| PUT | `/bus/:id` |
 | DELETE | `/bus/:id` |
 
 ## turn
@@ -97,7 +97,7 @@ Documentación interactiva: `/docs`
 | POST | `/turn` |
 | GET | `/turn` |
 | GET | `/turn/:id` |
-| PATCH | `/turn/:id` |
+| PUT | `/turn/:id` |
 | DELETE | `/turn/:id` |
 
 ## scheduler
@@ -107,7 +107,7 @@ Documentación interactiva: `/docs`
 | POST | `/scheduler` |
 | GET | `/scheduler` |
 | GET | `/scheduler/:id` |
-| PATCH | `/scheduler/:id` |
+| PUT | `/scheduler/:id` |
 | DELETE | `/scheduler/:id` |
 
 ## ticket
@@ -117,7 +117,7 @@ Documentación interactiva: `/docs`
 | POST | `/ticket` |
 | GET | `/ticket` |
 | GET | `/ticket/:id` |
-| PATCH | `/ticket/:id` |
+| PUT | `/ticket/:id` |
 | POST | `/ticket/:id/alight` |
 | DELETE | `/ticket/:id` |
 
@@ -129,7 +129,7 @@ Documentación interactiva: `/docs`
 | GET | `/history` |
 | GET | `/history/:id` |
 | GET | `/history/:id/trip-details` |
-| PATCH | `/history/:id` |
+| PUT | `/history/:id` |
 | DELETE | `/history/:id` |
 
 ## payment-method
@@ -139,7 +139,7 @@ Documentación interactiva: `/docs`
 | POST | `/payment-method` |
 | GET | `/payment-method` |
 | GET | `/payment-method/:id` |
-| PATCH | `/payment-method/:id` |
+| PUT | `/payment-method/:id` |
 | DELETE | `/payment-method/:id` |
 
 ## payment-method-citizen
@@ -149,7 +149,7 @@ Documentación interactiva: `/docs`
 | POST | `/payment-method-citizen` |
 | GET | `/payment-method-citizen` |
 | GET | `/payment-method-citizen/:id` |
-| PATCH | `/payment-method-citizen/:id` |
+| PUT | `/payment-method-citizen/:id` |
 | DELETE | `/payment-method-citizen/:id` |
 
 ## incident-reports
@@ -161,7 +161,7 @@ Documentación interactiva: `/docs`
 | POST | `/incident-reports/driver` | JWT + rol `DRIVER`, multipart fotos |
 | GET | `/incident-reports/:incidentId/comments` | JWT |
 | POST | `/incident-reports/:incidentId/comments` | JWT |
-| PATCH | `/incident-reports/:incidentId/status` | JWT |
+| PUT | `/incident-reports/:incidentId/status` | JWT |
 
 ## dashboard
 

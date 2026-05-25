@@ -84,10 +84,7 @@ export class BusPhotoController {
   ): Promise<ResponseBusPhotoDto> {
     const enterpriseId = await this.resolveEnterpriseId(user);
     await this.busService.assertBusBelongsToEnterprise(busId, enterpriseId);
-    return this.busPhotoService.upsertForBus(
-      busId,
-      this.toStorageFile(file),
-    );
+    return this.busPhotoService.upsertForBus(busId, this.toStorageFile(file));
   }
 
   @Get('bus/:busId')

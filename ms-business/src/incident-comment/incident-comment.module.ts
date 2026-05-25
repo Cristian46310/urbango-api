@@ -7,10 +7,7 @@ import { Incident } from '@/incident/entities/incident.entity';
 import { AuthModule } from '@/auth/auth.module';
 
 @Module({
-  imports: [
-    AuthModule,
-    TypeOrmModule.forFeature([IncidentComment, Incident]),
-  ],
+  imports: [AuthModule, TypeOrmModule.forFeature([IncidentComment, Incident])],
   providers: [IncidentCommentService],
   controllers: [IncidentCommentController],
   exports: [IncidentCommentService, TypeOrmModule],

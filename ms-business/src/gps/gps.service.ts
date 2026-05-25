@@ -50,6 +50,32 @@ export class GpsService {
     );
   }
 
+  async upsertBusPosition(
+    busId: string,
+    latitude: number,
+    longitude: number,
+  ): Promise<ResponseGpsDto> {
+    const bus = await this.busRepository.findOne({ where: { id: busId } });
+    if (!bus) {
+      throw new NotFoundException(`Bus with id ${busId} not found`);
+    }
+
+    const existing = await this.gpsRepository.findOne({
+      where: { bus: { id: busId } },
+      relations: ['bus'],
+    });
+
+    if (existing) {
+      existing.latitude = latitude;
+      existing.longitude = longitude;
+      existing.updatedAt = new Date();
+      const saved = await this.gpsRepository.save(existing);
+      return this.toResponse(saved);
+    }
+
+    return this.create(busId, { latitude, longitude });
+  }
+
   async create(busId: string, dto: CreateGpsDto): Promise<ResponseGpsDto> {
     const bus = await this.busRepository.findOne({ where: { id: busId } });
     if (!bus) {
@@ -61,7 +87,7 @@ export class GpsService {
     });
     if (existing) {
       throw new ConflictException(
-        `Bus ${busId} already has a GPS record. Use PATCH to update it.`,
+        `Bus ${busId} already has a GPS record. Use PUT to update it.`,
       );
     }
 
@@ -76,7 +102,9 @@ export class GpsService {
     return this.toResponse(saved);
   }
 
-  async findAll(paginationQuery: PaginationQueryDto): Promise<ResponseGpsListDto> {
+  async findAll(
+    paginationQuery: PaginationQueryDto,
+  ): Promise<ResponseGpsListDto> {
     const page = paginationQuery.page ?? 1;
     const limit = paginationQuery.limit ?? 10;
 

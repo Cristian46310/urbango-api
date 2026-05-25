@@ -20,7 +20,10 @@ export class IncidentBus {
   @JoinColumn({ name: 'incident_id' })
   incident!: Incident;
 
-  @ManyToOne(() => Bus, (bus) => bus.incidentBuses, { onDelete: 'CASCADE', eager: true })
+  @ManyToOne(() => Bus, (bus) => bus.incidentBuses, {
+    onDelete: 'CASCADE',
+    eager: true,
+  })
   @JoinColumn({ name: 'bus_id' })
   bus!: Bus;
 

@@ -445,7 +445,10 @@ export class CardRechargeService {
         lock: { mode: 'pessimistic_write' },
       });
 
-      if (!lockedTx || getTransactionStatus(lockedTx) === CardRechargeStatus.APPROVED) {
+      if (
+        !lockedTx ||
+        getTransactionStatus(lockedTx) === CardRechargeStatus.APPROVED
+      ) {
         return;
       }
 

@@ -18,8 +18,9 @@ export class BaseTurnDto {
   startTime!: string;
 
   @ApiProperty({
-    description: 'Fin del turno (ISO)',
-    example: '2026-01-01T12:00:00.000Z',
+    description:
+      'Fin del turno (ISO). Si no se envía o es anterior al inicio, el backend usa inicio + 8 horas.',
+    example: '2026-01-01T16:00:00.000Z',
   })
   @IsDateString()
   @IsOptional()
