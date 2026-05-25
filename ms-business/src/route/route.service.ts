@@ -33,10 +33,10 @@ export class RouteService {
     const nodes = orderedNodes.map(
       (node): ResponseRouteNodeDto => ({
         order: node.order,
-        distanceFromPrevious: Number(node.distanceFromPrevious),
         estimatedTimeMinutes: node.estimatedTimeMinutes,
         stop: {
           id: node.stop.id,
+          code: node.stop.code,
           name: node.stop.name,
           location: node.stop.location,
           latitude:
@@ -47,6 +47,7 @@ export class RouteService {
             node.stop.longitude !== undefined && node.stop.longitude !== null
               ? Number(node.stop.longitude)
               : undefined,
+          type: node.stop.type,
           createdAt: node.stop.createdAt,
         },
       }),
@@ -92,13 +93,9 @@ export class RouteService {
     }
 
     const firstNode = nodes.find((node) => node.order === 1);
-    if (
-      firstNode &&
-      (Number(firstNode.distanceFromPrevious) !== 0 ||
-        Number(firstNode.estimatedTimeMinutes) !== 0)
-    ) {
+    if (firstNode && Number(firstNode.estimatedTimeMinutes) !== 0) {
       throw new BadRequestException(
-        'El primer paradero debe tener distancia y tiempo estimado en 0',
+        'El primer paradero debe tener tiempo estimado en 0',
       );
     }
   }
@@ -169,7 +166,6 @@ export class RouteService {
         route: savedRoute,
         stop: stop!,
         order: nodeDto.order,
-        distanceFromPrevious: nodeDto.distanceFromPrevious,
         estimatedTimeMinutes: nodeDto.estimatedTimeMinutes,
       });
     });
@@ -178,7 +174,7 @@ export class RouteService {
 
     const createdRoute = await this.routeRepository.findOne({
       where: { id: savedRoute.id },
-      relations: ['nodes'],
+      relations: ['nodes', 'nodes.stop'],
     });
     if (!createdRoute) {
       throw new BadRequestException('Ruta no encontrada');
@@ -192,7 +188,7 @@ export class RouteService {
     const page = paginationQuery.page ?? 1;
     const limit = paginationQuery.limit ?? 10;
     const [routes, totalItems] = await this.routeRepository.findAndCount({
-      relations: ['nodes'],
+      relations: ['nodes', 'nodes.stop'],
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
@@ -207,7 +203,7 @@ export class RouteService {
   async findOne(id: string): Promise<ResponseRouteDto> {
     const route = await this.routeRepository.findOne({
       where: { id },
-      relations: ['nodes'],
+      relations: ['nodes', 'nodes.stop'],
     });
     if (!route) {
       throw new BadRequestException('Ruta no encontrada');
@@ -251,7 +247,6 @@ export class RouteService {
           route,
           stop: stop!,
           order: nodeDto.order,
-          distanceFromPrevious: nodeDto.distanceFromPrevious,
           estimatedTimeMinutes: nodeDto.estimatedTimeMinutes,
         });
       });
@@ -261,7 +256,7 @@ export class RouteService {
 
     const updatedRoute = await this.routeRepository.findOne({
       where: { id },
-      relations: ['nodes'],
+      relations: ['nodes', 'nodes.stop'],
     });
     if (!updatedRoute) {
       throw new BadRequestException('Ruta no encontrada');

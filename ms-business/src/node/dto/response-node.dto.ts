@@ -14,9 +14,6 @@ export class ResponseNodeDto {
   })
   routeId!: string;
 
-  @ApiProperty({ example: 1.4 })
-  distanceFromPrevious!: number;
-
   @ApiProperty({ example: 5 })
   estimatedTimeMinutes!: number;
 }

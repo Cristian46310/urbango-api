@@ -4,6 +4,7 @@ import { BadRequestException } from '@nestjs/common';
 import { BusService } from './bus.service';
 import { Bus } from './entities/bus.entity';
 import { Enterprise } from '@/enterprise/entities/enterprise.entity';
+import { Driver } from '@/driver/entities/driver.entity';
 import { provideMockRepo } from '@/test/helpers/repository-provider';
 import { createMockRepository } from '@/test/helpers/typeorm-mocks';
 
@@ -17,6 +18,7 @@ describe('BusService', () => {
         BusService,
         provideMockRepo(Bus),
         provideMockRepo(Enterprise),
+        provideMockRepo(Driver),
       ],
     }).compile();
 
@@ -31,11 +33,17 @@ describe('BusService', () => {
   it('create throws when enterprise not found', async () => {
     enterpriseRepo.findOne.mockResolvedValue(null);
     await expect(
-      service.create({
-        plate: 'ABC123',
-        enterpriseId: 'missing',
-        capacity: 40,
-      }),
+      service.create(
+        {
+          plate: 'ABC123',
+          model: 'Test',
+          year: 2020,
+          seatedCapacity: 35,
+          standingCapacity: 5,
+          status: 'operativo' as never,
+        },
+        'missing',
+      ),
     ).rejects.toThrow(BadRequestException);
   });
 });

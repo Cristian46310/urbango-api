@@ -16,6 +16,6 @@ export class PaymentMethod {
   @Column({ type: 'boolean', default: false })
   isRechargeable!: boolean;
 
-  @CreateDateColumn({ type: 'timestamp with time zone' })
+  @CreateDateColumn()
   createdAt!: Date;
 }

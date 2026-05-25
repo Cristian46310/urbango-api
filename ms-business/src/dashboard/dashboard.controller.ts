@@ -1,4 +1,11 @@
-import { Controller, Get, Header, Query, Res } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Header,
+  Query,
+  Res,
+  StreamableFile,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -9,10 +16,13 @@ import {
 import type { Response } from 'express';
 import { PaymentMethodIncomeService } from './services/payment-method-income.service';
 import { IncidentTrendByTypeService } from './services/incident-trend-by-type.service';
+import { PassengerAgeDistributionService } from './services/passenger-age-distribution.service';
 import { DashboardPeriodQueryDto } from './dto/dashboard-period-query.dto';
 import { DashboardIncidentTrendQueryDto } from './dto/dashboard-incident-trend-query.dto';
+import { AgeDistributionQueryDto } from './dto/age-distribution-query.dto';
 import { ResponsePaymentMethodIncomeDto } from './dto/response-payment-method-income.dto';
 import { ResponseIncidentTrendByTypeDto } from './dto/response-incident-trend-by-type.dto';
+import { AgeDistributionResponseDto } from './dto/age-distribution-response.dto';
 import { DashboardPeriodMonths } from './enums/dashboard-period-months.enum';
 
 @ApiTags('dashboard')
@@ -22,6 +32,7 @@ export class DashboardController {
   constructor(
     private readonly paymentMethodIncomeService: PaymentMethodIncomeService,
     private readonly incidentTrendByTypeService: IncidentTrendByTypeService,
+    private readonly passengerAgeDistributionService: PassengerAgeDistributionService,
   ) {}
 
   @Get('payment-method-income')
@@ -103,5 +114,44 @@ export class DashboardController {
       `attachment; filename="incident-trend-by-type-${months}m${enterpriseSuffix}.csv"`,
     );
     res.send(csv);
+  }
+
+  @Get('passengers/age-distribution')
+  @ApiOperation({
+    summary: 'Distribución porcentual de pasajeros por rango etario',
+    description:
+      'Calcula la edad de cada pasajero según fecha de nacimiento y fecha de viaje. ' +
+      'Pensado para gráfico de torta y tabla comparativa vs mes anterior.',
+  })
+  @ApiOkResponse({ type: AgeDistributionResponseDto })
+  getPassengerAgeDistribution(
+    @Query() query: AgeDistributionQueryDto,
+  ): Promise<AgeDistributionResponseDto> {
+    return this.passengerAgeDistributionService.getAgeDistribution(query);
+  }
+
+  @Get('passengers/age-distribution/export/excel')
+  @ApiOperation({
+    summary: 'Exportar distribución etaria (Excel)',
+  })
+  @ApiProduces(
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  )
+  async exportPassengerAgeDistributionAsExcel(
+    @Query() query: AgeDistributionQueryDto,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<StreamableFile> {
+    const { buffer, filename } =
+      await this.passengerAgeDistributionService.exportAgeDistributionAsExcel(
+        query,
+      );
+
+    response.set({
+      'Content-Type': 'application/vnd.ms-excel; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+
+    return new StreamableFile(buffer);
   }
 }

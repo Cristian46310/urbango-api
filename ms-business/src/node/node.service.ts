@@ -21,6 +21,15 @@ export class NodeService {
     private readonly stopRepository: Repository<Stop>,
   ) {}
 
+  private toResponse(node: Node): ResponseNodeDto {
+    return {
+      order: node.order,
+      stopId: node.stop.id,
+      routeId: node.route.id,
+      estimatedTimeMinutes: node.estimatedTimeMinutes,
+    };
+  }
+
   async create(
     routeId: string,
     stopId: string,
@@ -40,19 +49,12 @@ export class NodeService {
 
     const node = this.nodeRepository.create({
       route,
-      stop: stop,
+      stop,
       order: createNodeDto.order,
-      distanceFromPrevious: createNodeDto.distanceFromPrevious,
       estimatedTimeMinutes: createNodeDto.estimatedTimeMinutes,
     });
     const savedNode = await this.nodeRepository.save(node);
-    return {
-      order: savedNode.order,
-      stopId: savedNode.stop.id,
-      routeId: savedNode.route.id,
-      distanceFromPrevious: Number(savedNode.distanceFromPrevious),
-      estimatedTimeMinutes: savedNode.estimatedTimeMinutes,
-    };
+    return this.toResponse(savedNode);
   }
 
   private buildPaginationMeta(page: number, limit: number, totalItems: number) {
@@ -81,13 +83,7 @@ export class NodeService {
     });
 
     return {
-      items: nodes.map((node) => ({
-        order: node.order,
-        stopId: node.stop.id,
-        routeId: node.route.id,
-        distanceFromPrevious: Number(node.distanceFromPrevious),
-        estimatedTimeMinutes: node.estimatedTimeMinutes,
-      })),
+      items: nodes.map((node) => this.toResponse(node)),
       meta: this.buildPaginationMeta(page, limit, totalItems),
     };
   }
@@ -100,56 +96,34 @@ export class NodeService {
     if (!node) {
       throw new NotFoundException(`Node with id ${id} not found`);
     }
-    return {
-      order: node.order,
-      stopId: node.stop.id,
-      routeId: node.route.id,
-      distanceFromPrevious: Number(node.distanceFromPrevious),
-      estimatedTimeMinutes: node.estimatedTimeMinutes,
-    };
+    return this.toResponse(node);
   }
 
   async update(
     id: string,
     updateNodeDto: UpdateNodeDto,
   ): Promise<ResponseNodeDto> {
-    const node = await this.nodeRepository.preload({ id, ...updateNodeDto });
+    const node = await this.nodeRepository.findOne({
+      where: { id },
+      relations: ['route', 'stop'],
+    });
     if (!node) {
       throw new NotFoundException(`Node with id ${id} not found`);
     }
+
     if (updateNodeDto.order !== undefined) {
       node.order = updateNodeDto.order;
-    }
-    if (updateNodeDto.distanceFromPrevious !== undefined) {
-      node.distanceFromPrevious = updateNodeDto.distanceFromPrevious;
     }
     if (updateNodeDto.estimatedTimeMinutes !== undefined) {
       node.estimatedTimeMinutes = updateNodeDto.estimatedTimeMinutes;
     }
+
     const updatedNode = await this.nodeRepository.save(node);
-    // Reload with relations to ensure route is loaded
-    const nodeWithRelations = await this.nodeRepository.findOne({
-      where: { id: updatedNode.id },
-      relations: ['route', 'stop'],
-    });
-    if (!nodeWithRelations) {
-      throw new NotFoundException(`Node with id ${id} not found`);
-    }
-    return {
-      order: nodeWithRelations.order,
-      stopId: nodeWithRelations.stop.id,
-      routeId: nodeWithRelations.route.id,
-      distanceFromPrevious: Number(nodeWithRelations.distanceFromPrevious),
-      estimatedTimeMinutes: nodeWithRelations.estimatedTimeMinutes,
-    };
+    return this.toResponse(updatedNode);
   }
 
   async remove(id: string): Promise<void> {
-    const node = await this.findOne(id);
-    if (!node) {
-      throw new NotFoundException(`Node with id ${id} not found`);
-    }
+    await this.findOne(id);
     await this.nodeRepository.delete(id);
-    return;
   }
 }

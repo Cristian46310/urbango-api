@@ -15,6 +15,7 @@ export enum SchedulerStatus {
   COMPLETED = 'completado',
 }
 
+/** HU-011: lunes a viernes, fines de semana, diaria, o sin recurrencia */
 export enum RecurrenceType {
   NONE = 'none',
   WEEKDAYS = 'weekdays',
@@ -27,7 +28,7 @@ export class Scheduler {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @ManyToOne(() => Bus, { nullable: false })
+  @ManyToOne(() => Bus, { onDelete: 'CASCADE', eager: true })
   @JoinColumn({ name: 'bus_id' })
   bus!: Bus;
 
@@ -35,13 +36,15 @@ export class Scheduler {
   @JoinColumn({ name: 'route_id' })
   route!: Route;
 
-  @Column({ type: 'date', default: () => 'CURRENT_DATE' })
+  @Column({ type: 'date' })
   date!: string;
 
-  @Column({ type: 'timestamp with time zone' })
+  /** Hora de salida programada */
+  @Column()
   startTime!: Date;
 
-  @Column({ type: 'timestamp with time zone' })
+  /** Fin estimado del servicio (salida + duración de la ruta) */
+  @Column()
   endTime!: Date;
 
   @Column({
@@ -51,7 +54,7 @@ export class Scheduler {
   })
   status!: SchedulerStatus;
 
-  @Column({ name: 'tolerance_minutes', type: 'int', default: 0 })
+  @Column({ type: 'int', default: 0 })
   toleranceMinutes!: number;
 
   @Column({

@@ -26,7 +26,7 @@ export class StartTurnResponseDto {
   bus: StartTurnBusResponseDto;
 
   @ApiProperty({ example: '2025-05-18T08:00:00.000Z' })
-  actualStartTime: Date;
+  startTime: Date;
 
   @ApiProperty({ enum: TurnStatus, example: TurnStatus.IN_PROGRESS })
   status: TurnStatus;

@@ -8,6 +8,7 @@ import { DashboardPeriodService } from './services/dashboard-period.service';
 import { DashboardExportService } from './services/dashboard-export.service';
 import { PaymentMethodIncomeService } from './services/payment-method-income.service';
 import { IncidentTrendByTypeService } from './services/incident-trend-by-type.service';
+import { PassengerAgeDistributionService } from './services/passenger-age-distribution.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Ticket, Incident, Enterprise])],
@@ -17,6 +18,7 @@ import { IncidentTrendByTypeService } from './services/incident-trend-by-type.se
     DashboardExportService,
     PaymentMethodIncomeService,
     IncidentTrendByTypeService,
+    PassengerAgeDistributionService,
   ],
 })
 export class DashboardModule {}

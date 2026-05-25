@@ -85,7 +85,7 @@ describe('TurnService', () => {
         },
       }),
     );
-    expect(result.actualStartTime).toBeInstanceOf(Date);
+    expect(result.startTime).toBeInstanceOf(Date);
   });
 
   it('throws 404 when there is no current turn', async () => {

@@ -5,7 +5,7 @@ import { Global, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { JwtValidationService } from './services/jwt-validation.service';
-import { Person } from '@/shared/entities/person.entitie';
+import { Person } from '@/shared/entities/person.entity';
 
 @Global()
 @Module({

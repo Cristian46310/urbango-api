@@ -41,37 +41,39 @@ export class HistoryService {
     @InjectRepository(Node)
     private readonly nodeRepository: Repository<Node>,
   ) {}
-  async create(createHistoryDto: CreateHistoryDto) {
-    if (createHistoryDto.ticketId) {
-      const t = await this.ticketRepository.findOne({
-        where: { id: createHistoryDto.ticketId },
-      });
-      if (!t) throw new BadRequestException('Ticket not found');
-    }
-    if (createHistoryDto.nodeId) {
-      const n = await this.nodeRepository.findOne({
-        where: { id: createHistoryDto.nodeId },
-      });
-      if (!n) throw new BadRequestException('Node not found');
-    }
 
-    const histData: Partial<History> = {
-      ticket: createHistoryDto.ticketId
-        ? ({ id: createHistoryDto.ticketId } as Ticket)
-        : undefined,
-      node: createHistoryDto.nodeId
-        ? ({ id: createHistoryDto.nodeId } as Node)
-        : undefined,
-      order: createHistoryDto.order,
-      eventType: createHistoryDto.eventType,
-      eventTimestamp: createHistoryDto.eventTimestamp
-        ? new Date(createHistoryDto.eventTimestamp)
-        : undefined,
-    };
-    const hist = this.historyRepository.create(histData);
+  private toResponse(history: History): ResponseHistoryDto {
+    return plainToInstance(ResponseHistoryDto, {
+      id: history.id,
+      ticketId: history.ticket?.id,
+      nodeId: history.node?.id,
+      nodeOrder: history.node?.order,
+      createdAt: history.createdAt,
+    });
+  }
+
+  async create(createHistoryDto: CreateHistoryDto) {
+    const t = await this.ticketRepository.findOne({
+      where: { id: createHistoryDto.ticketId },
+    });
+    if (!t) throw new BadRequestException('Ticket not found');
+
+    const n = await this.nodeRepository.findOne({
+      where: { id: createHistoryDto.nodeId },
+    });
+    if (!n) throw new BadRequestException('Node not found');
+
+    const hist = this.historyRepository.create({
+      ticket: { id: createHistoryDto.ticketId } as Ticket,
+      node: { id: createHistoryDto.nodeId } as Node,
+    });
 
     const saved = await this.historyRepository.save(hist);
-    return plainToInstance(ResponseHistoryDto, saved);
+    const withRelations = await this.historyRepository.findOne({
+      where: { id: saved.id },
+      relations: ['ticket', 'node'],
+    });
+    return this.toResponse(withRelations ?? saved);
   }
 
   private buildPaginationMeta(page: number, limit: number, totalItems: number) {
@@ -98,7 +100,7 @@ export class HistoryService {
     });
 
     return {
-      items: plainToInstance(ResponseHistoryDto, items),
+      items: items.map((item) => this.toResponse(item)),
       meta: this.buildPaginationMeta(page, limit, totalItems),
     };
   }
@@ -109,41 +111,33 @@ export class HistoryService {
       relations: ['ticket', 'node', 'node.stop'],
     });
     if (!hist) throw new NotFoundException(`History ${id} not found`);
-    return plainToInstance(ResponseHistoryDto, hist);
+    return this.toResponse(hist);
   }
 
   async update(id: string, updateHistoryDto: UpdateHistoryDto) {
+    const hist = await this.historyRepository.findOne({
+      where: { id },
+      relations: ['ticket', 'node'],
+    });
+    if (!hist) throw new NotFoundException(`History ${id} not found`);
+
     if (updateHistoryDto.ticketId) {
       const t = await this.ticketRepository.findOne({
         where: { id: updateHistoryDto.ticketId },
       });
       if (!t) throw new BadRequestException('Ticket not found');
+      hist.ticket = { id: updateHistoryDto.ticketId } as Ticket;
     }
     if (updateHistoryDto.nodeId) {
       const n = await this.nodeRepository.findOne({
         where: { id: updateHistoryDto.nodeId },
       });
       if (!n) throw new BadRequestException('Node not found');
+      hist.node = { id: updateHistoryDto.nodeId } as Node;
     }
 
-    const preloadData: Partial<History> = {
-      id,
-      ticket: updateHistoryDto.ticketId
-        ? ({ id: updateHistoryDto.ticketId } as Ticket)
-        : undefined,
-      node: updateHistoryDto.nodeId
-        ? ({ id: updateHistoryDto.nodeId } as Node)
-        : undefined,
-      order: updateHistoryDto.order,
-      eventType: updateHistoryDto.eventType,
-      eventTimestamp: updateHistoryDto.eventTimestamp
-        ? new Date(updateHistoryDto.eventTimestamp)
-        : undefined,
-    };
-    const hist = await this.historyRepository.preload(preloadData);
-    if (!hist) throw new NotFoundException(`History ${id} not found`);
     const saved = await this.historyRepository.save(hist);
-    return plainToInstance(ResponseHistoryDto, saved);
+    return this.toResponse(saved);
   }
 
   async remove(id: string) {
@@ -177,7 +171,7 @@ export class HistoryService {
     const histories = await this.historyRepository.find({
       where: { ticket: { id: ticket.id } },
       relations: ['node', 'node.stop'],
-      order: { order: 'ASC' },
+      order: { createdAt: 'ASC' },
     });
 
     const times = histories.map((h) => h.createdAt.getTime());
@@ -186,19 +180,17 @@ export class HistoryService {
     const totalMs = isFinite(last - first) ? last - first : 0;
     const minutes = Math.round(totalMs / 60000);
 
-    // Bus and scheduler
     const scheduler = ticket.scheduler;
     const bus = scheduler?.bus;
 
-    // Find active turn for the bus at ticket.buyedAt
     let turn: Turn | null = null;
     let driver: Driver | null = null;
-    if (bus && ticket.buyedAt) {
+    if (bus && ticket.createdAt) {
       turn = await this.turnRepository.findOne({
         where: {
           bus: { id: bus.id },
-          startTime: LessThanOrEqual(ticket.buyedAt),
-          endTime: MoreThanOrEqual(ticket.buyedAt),
+          startTime: LessThanOrEqual(ticket.createdAt),
+          endTime: MoreThanOrEqual(ticket.createdAt),
         },
         relations: ['driver'],
       });
@@ -216,15 +208,17 @@ export class HistoryService {
         driver: driver ? plainToInstance(ResponseDriverDto, driver) : null,
         turn: turn ? plainToInstance(ResponseTurnDto, turn) : null,
         scheduler: scheduler
-          ? plainToInstance(ResponseSchedulerDto, scheduler)
+          ? plainToInstance(ResponseSchedulerDto, {
+              ...scheduler,
+              departureTime: scheduler.startTime,
+            })
           : null,
         validations: histories.map((h) => ({
-          order: h.order,
+          order: h.node?.order,
           stop: h.node?.stop
             ? plainToInstance(ResponseStopDto, h.node.stop)
             : null,
-          validatedAt: h.eventTimestamp ?? h.createdAt,
-          type: h.eventType,
+          validatedAt: h.createdAt,
         })),
         totalTime: { minutes, formatted: `${minutes} min` },
         citizen: plainToInstance(CitizenSummaryDto, {

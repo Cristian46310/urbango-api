@@ -129,7 +129,7 @@ export class TurnService {
       throw new NotFoundException('No hay turno programado para este horario');
     }
 
-    if (scheduledTurn.actualStartTime) {
+    if (scheduledTurn.status === TurnStatus.IN_PROGRESS) {
       throw new ConflictException('Turno ya iniciado');
     }
 
@@ -137,10 +137,9 @@ export class TurnService {
       throw new BadRequestException('El turno no tiene bus asignado');
     }
 
-    scheduledTurn.actualStartTime = now;
+    scheduledTurn.startTime = now;
     scheduledTurn.busStatus = busStatus.trim();
     scheduledTurn.busObservations = observations?.trim() || null;
-    scheduledTurn.gpsActivatedAt = now;
     scheduledTurn.status = TurnStatus.IN_PROGRESS;
 
     const saved = await this.turnRepository.save(scheduledTurn);
@@ -152,7 +151,7 @@ export class TurnService {
         placa: saved.bus.plate,
         modelo: saved.bus.model,
       },
-      actualStartTime: saved.actualStartTime!,
+      startTime: saved.startTime,
       status: saved.status,
     };
   }

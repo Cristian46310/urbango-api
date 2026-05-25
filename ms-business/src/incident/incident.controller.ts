@@ -17,16 +17,12 @@ import {
   ApiOperation,
   ApiOkResponse,
   ApiParam,
-  ApiCreatedResponse,
 } from '@nestjs/swagger';
 import { memoryStorage } from 'multer';
 import { IncidentService } from './incident.service';
 import { CreateIncidentDriverDto } from './dto/create-incident-driver.dto';
 import { BusIncidentQueryDto } from './dto/bus-incident-query.dto';
 import { ResponseBusIncidentListDto } from './dto/response-bus-incident-list.dto';
-import { CreateIncidentCommentDto } from './dto/create-incident-comment.dto';
-import { ResponseIncidentCommentDto } from './dto/response-incident-comment.dto';
-import { ResponseIncidentCommentListDto } from './dto/response-incident-comment-list.dto';
 import { UpdateIncidentStatusDto } from './dto/update-incident-status.dto';
 import { ResponseIncidentDto } from './dto/response-incident.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
@@ -95,30 +91,6 @@ export class IncidentController {
     @UploadedFiles() photos: Express.Multer.File[] = [],
   ) {
     return this.incidentService.createByDriver(currentUser, dto, photos);
-  }
-
-  @Get(':incidentId/comments')
-  @ApiBearerAuth('bearer')
-  @ApiOperation({
-    summary: 'Listar comentarios de seguimiento de un incidente',
-  })
-  @ApiParam({ name: 'incidentId', format: 'uuid' })
-  @ApiOkResponse({ type: ResponseIncidentCommentListDto })
-  listComments(@Param('incidentId') incidentId: string) {
-    return this.incidentService.listComments(incidentId);
-  }
-
-  @Post(':incidentId/comments')
-  @ApiBearerAuth('bearer')
-  @ApiOperation({ summary: 'Agregar comentario de seguimiento a un incidente' })
-  @ApiParam({ name: 'incidentId', format: 'uuid' })
-  @ApiCreatedResponse({ type: ResponseIncidentCommentDto })
-  addComment(
-    @Param('incidentId') incidentId: string,
-    @Body() dto: CreateIncidentCommentDto,
-    @CurrentUser() currentUser: JwtPayload,
-  ) {
-    return this.incidentService.addComment(incidentId, dto, currentUser);
   }
 
   @Patch(':incidentId/status')

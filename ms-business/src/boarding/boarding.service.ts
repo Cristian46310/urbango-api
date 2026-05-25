@@ -6,26 +6,28 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { DataSource, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { BoardingRequestDto } from './dto/boarding-request.dto';
 import { BoardingResponseDto } from './dto/boarding-response.dto';
-import {
-  PaymentMethodCitizen,
-  PaymentMethodStatus,
-  PaymentMethodType,
-} from '@/payment-method-citizen/entities/payment-method-citizen.entity';
+import { PaymentMethodCitizen } from '@/payment-method-citizen/entities/payment-method-citizen.entity';
 import {
   Scheduler,
   SchedulerStatus,
 } from '@/scheduler/entities/scheduler.entity';
 import { Ticket, TicketStatus } from '@/ticket/entities/ticket.entity';
-import { History, HistoryEventType } from '@/history/entities/history.entity';
+import { History } from '@/history/entities/history.entity';
 import { Citizen } from '@/citizen/entities/citizen.entity';
 import { Node } from '@/node/entities/node.entity';
+import { Bus } from '@/bus/entities/bus.entity';
 
 @Injectable()
 export class BoardingService {
   constructor(private readonly dataSource: DataSource) {}
+
+  private getBusCapacity(bus?: Bus | null): number | undefined {
+    if (!bus) return undefined;
+    return (bus.seatedCapacity ?? 0) + (bus.standingCapacity ?? 0);
+  }
 
   async board(
     dto: BoardingRequestDto,
@@ -43,24 +45,29 @@ export class BoardingService {
       const now = new Date();
       const today = this.formatDateInTimeZone(now, 'America/Bogota');
 
-      const scheduler = await queryRunner.manager.findOne(Scheduler, {
+      const candidates = await queryRunner.manager.find(Scheduler, {
         where: {
           bus: { id: dto.busId },
           date: today,
-          startTime: LessThanOrEqual(now),
-          endTime: MoreThanOrEqual(now),
           status: SchedulerStatus.SCHEDULED,
         },
         relations: ['bus', 'route'],
         lock: { mode: 'pessimistic_write' },
       });
 
+      const scheduler = candidates.find((item) => {
+        const windowStart = new Date(
+          item.startTime.getTime() - item.toleranceMinutes * 60 * 1000,
+        );
+        return now >= windowStart && now <= item.endTime;
+      });
+
       if (!scheduler) {
         throw new NotFoundException('No active scheduler found for this bus');
       }
 
-      const capacity = scheduler.bus?.capacity;
-      if (capacity !== undefined && capacity !== null) {
+      const capacity = this.getBusCapacity(scheduler.bus);
+      if (capacity !== undefined && capacity > 0) {
         const activeTickets = await queryRunner.manager.count(Ticket, {
           where: {
             scheduler: { id: scheduler.id },
@@ -92,10 +99,6 @@ export class BoardingService {
         );
       }
 
-      if (paymentMethodCitizen.status !== PaymentMethodStatus.ACTIVE) {
-        throw new BadRequestException('Payment method is not active');
-      }
-
       const node = await queryRunner.manager.findOne(Node, {
         where: { id: dto.nodeId },
         relations: ['route'],
@@ -114,7 +117,7 @@ export class BoardingService {
       const appliedRate = Number(scheduler.route.price);
       let remainingBalance: number | undefined;
 
-      if (paymentMethodCitizen.type === PaymentMethodType.PREPAID) {
+      if (paymentMethodCitizen.paymentMethod?.isRechargeable) {
         const currentBalance = Number(paymentMethodCitizen.balance);
 
         if (currentBalance < appliedRate) {
@@ -123,13 +126,11 @@ export class BoardingService {
 
         remainingBalance = currentBalance - appliedRate;
         paymentMethodCitizen.balance = remainingBalance;
+        await queryRunner.manager.save(
+          PaymentMethodCitizen,
+          paymentMethodCitizen,
+        );
       }
-
-      paymentMethodCitizen.lastUsedAt = now;
-      await queryRunner.manager.save(
-        PaymentMethodCitizen,
-        paymentMethodCitizen,
-      );
 
       const ticket = queryRunner.manager.create(Ticket, {
         citizen: { id: citizenId } as Citizen,
@@ -137,20 +138,13 @@ export class BoardingService {
           id: paymentMethodCitizen.id,
         } as PaymentMethodCitizen,
         scheduler: { id: scheduler.id } as Scheduler,
-        buyedAt: now,
-        appliedRate,
-        amount: appliedRate,
         status: TicketStatus.ACTIVE,
-        boardedAt: now,
       });
       const savedTicket = await queryRunner.manager.save(Ticket, ticket);
 
       const history = queryRunner.manager.create(History, {
         ticket: { id: savedTicket.id } as Ticket,
         node: { id: node.id } as Node,
-        order: node.order,
-        eventType: HistoryEventType.BOARDING,
-        eventTimestamp: now,
       });
       await queryRunner.manager.save(History, history);
 

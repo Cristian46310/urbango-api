@@ -7,11 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreatePaymentMethodCitizenDto } from './dto/create-payment-method-citizen.dto';
 import { UpdatePaymentMethodCitizenDto } from './dto/update-payment-method-citizen.dto';
-import {
-  PaymentMethodCitizen,
-  PaymentMethodStatus,
-  PaymentMethodType,
-} from './entities/payment-method-citizen.entity';
+import { PaymentMethodCitizen } from './entities/payment-method-citizen.entity';
 import { Citizen } from '@/citizen/entities/citizen.entity';
 import { PaymentMethod } from '@/payment-method/entities/payment-method.entity';
 import { plainToInstance } from 'class-transformer';
@@ -47,8 +43,6 @@ export class PaymentMethodCitizenService {
       citizen: { id: citizen.id } as Citizen,
       paymentMethod: { id: pm.id } as PaymentMethod,
       balance: createDto.balance ?? 0,
-      type: createDto.type ?? PaymentMethodType.PREPAID,
-      status: createDto.status ?? PaymentMethodStatus.ACTIVE,
     };
 
     if (pm.isRechargeable) {
@@ -143,28 +137,17 @@ export class PaymentMethodCitizenService {
     id: string,
     updateDto: UpdatePaymentMethodCitizenDto,
   ): Promise<ResponsePaymentMethodCitizenDto> {
-    const preloadData: Partial<PaymentMethodCitizen> = { id };
-    if (updateDto.citizenId) {
-      const citizen = await this.citizenRepository.findOne({
-        where: { id: updateDto.citizenId },
-      });
-      if (!citizen) throw new BadRequestException('Citizen not found');
-      preloadData.citizen = { id: citizen.id } as Citizen;
-    }
-    if (updateDto.paymentMethodId) {
-      const pm = await this.pmRepository.findOne({
-        where: { id: updateDto.paymentMethodId },
-      });
-      if (!pm) throw new BadRequestException('Payment method not found');
-      preloadData.paymentMethod = { id: pm.id } as PaymentMethod;
-    }
-    if (updateDto.balance !== undefined)
-      preloadData.balance = updateDto.balance;
-    if (updateDto.type !== undefined) preloadData.type = updateDto.type;
-    if (updateDto.status !== undefined) preloadData.status = updateDto.status;
-    const pmc = await this.pmcRepository.preload(preloadData);
+    const pmc = await this.pmcRepository.findOne({
+      where: { id },
+      relations: ['citizen', 'paymentMethod'],
+    });
     if (!pmc)
       throw new NotFoundException(`PaymentMethodCitizen ${id} not found`);
+
+    if (updateDto.balance !== undefined) {
+      pmc.balance = updateDto.balance;
+    }
+
     const saved = await this.pmcRepository.save(pmc);
     return plainToInstance(ResponsePaymentMethodCitizenDto, saved);
   }

@@ -30,15 +30,17 @@ import { ResponseBusListDto } from './dto/response-bus-list.dto';
 import { SecurityGuard } from '@/auth/guards/security.guard';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import type { JwtPayload } from '@/auth/types';
-import { BusStorageService, BusStorageFile } from './bus-storage.service';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { BusPhotoService } from '@/bus-photo/bus-photo.service';
+import { BusPhotoStorageFile } from '@/bus-photo/bus-photo-storage.service';
+import { ResponseBusPhotoDto } from '@/bus-photo/dto/response-bus-photo.dto';
 
 @ApiTags('Buses')
 @Controller('bus')
 export class BusController {
   constructor(
     private readonly busService: BusService,
-    private readonly busStorageService: BusStorageService,
+    private readonly busPhotoService: BusPhotoService,
   ) {}
 
   private async resolveEnterpriseId(user: JwtPayload): Promise<string> {
@@ -137,12 +139,12 @@ export class BusController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Subir foto del bus (requiere autenticación)' })
   @ApiParam({ name: 'id', format: 'uuid' })
-  @ApiCreatedResponse({ type: ResponseBusDto })
+  @ApiCreatedResponse({ type: ResponseBusPhotoDto })
   async uploadPhoto(
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
     @CurrentUser() user: JwtPayload,
-  ): Promise<ResponseBusDto> {
+  ): Promise<ResponseBusPhotoDto> {
     const enterpriseId = await this.resolveEnterpriseId(user);
     await this.busService.assertBusBelongsToEnterprise(id, enterpriseId);
 
@@ -164,17 +166,13 @@ export class BusController {
       );
     }
 
-    const storageFile: BusStorageFile = {
+    const storageFile: BusPhotoStorageFile = {
       buffer: file.buffer,
       originalname: file.originalname,
       mimetype: file.mimetype,
       size: file.size,
     };
 
-    const storedPhoto = await this.busStorageService.upload(storageFile);
-
-    return this.busService.update(id, {
-      photoUrl: storedPhoto.publicUrl,
-    });
+    return this.busPhotoService.upsertForBus(id, storageFile);
   }
 }

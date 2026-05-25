@@ -7,10 +7,12 @@ import {
   ManyToOne,
   OneToMany,
   OneToOne,
+  JoinColumn,
 } from 'typeorm';
 import { Turn } from '@/turn/entities/turn.entity';
 import { Scheduler } from '@/scheduler/entities/scheduler.entity';
-import { Gps } from '@/incident/entities/gps.entity';
+import { Gps } from '@/gps/entities/gps.entity';
+import { BusPhoto } from '@/bus-photo/entities/bus-photo.entity';
 import { IncidentBus } from '@/incident/entities/incident-bus.entity';
 import { BusStatus } from '../enums/bus-status.enum';
 
@@ -19,38 +21,30 @@ export class Bus {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ nullable: true })
-  color?: string;
+  @Column()
+  color!: string;
 
-  @Column({ nullable: true })
-  model?: string;
+  @Column()
+  model!: string;
 
   @Column({ unique: true })
   plate!: string;
 
-  @Column({ type: 'int', nullable: true })
-  capacity?: number;
+  @Column({ type: 'int' })
+  year!: number;
 
-  @Column({ type: 'int', nullable: true })
-  year?: number;
+  @Column({ type: 'int' })
+  seatedCapacity!: number;
 
-  @Column({ type: 'int', nullable: true })
-  seatedCapacity?: number;
-
-  @Column({ type: 'int', nullable: true })
-  standingCapacity?: number;
+  @Column({ type: 'int' })
+  standingCapacity!: number;
 
   @Column({ type: 'varchar', default: BusStatus.OPERATIVO })
-  status: BusStatus = BusStatus.OPERATIVO;
+  status!: BusStatus;
 
-  @Column({ type: 'text', nullable: true })
-  photoUrl?: string;
-
-  @Column({ type: 'text', nullable: true })
-  qrCode?: string;
-
-  @ManyToOne(() => Enterprise, { onDelete: 'SET NULL', eager: true })
-  enterprise?: Enterprise;
+  @ManyToOne(() => Enterprise, { onDelete: 'CASCADE', eager: true })
+  @JoinColumn({ name: 'enterprise_id' })
+  enterprise!: Enterprise;
 
   @OneToMany(() => Turn, (turn) => turn.bus)
   turns?: Turn[];
@@ -58,8 +52,12 @@ export class Bus {
   @OneToMany(() => Scheduler, (scheduler) => scheduler.bus)
   schedulers?: Scheduler[];
 
-  @OneToOne(() => Gps, (gps) => gps.bus, { nullable: true, eager: true })
-  gps?: Gps;
+    @OneToOne(() => Gps, (gps) => gps.bus, { onDelete: 'CASCADE', eager: true })
+    @JoinColumn({ name: 'gps_id' })
+    gps!: Gps;
+
+  @OneToMany(() => BusPhoto, (photo) => photo.bus, { onDelete: 'CASCADE', eager: true })
+  photos?: BusPhoto[];
 
   @OneToMany(() => IncidentBus, (incidentBus) => incidentBus.bus)
   incidentBuses?: IncidentBus[];

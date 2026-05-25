@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { Incident } from './entities/incident.entity';
 import { IncidentBus } from './entities/incident-bus.entity';
 import { NotificationService } from './services/notification.service';
@@ -12,6 +14,8 @@ export class IncidentNotificationService {
   constructor(
     private readonly configService: ConfigService,
     private readonly notificationService: NotificationService,
+    @InjectRepository(IncidentBus)
+    private readonly incidentBusRepository: Repository<IncidentBus>,
   ) {}
 
   async notifySupervisorIfNeeded(
@@ -26,37 +30,56 @@ export class IncidentNotificationService {
       return;
     }
 
-    const supervisorEmail =
-      incident.enterprise.supervisorEmail ??
-      this.configService.get<string>('INCIDENT_SUPERVISOR_EMAIL');
+    const loaded = await this.incidentBusRepository.findOne({
+      where: { id: incidentBus.id },
+      relations: ['bus', 'bus.enterprise', 'bus.enterprise.supervisors'],
+    });
 
-    if (!supervisorEmail) {
+    const bus = loaded?.bus ?? incidentBus.bus;
+    const supervisors = bus?.enterprise?.supervisors ?? [];
+    const supervisorEmails = supervisors
+      .map((s) => s.email)
+      .filter((email): email is string => Boolean(email?.trim()));
+
+    const fallbackEmail = this.configService.get<string>(
+      'INCIDENT_SUPERVISOR_EMAIL',
+    );
+
+    const recipients =
+      supervisorEmails.length > 0
+        ? supervisorEmails
+        : fallbackEmail
+          ? [fallbackEmail]
+          : [];
+
+    if (recipients.length === 0) {
       this.logger.warn(
         `Incident ${incident.id} requires supervisor notification, but no email configured`,
       );
       return;
     }
 
-    const bus = incidentBus.bus;
     const emailBody = [
       `Se reporto un incidente de gravedad ${incident.severity}.`,
       `Tipo: ${incident.type}`,
-      `Bus: ${bus.plate}`,
+      `Bus: ${bus?.plate ?? 'N/A'}`,
       `Descripcion: ${incident.description}`,
       `Ubicacion: ${incident.latitude ?? 'N/A'}, ${incident.longitude ?? 'N/A'}`,
-      `Fecha: ${incident.reportedAt.toISOString()}`,
+      `Fecha: ${incident.createdAt.toISOString()}`,
     ].join('\n');
 
-    const success = await this.notificationService.sendEmail({
-      to: supervisorEmail,
-      subject: `Incidente ${incident.severity} reportado`,
-      body: emailBody,
-    });
+    for (const to of recipients) {
+      const success = await this.notificationService.sendEmail({
+        to,
+        subject: `Incidente ${incident.severity} reportado`,
+        body: emailBody,
+      });
 
-    if (!success) {
-      this.logger.warn(
-        `Failed to notify supervisor for incident ${incident.id}`,
-      );
+      if (!success) {
+        this.logger.warn(
+          `Failed to notify supervisor ${to} for incident ${incident.id}`,
+        );
+      }
     }
   }
 }
