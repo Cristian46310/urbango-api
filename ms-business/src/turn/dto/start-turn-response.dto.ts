@@ -28,6 +28,12 @@ export class StartTurnResponseDto {
   @ApiProperty({ example: '2025-05-18T08:00:00.000Z' })
   startTime: Date;
 
+  @ApiProperty({
+    example: '2025-05-18T07:30:00.000Z',
+    description: 'Hora programada original del turno',
+  })
+  scheduledStartTime: Date;
+
   @ApiProperty({ enum: TurnStatus, example: TurnStatus.IN_PROGRESS })
   status: TurnStatus;
 }

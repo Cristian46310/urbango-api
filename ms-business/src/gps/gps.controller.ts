@@ -4,7 +4,7 @@ import {
   Delete,
   Get,
   Param,
-  Patch,
+  Put,
   Post,
   Query,
 } from '@nestjs/common';
@@ -61,7 +61,7 @@ export class GpsController {
     return this.gpsService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   @ApiOperation({ summary: 'Actualizar registro GPS' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ type: ResponseGpsDto })

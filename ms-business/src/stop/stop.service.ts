@@ -44,10 +44,13 @@ export class StopService {
     );
   }
   private async generateStopCode(): Promise<string> {
-    const lastStop = await this.stopRepository.findOne({
+    const [lastStop] = await this.stopRepository.find({
       order: { code: 'DESC' },
+      take: 1,
     });
-    const lastNumber = lastStop ? parseInt(lastStop.code.split('-')[1]) : 0;
+    const lastNumber = lastStop
+      ? Number.parseInt(lastStop.code.split('-')[1] ?? '', 10) || 0
+      : 0;
     return `PAR-${lastNumber + 1}`;
   }
 

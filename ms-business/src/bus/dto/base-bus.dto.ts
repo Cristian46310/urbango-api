@@ -20,7 +20,10 @@ export class BaseBusDto {
   @IsOptional()
   model?: string;
 
-  @ApiPropertyOptional({ description: 'Color del bus', example: 'Blanco' })
+  @ApiPropertyOptional({
+    description: 'Color del bus (si se omite en creación, se guarda "Sin especificar")',
+    example: 'Blanco',
+  })
   @IsString()
   @IsOptional()
   color?: string;

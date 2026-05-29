@@ -54,6 +54,8 @@ export function getTransactionStatus(
   return CardRechargeStatus.PENDING;
 }
 
-export function isPendingTransaction(transaction: CardRechargeTransaction): boolean {
+export function isPendingTransaction(
+  transaction: CardRechargeTransaction,
+): boolean {
   return getTransactionStatus(transaction) === CardRechargeStatus.PENDING;
 }

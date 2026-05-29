@@ -18,6 +18,10 @@ export class ResponseHistoryDto {
   @Expose()
   nodeOrder?: number;
 
+  @ApiProperty({ example: 'boarding', required: false })
+  @Expose()
+  eventType?: string;
+
   @ApiProperty()
   @Expose()
   createdAt!: Date;

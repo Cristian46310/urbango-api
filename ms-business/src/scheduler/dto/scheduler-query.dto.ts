@@ -22,7 +22,8 @@ export class SchedulerQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({
     enum: SchedulerStatus,
     default: SchedulerStatus.SCHEDULED,
-    description: 'Por defecto solo programaciones visibles en consulta de horarios',
+    description:
+      'Por defecto solo programaciones visibles en consulta de horarios',
   })
   @IsOptional()
   @IsEnum(SchedulerStatus)

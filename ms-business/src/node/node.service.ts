@@ -23,6 +23,7 @@ export class NodeService {
 
   private toResponse(node: Node): ResponseNodeDto {
     return {
+      id: node.id,
       order: node.order,
       stopId: node.stop.id,
       routeId: node.route.id,

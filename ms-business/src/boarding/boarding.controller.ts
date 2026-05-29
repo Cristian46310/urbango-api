@@ -1,27 +1,38 @@
-import { Body, Controller, Post, Req } from '@nestjs/common';
-import { ApiCreatedResponse, ApiTags } from '@nestjs/swagger';
-import { Request } from 'express';
+import { Body, Controller, Post } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { BoardingService } from './boarding.service';
 import { BoardingRequestDto } from './dto/boarding-request.dto';
 import { BoardingResponseDto } from './dto/boarding-response.dto';
-
-type RequestWithCitizen = Request & {
-  user?: {
-    citizenId?: string;
-  };
-};
+import { Authenticated } from '@/auth/decorators/authenticated.decorator';
+import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import type { JwtPayload } from '@/auth/types';
+import { ProfileContextService } from '@/auth/services/profile-context.service';
 
 @ApiTags('boarding')
+@ApiBearerAuth('bearer')
 @Controller('boarding')
 export class BoardingController {
-  constructor(private readonly boardingService: BoardingService) {}
+  constructor(
+    private readonly boardingService: BoardingService,
+    private readonly profileContext: ProfileContextService,
+  ) {}
 
   @Post()
+  @Authenticated()
+  @ApiOperation({
+    summary: 'Abordaje y generación de boleto (ciudadano autenticado)',
+  })
   @ApiCreatedResponse({ type: BoardingResponseDto })
-  board(
+  async board(
     @Body() boardingRequestDto: BoardingRequestDto,
-    @Req() req: RequestWithCitizen,
+    @CurrentUser() currentUser: JwtPayload,
   ): Promise<BoardingResponseDto> {
-    return this.boardingService.board(boardingRequestDto,   req.user?.citizenId);
+    const citizenId = await this.profileContext.requireCitizenId(currentUser);
+    return this.boardingService.board(boardingRequestDto, citizenId);
   }
 }

@@ -7,7 +7,7 @@ export class Driver extends Person {
   @Column()
   licenseNumber!: string;
 
-  @Column({type: 'date' })
+  @Column({ type: 'date' })
   licenseExpiry!: Date;
 
   @ManyToOne(() => Enterprise, { onDelete: 'CASCADE', eager: true })

@@ -14,6 +14,7 @@ import com.jmmg.ms_security.DTOs.auth.AuthorizationResponse;
 import com.jmmg.ms_security.DTOs.auth.ValidatedTokenClaims;
 import com.jmmg.ms_security.services.JwtService;
 import com.jmmg.ms_security.services.PermissionService;
+import com.jmmg.ms_security.services.UserService;
 
 import jakarta.validation.Valid;
 
@@ -24,10 +25,15 @@ public class AuthorizationController {
 
     private final JwtService jwtService;
     private final PermissionService permissionService;
+    private final UserService userService;
 
-    public AuthorizationController(JwtService jwtService, PermissionService permissionService) {
+    public AuthorizationController(
+            JwtService jwtService,
+            PermissionService permissionService,
+            UserService userService) {
         this.jwtService = jwtService;
         this.permissionService = permissionService;
+        this.userService = userService;
     }
 
     @PostMapping("/authorize")
@@ -47,8 +53,12 @@ public class AuthorizationController {
                     .body(new AuthorizationResponse(false, "Invalid or expired token"));
         }
 
+        // Mismos roles que validate-token: desde BD (no solo el claim del JWT).
+        // Si asignaste permisos/roles después del login, authorize sigue funcionando.
+        var roles = this.userService.getRoleNamesByUserId(claims.id());
+
         boolean allowed = this.permissionService.isAllowed(
-                claims.rolesFromToken(),
+                roles,
                 request.method(),
                 request.url());
 

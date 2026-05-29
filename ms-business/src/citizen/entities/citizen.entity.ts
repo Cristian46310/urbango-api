@@ -6,7 +6,6 @@ import { PaymentMethodCitizen } from '@/payment-method-citizen/entities/payment-
 
 @ChildEntity('citizen')
 export class Citizen extends Person {
-
   @ManyToOne(() => Address, { onDelete: 'SET NULL', eager: true })
   @JoinColumn({ name: 'address_id' })
   address!: Address;

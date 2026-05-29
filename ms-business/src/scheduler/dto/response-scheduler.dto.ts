@@ -20,7 +20,8 @@ export class ResponseSchedulerDto {
   departureTime: Date;
 
   @ApiProperty({
-    description: 'Fin estimado del servicio (calculado según duración de la ruta)',
+    description:
+      'Fin estimado del servicio (calculado según duración de la ruta)',
   })
   endTime: Date;
 

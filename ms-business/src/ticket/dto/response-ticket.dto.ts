@@ -15,6 +15,14 @@ export class ResponseTicketDto {
   @Expose()
   createdAt!: Date;
 
+  @ApiProperty({ required: false })
+  @Expose()
+  boardedAt?: Date | null;
+
+  @ApiProperty({ required: false })
+  @Expose()
+  completedAt?: Date | null;
+
   @ApiProperty({
     example: 2500,
     description: 'Tarifa de la ruta asociada al programador',

@@ -5,7 +5,10 @@ import { Global, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { JwtValidationService } from './services/jwt-validation.service';
+import { ProfileContextService } from './services/profile-context.service';
 import { Person } from '@/shared/entities/person.entity';
+import { Citizen } from '@/citizen/entities/citizen.entity';
+import { Driver } from '@/driver/entities/driver.entity';
 
 @Global()
 @Module({
@@ -26,9 +29,9 @@ import { Person } from '@/shared/entities/person.entity';
         timeout: 60000,
       }),
     }),
-    TypeOrmModule.forFeature([Person]),
+    TypeOrmModule.forFeature([Person, Citizen, Driver]),
   ],
-  providers: [JwtValidationService],
-  exports: [HttpModule, JwtValidationService],
+  providers: [JwtValidationService, ProfileContextService],
+  exports: [HttpModule, JwtValidationService, ProfileContextService],
 })
 export class AuthModule {}

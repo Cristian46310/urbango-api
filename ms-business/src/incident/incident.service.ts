@@ -246,11 +246,7 @@ export class IncidentService {
     const page = paginationQuery.page ?? 1;
     const limit = paginationQuery.limit ?? 10;
     const [items, totalItems] = await this.incidentRepository.findAndCount({
-      relations: [
-        'incidentBuses',
-        'incidentBuses.bus',
-        'incidentBuses.photos',
-      ],
+      relations: ['incidentBuses', 'incidentBuses.bus', 'incidentBuses.photos'],
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
@@ -265,11 +261,7 @@ export class IncidentService {
   private async findIncidentOrFail(incidentId: string): Promise<Incident> {
     const incident = await this.incidentRepository.findOne({
       where: { id: incidentId },
-      relations: [
-        'incidentBuses',
-        'incidentBuses.bus',
-        'incidentBuses.photos',
-      ],
+      relations: ['incidentBuses', 'incidentBuses.bus', 'incidentBuses.photos'],
     });
 
     if (!incident) {
@@ -334,9 +326,10 @@ export class IncidentService {
     const activeTurn = await this.turnRepository.findOne({
       where: {
         driver: { id: driver.id },
+        status: TurnStatus.IN_PROGRESS,
       },
       relations: ['driver', 'bus', 'bus.enterprise'],
-      order: { startTime: 'DESC' },
+      order: { actualStartTime: 'DESC', startTime: 'DESC' },
     });
 
     if (!activeTurn) {
@@ -352,9 +345,7 @@ export class IncidentService {
     }
 
     if (!activeTurn.bus) {
-      throw new BadRequestException(
-        'Active turn must have an assigned bus.',
-      );
+      throw new BadRequestException('Active turn must have an assigned bus.');
     }
 
     const incident = this.incidentRepository.create({
@@ -389,6 +380,8 @@ export class IncidentService {
       );
     }
 
-    return savedIncident;
+    const busId = activeTurn.bus.id;
+    const withRelations = await this.findIncidentOrFail(savedIncident.id);
+    return this.toResponseIncident(withRelations, busId);
   }
 }

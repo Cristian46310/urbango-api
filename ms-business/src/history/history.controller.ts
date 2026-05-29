@@ -3,7 +3,7 @@ import {
   Get,
   Post,
   Body,
-  Patch,
+  Put,
   Param,
   Delete,
   Query,
@@ -56,7 +56,7 @@ export class HistoryController {
     return await this.historyService.getTripDetails(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   @ApiOkResponse({ type: ResponseHistoryDto })
   update(@Param('id') id: string, @Body() updateHistoryDto: UpdateHistoryDto) {
     return this.historyService.update(id, updateHistoryDto);

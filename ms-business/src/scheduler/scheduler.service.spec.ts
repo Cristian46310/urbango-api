@@ -34,10 +34,7 @@ describe('SchedulerService', () => {
 
   const routeWithNodes = {
     id: 'route-1',
-    nodes: [
-      { estimatedTimeMinutes: 30 },
-      { estimatedTimeMinutes: 45 },
-    ],
+    nodes: [{ estimatedTimeMinutes: 30 }, { estimatedTimeMinutes: 45 }],
   };
 
   beforeEach(async () => {
@@ -105,7 +102,10 @@ describe('SchedulerService', () => {
   });
 
   it('creates a scheduler when bus is free and has assigned driver', async () => {
-    busRepository.findOne.mockResolvedValue({ id: 'bus-1', status: 'operativo' });
+    busRepository.findOne.mockResolvedValue({
+      id: 'bus-1',
+      status: 'operativo',
+    });
     routeRepository.findOne.mockResolvedValue(routeWithNodes);
     queryBuilder.getOne.mockResolvedValue(null);
     turnRepository.findOne.mockResolvedValue({
@@ -137,7 +137,10 @@ describe('SchedulerService', () => {
   });
 
   it('rejects overlapping active scheduler for same bus and date', async () => {
-    busRepository.findOne.mockResolvedValue({ id: 'bus-1', status: 'operativo' });
+    busRepository.findOne.mockResolvedValue({
+      id: 'bus-1',
+      status: 'operativo',
+    });
     routeRepository.findOne.mockResolvedValue(routeWithNodes);
     queryBuilder.getOne.mockResolvedValue({ id: 'scheduler-existing' });
 
@@ -152,7 +155,10 @@ describe('SchedulerService', () => {
   });
 
   it('rejects scheduler when bus has no driver turn for the departure window', async () => {
-    busRepository.findOne.mockResolvedValue({ id: 'bus-1', status: 'operativo' });
+    busRepository.findOne.mockResolvedValue({
+      id: 'bus-1',
+      status: 'operativo',
+    });
     routeRepository.findOne.mockResolvedValue(routeWithNodes);
     queryBuilder.getOne.mockResolvedValue(null);
     turnRepository.findOne.mockResolvedValue(null);
@@ -168,7 +174,10 @@ describe('SchedulerService', () => {
   });
 
   it('computes endTime from route node durations', async () => {
-    busRepository.findOne.mockResolvedValue({ id: 'bus-1', status: 'operativo' });
+    busRepository.findOne.mockResolvedValue({
+      id: 'bus-1',
+      status: 'operativo',
+    });
     routeRepository.findOne.mockResolvedValue(routeWithNodes);
     queryBuilder.getOne.mockResolvedValue(null);
     turnRepository.findOne.mockResolvedValue({

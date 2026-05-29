@@ -3,32 +3,37 @@ import {
   Get,
   Post,
   Body,
-  Patch,
+  Put,
   Param,
   Delete,
   Query,
-  Req,
-  UnauthorizedException,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { Request } from 'express';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { TurnService } from './turn.service';
 import { CreateTurnDto } from './dto/create-turn.dto';
 import { UpdateTurnDto } from './dto/update-turn.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { StartTurnRequestDto } from './dto/start-turn-request.dto';
 import { StartTurnResponseDto } from './dto/start-turn-response.dto';
+import { Authenticated } from '@/auth/decorators/authenticated.decorator';
+import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import type { JwtPayload } from '@/auth/types';
+import { ProfileContextService } from '@/auth/services/profile-context.service';
 
-type RequestWithDriver = Request & {
-  user?: {
-    driverId?: string;
-  };
-};
-
+@ApiTags('turn')
 @Controller('turn')
 export class TurnController {
-  constructor(private readonly turnService: TurnService) {}
+  constructor(
+    private readonly turnService: TurnService,
+    private readonly profileContext: ProfileContextService,
+  ) {}
 
   @Post()
   create(@Body() createTurnDto: CreateTurnDto) {
@@ -36,22 +41,17 @@ export class TurnController {
   }
 
   @Post('start')
+  @Authenticated()
+  @ApiBearerAuth('bearer')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Iniciar turno del conductor autenticado' })
+  @ApiOkResponse({ type: StartTurnResponseDto })
   async startTurn(
     @Body() dto: StartTurnRequestDto,
-    @Req() req: RequestWithDriver,
+    @CurrentUser() currentUser: JwtPayload,
   ): Promise<StartTurnResponseDto> {
-    const driverId = req.user?.driverId;
-    if (!driverId) {
-      throw new UnauthorizedException('Token inválido o ausente');
-    }
-
-    const result = await this.turnService.startTurn(
-      driverId,
-      dto.busStatus,
-      dto.observations,
-    );
-
+    const driverId = await this.profileContext.requireDriverId(currentUser);
+    const result = await this.turnService.startTurn(driverId, dto);
     return { success: true, message: 'Turno iniciado', ...result };
   }
 
@@ -65,7 +65,7 @@ export class TurnController {
     return this.turnService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   update(@Param('id') id: string, @Body() updateTurnDto: UpdateTurnDto) {
     return this.turnService.update(id, updateTurnDto);
   }

@@ -3,7 +3,9 @@ import { IsEnum, IsInt, IsNotEmpty, IsString, Min } from 'class-validator';
 import { BaseBusDto } from './base-bus.dto';
 import { BusStatus } from '../enums/bus-status.enum';
 
-export class CreateBusDto extends OmitType(BaseBusDto, ['enterpriseId'] as const) {
+export class CreateBusDto extends OmitType(BaseBusDto, [
+  'enterpriseId',
+] as const) {
   @ApiProperty({ description: 'Modelo del bus', example: 'Mercedes-Benz O500' })
   @IsString()
   @IsNotEmpty()

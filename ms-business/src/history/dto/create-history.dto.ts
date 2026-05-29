@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsUUID } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsUUID } from 'class-validator';
+import { HistoryEventType } from '../enums/history-event-type.enum';
 
 export class CreateHistoryDto {
   @ApiProperty({ example: 'ticket-uuid' })
@@ -11,4 +12,9 @@ export class CreateHistoryDto {
   @IsUUID()
   @IsNotEmpty()
   nodeId!: string;
+
+  @ApiProperty({ enum: HistoryEventType, example: HistoryEventType.BOARDING })
+  @IsEnum(HistoryEventType)
+  @IsNotEmpty()
+  eventType!: HistoryEventType;
 }

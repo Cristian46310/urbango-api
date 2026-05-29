@@ -3,7 +3,7 @@ import {
   Get,
   Post,
   Body,
-  Patch,
+  Put,
   Param,
   Delete,
   Query,
@@ -68,7 +68,7 @@ export class CitizenController {
     return this.citizenService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   update(@Param('id') id: string, @Body() updateCitizenDto: UpdateCitizenDto) {
     return this.citizenService.update(id, updateCitizenDto);
   }

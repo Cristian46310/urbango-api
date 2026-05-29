@@ -4,6 +4,7 @@ import {
   HttpException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
@@ -16,12 +17,15 @@ import {
 } from '@/scheduler/entities/scheduler.entity';
 import { Ticket, TicketStatus } from '@/ticket/entities/ticket.entity';
 import { History } from '@/history/entities/history.entity';
+import { HistoryEventType } from '@/history/enums/history-event-type.enum';
 import { Citizen } from '@/citizen/entities/citizen.entity';
 import { Node } from '@/node/entities/node.entity';
 import { Bus } from '@/bus/entities/bus.entity';
 
 @Injectable()
 export class BoardingService {
+  private readonly logger = new Logger(BoardingService.name);
+
   constructor(private readonly dataSource: DataSource) {}
 
   private getBusCapacity(bus?: Bus | null): number | undefined {
@@ -45,6 +49,7 @@ export class BoardingService {
       const now = new Date();
       const today = this.formatDateInTimeZone(now, 'America/Bogota');
 
+      // Sin lock aquí: cargar route eager (nodes) + FOR UPDATE rompe en PostgreSQL
       const candidates = await queryRunner.manager.find(Scheduler, {
         where: {
           bus: { id: dto.busId },
@@ -52,7 +57,6 @@ export class BoardingService {
           status: SchedulerStatus.SCHEDULED,
         },
         relations: ['bus', 'route'],
-        lock: { mode: 'pessimistic_write' },
       });
 
       const scheduler = candidates.find((item) => {
@@ -63,7 +67,9 @@ export class BoardingService {
       });
 
       if (!scheduler) {
-        throw new NotFoundException('No active scheduler found for this bus');
+        throw new NotFoundException(
+          'No hay programación activa para este bus en la fecha y hora actual. Verifique fecha del scheduler, ventana startTime–endTime y toleranceMinutes.',
+        );
       }
 
       const capacity = this.getBusCapacity(scheduler.bus);
@@ -80,18 +86,31 @@ export class BoardingService {
         }
       }
 
-      const paymentMethodCitizen = await queryRunner.manager.findOne(
-        PaymentMethodCitizen,
-        {
-          where: { id: dto.paymentMethodCitizenId },
-          relations: ['citizen', 'paymentMethod'],
-          lock: { mode: 'pessimistic_write' },
-        },
-      );
+      // Bloquear solo la fila PMC; FOR UPDATE + joins (citizen/address) falla en PostgreSQL
+      const paymentMethodCitizen = await queryRunner.manager
+        .createQueryBuilder(PaymentMethodCitizen, 'pmc')
+        .setLock('pessimistic_write')
+        .where('pmc.id = :id', { id: dto.paymentMethodCitizenId })
+        .getOne();
 
       if (!paymentMethodCitizen) {
         throw new BadRequestException('Payment method not found');
       }
+
+      const pmcWithRelations = await queryRunner.manager.findOne(
+        PaymentMethodCitizen,
+        {
+          where: { id: paymentMethodCitizen.id },
+          relations: ['citizen', 'paymentMethod'],
+        },
+      );
+
+      if (!pmcWithRelations?.citizen || !pmcWithRelations.paymentMethod) {
+        throw new BadRequestException('Payment method not found');
+      }
+
+      paymentMethodCitizen.citizen = pmcWithRelations.citizen;
+      paymentMethodCitizen.paymentMethod = pmcWithRelations.paymentMethod;
 
       if (paymentMethodCitizen.citizen.id !== citizenId) {
         throw new BadRequestException(
@@ -139,12 +158,14 @@ export class BoardingService {
         } as PaymentMethodCitizen,
         scheduler: { id: scheduler.id } as Scheduler,
         status: TicketStatus.ACTIVE,
+        boardedAt: now,
       });
       const savedTicket = await queryRunner.manager.save(Ticket, ticket);
 
       const history = queryRunner.manager.create(History, {
         ticket: { id: savedTicket.id } as Ticket,
         node: { id: node.id } as Node,
+        eventType: HistoryEventType.BOARDING,
       });
       await queryRunner.manager.save(History, history);
 
@@ -164,6 +185,7 @@ export class BoardingService {
         throw error;
       }
 
+      this.logger.error('Boarding transaction failed', error);
       throw new InternalServerErrorException('Boarding could not be completed');
     } finally {
       await queryRunner.release();

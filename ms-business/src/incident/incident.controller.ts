@@ -3,7 +3,7 @@ import {
   Controller,
   Get,
   Param,
-  Patch,
+  Put,
   Post,
   Query,
   UploadedFiles,
@@ -26,7 +26,6 @@ import { ResponseBusIncidentListDto } from './dto/response-bus-incident-list.dto
 import { UpdateIncidentStatusDto } from './dto/update-incident-status.dto';
 import { ResponseIncidentDto } from './dto/response-incident.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
-import { Public } from '@/auth/decorators/public.decorator';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import type { JwtPayload } from '@/auth/types';
 
@@ -51,10 +50,10 @@ const incidentUploadOptions = {
 export class IncidentController {
   constructor(private readonly incidentService: IncidentService) {}
 
-  @Public()
   @Get()
+  @ApiBearerAuth('bearer')
   @ApiOperation({
-    summary: 'Listar todos los reportes de incidentes (público)',
+    summary: 'Listar todos los reportes de incidentes (paginado)',
   })
   findAll(@Query() pagination: PaginationQueryDto) {
     return this.incidentService.findAll(pagination);
@@ -93,7 +92,7 @@ export class IncidentController {
     return this.incidentService.createByDriver(currentUser, dto, photos);
   }
 
-  @Patch(':incidentId/status')
+  @Put(':incidentId/status')
   @ApiBearerAuth('bearer')
   @ApiOperation({ summary: 'Actualizar estado de un incidente' })
   @ApiParam({ name: 'incidentId', format: 'uuid' })
