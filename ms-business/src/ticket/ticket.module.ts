@@ -24,5 +24,6 @@ import { HistoryModule } from '@/history/history.module';
   ],
   controllers: [TicketController],
   providers: [TicketService],
+  exports: [TicketService],
 })
 export class TicketModule {}

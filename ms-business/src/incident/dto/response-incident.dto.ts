@@ -38,6 +38,14 @@ export class ResponseIncidentDto {
   @Type(() => ResponseIncidentDriverDto)
   driver?: ResponseIncidentDriverDto;
 
+  @ApiProperty({ example: 'PUX-123', required: false })
+  @Expose()
+  busPlate?: string;
+
+  @ApiProperty({ example: 'Ruta A', required: false })
+  @Expose()
+  routeName?: string;
+
   @ApiProperty({ type: [ResponseIncidentPhotoDto] })
   @Expose()
   @Type(() => ResponseIncidentPhotoDto)

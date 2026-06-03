@@ -190,6 +190,16 @@ export class TicketService {
     return this.toResponse(ticket);
   }
 
+  async countActiveTicketsByBus(busId: string): Promise<number> {
+    return this.ticketRepository
+      .createQueryBuilder('ticket')
+      .innerJoin('ticket.scheduler', 'scheduler')
+      .innerJoin('scheduler.bus', 'bus')
+      .where('ticket.status = :active', { active: TicketStatus.ACTIVE })
+      .andWhere('bus.id = :busId', { busId })
+      .getCount();
+  }
+
   async update(id: string, updateTicketDto: UpdateTicketDto) {
     if (updateTicketDto.citizenId) {
       const cit = await this.citizenRepository.findOne({

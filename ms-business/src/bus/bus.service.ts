@@ -109,6 +109,34 @@ export class BusService {
     return this.toResponse(bus);
   }
 
+  async findAllWithGpsAndSchedules(enterpriseId?: string) {
+    return this.busRepository.find({
+      where: enterpriseId ? { enterprise: { id: enterpriseId } } : {},
+      relations: [
+        'gps',
+        'schedulers',
+        'schedulers.route',
+        'schedulers.route.nodes',
+        'schedulers.route.nodes.stop',
+      ],
+    });
+  }
+
+  async findOneWithGpsAndSchedules(id: string) {
+    const bus = await this.busRepository.findOne({
+      where: { id },
+      relations: [
+        'gps',
+        'schedulers',
+        'schedulers.route',
+        'schedulers.route.nodes',
+        'schedulers.route.nodes.stop',
+      ],
+    });
+    if (!bus) throw new NotFoundException(`Bus ${id} not found`);
+    return bus;
+  }
+
   async update(
     id: string,
     updateBusDto: UpdateBusDto,

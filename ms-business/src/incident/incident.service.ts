@@ -258,6 +258,57 @@ export class IncidentService {
     };
   }
 
+  async countActiveIncidentsByBus(busId: string): Promise<number> {
+    return this.incidentRepository
+      .createQueryBuilder('incident')
+      .innerJoin('incident.incidentBuses', 'ib', 'ib.bus_id = :busId', {
+        busId,
+      })
+      .andWhere('incident.status != :closed', { closed: 'CLOSED' })
+      .getCount();
+  }
+
+  async findActiveIncidents(
+    enterpriseId?: string,
+  ): Promise<ResponseIncidentDto[]> {
+    const query = this.incidentRepository
+      .createQueryBuilder('incident')
+      .leftJoinAndSelect('incident.incidentBuses', 'incidentBuses')
+      .leftJoinAndSelect('incidentBuses.bus', 'bus')
+      .leftJoinAndSelect('incidentBuses.photos', 'photos')
+      .where('incident.status != :closed', { closed: 'CLOSED' });
+
+    if (enterpriseId) {
+      query.innerJoin('bus.enterprise', 'enterprise');
+      query.andWhere('enterprise.id = :enterpriseId', { enterpriseId });
+    }
+
+    const incidents = await query.orderBy('incident.createdAt', 'DESC').getMany();
+    return Promise.all(
+      incidents.map((incident) => {
+        const busPlate = incident.incidentBuses?.[0]?.bus?.plate;
+        return plainToInstance(
+          ResponseIncidentDto,
+          {
+            id: incident.id,
+            createdAt: incident.createdAt,
+            type: incident.type,
+            severity: incident.severity,
+            status: incident.status,
+            description: incident.description,
+            driver: undefined,
+            photos: plainToInstance(
+              ResponseIncidentPhotoDto,
+              incident.incidentBuses?.[0]?.photos ?? [],
+            ),
+            busPlate,
+          },
+          { excludeExtraneousValues: true },
+        );
+      }),
+    );
+  }
+
   private async findIncidentOrFail(incidentId: string): Promise<Incident> {
     const incident = await this.incidentRepository.findOne({
       where: { id: incidentId },
