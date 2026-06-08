@@ -1,62 +1,71 @@
 from datetime import datetime
-from typing import List
+from typing import Any, List
 
-from sqlalchemy.orm import Session
+import psycopg2.extensions
 
 from app.scheduler.domain.entities.appoitment import Appointment, AppointmentType, AppointmentReason
 from app.scheduler.domain.ports.iappointment_repository import IAppointmentRepository
-from app.scheduler.infrastructure.repositories.models import AppointmentModel
 
 
-def _to_entity(model: AppointmentModel) -> Appointment:
+def _row_to_entity(row: dict[str, Any]) -> Appointment:
     return Appointment(
-        id=model.id,
-        calendar_event_id=model.calendar_event_id,
-        type=AppointmentType(model.type),
-        reason=AppointmentReason(model.reason),
-        date_time=model.date_time,
-        description=model.description,
-        location=model.location,
-        user_id=model.user_id,
-        user_email=model.user_email,
-        created_at=model.created_at,
-    )
-
-
-def _to_model(appointment: Appointment) -> AppointmentModel:
-    return AppointmentModel(
-        id=appointment.id,
-        calendar_event_id=appointment.calendar_event_id,
-        type=appointment.type.value,
-        reason=appointment.reason.value,
-        date_time=appointment.date_time,
-        description=appointment.description,
-        location=appointment.location,
-        user_id=appointment.user_id,
-        user_email=appointment.user_email,
-        created_at=appointment.created_at,
+        id=str(row["id"]),
+        calendar_event_id=row.get("calendar_event_id"),
+        type=AppointmentType(row["type"]),
+        reason=AppointmentReason(row["reason"]),
+        date_time=row["date_time"],
+        description=row["description"],
+        location=row["location"],
+        user_id=str(row["user_id"]),
+        user_email=row["user_email"],
+        created_at=row["created_at"],
     )
 
 
 class AppointmentRepository(IAppointmentRepository):
-    def __init__(self, db: Session) -> None:
-        self.db = db
+    def __init__(self, conn: psycopg2.extensions.connection) -> None:
+        self.conn = conn
 
     def create_appointment(self, appointment: Appointment) -> Appointment:
-        model = _to_model(appointment)
-        self.db.add(model)
-        self.db.commit()
-        self.db.refresh(model)
-        return _to_entity(model)
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO appointments (
+                    id, calendar_event_id, type, reason, date_time,
+                    description, location, user_id, user_email, created_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING *
+                """,
+                (
+                    appointment.id,
+                    appointment.calendar_event_id,
+                    appointment.type.value,
+                    appointment.reason.value,
+                    appointment.date_time,
+                    appointment.description,
+                    appointment.location,
+                    appointment.user_id,
+                    appointment.user_email,
+                    appointment.created_at,
+                ),
+            )
+            row = cur.fetchone()
+        return _row_to_entity(row)
 
     def get_appointment_by_id(self, id: str) -> Appointment:
-        model = self.db.query(AppointmentModel).filter(AppointmentModel.id == id).first()
-        if not model:
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT * FROM appointments WHERE id = %s", (id,))
+            row = cur.fetchone()
+        if not row:
             raise ValueError(f"Appointment {id} not found")
-        return _to_entity(model)
+        return _row_to_entity(row)
 
     def get_all_appointments(self) -> List[Appointment]:
-        return [_to_entity(m) for m in self.db.query(AppointmentModel).all()]
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT * FROM appointments ORDER BY date_time DESC")
+            rows = cur.fetchall()
+        return [_row_to_entity(row) for row in rows]
 
     def get_appointments_by_user_id(
         self,
@@ -64,32 +73,59 @@ class AppointmentRepository(IAppointmentRepository):
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> List[Appointment]:
-        q = self.db.query(AppointmentModel).filter(AppointmentModel.user_id == user_id)
+        query = "SELECT * FROM appointments WHERE user_id = %s"
+        params: list[Any] = [user_id]
+
         if start_date:
-            q = q.filter(AppointmentModel.date_time >= start_date)
+            query += " AND date_time >= %s"
+            params.append(start_date)
         if end_date:
-            q = q.filter(AppointmentModel.date_time <= end_date)
-        return [_to_entity(m) for m in q.all()]
+            query += " AND date_time <= %s"
+            params.append(end_date)
+
+        query += " ORDER BY date_time DESC"
+
+        with self.conn.cursor() as cur:
+            cur.execute(query, params)
+            rows = cur.fetchall()
+        return [_row_to_entity(row) for row in rows]
 
     def update_appointment(self, appointment: Appointment) -> Appointment:
-        model = self.db.query(AppointmentModel).filter(AppointmentModel.id == appointment.id).first()
-        if not model:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE appointments
+                SET calendar_event_id = %s,
+                    type = %s,
+                    reason = %s,
+                    date_time = %s,
+                    description = %s,
+                    location = %s,
+                    user_id = %s,
+                    user_email = %s
+                WHERE id = %s
+                RETURNING *
+                """,
+                (
+                    appointment.calendar_event_id,
+                    appointment.type.value,
+                    appointment.reason.value,
+                    appointment.date_time,
+                    appointment.description,
+                    appointment.location,
+                    appointment.user_id,
+                    appointment.user_email,
+                    appointment.id,
+                ),
+            )
+            row = cur.fetchone()
+        if not row:
             raise ValueError(f"Appointment {appointment.id} not found")
-        model.calendar_event_id = appointment.calendar_event_id
-        model.type = appointment.type.value
-        model.reason = appointment.reason.value
-        model.date_time = appointment.date_time
-        model.description = appointment.description
-        model.location = appointment.location
-        model.user_id = appointment.user_id
-        model.user_email = appointment.user_email
-        self.db.commit()
-        self.db.refresh(model)
-        return _to_entity(model)
+        return _row_to_entity(row)
 
     def delete_appointment(self, id: str) -> None:
-        model = self.db.query(AppointmentModel).filter(AppointmentModel.id == id).first()
-        if not model:
+        with self.conn.cursor() as cur:
+            cur.execute("DELETE FROM appointments WHERE id = %s RETURNING id", (id,))
+            row = cur.fetchone()
+        if not row:
             raise ValueError(f"Appointment {id} not found")
-        self.db.delete(model)
-        self.db.commit()

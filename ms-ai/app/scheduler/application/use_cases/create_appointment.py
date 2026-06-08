@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from app.config.settings import settings
 from app.scheduler.application.dto.appointment_dto import AppointmentDTO
@@ -42,37 +41,22 @@ class CreateAppointmentUseCase:
             raise ValueError("The selected time slot is not available")
 
         virtual = type == AppointmentType.VIRTUAL
-        location = settings.OFFICE_LOCATION if not virtual else "https://meet.google.com"
-
-        from app.scheduler.infrastructure.provider.google_calendar import GoogleCalendarProvider
-        if isinstance(self.calendar_repo, GoogleCalendarProvider):
-            calendar_event = self.calendar_repo.create_calendar_event(
-                start_date=date_time,
-                end_date=slot_end,
-                description=description,
-                location=location,
-                summary=f"Cita UCaldas - {reason.value}",
-                attendee_email=user_email,
-                virtual=virtual,
-            )
-        else:
-            calendar_event = self.calendar_repo.create_calendar_event(
-                start_date=date_time,
-                end_date=slot_end,
-                description=description,
-                location=location,
-            )
-
-        # If virtual, use the Meet link from the calendar event if available
-        if virtual and calendar_event.location:
-            location = calendar_event.location
+        calendar_event = self.calendar_repo.create_calendar_event(
+            start_date=date_time,
+            end_date=slot_end,
+            description=description,
+            location=settings.OFFICE_LOCATION,
+            summary=f"Cita UCaldas - {reason.value}",
+            attendee_email=user_email,
+            virtual=virtual,
+        )
 
         appointment = Appointment(
             type=type,
             reason=reason,
             date_time=date_time,
             description=description,
-            location=location,
+            location=calendar_event.location,
             user_id=user_id,
             user_email=user_email,
             calendar_event_id=calendar_event.id,

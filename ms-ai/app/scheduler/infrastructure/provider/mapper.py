@@ -4,6 +4,18 @@ from typing import Any
 from app.scheduler.domain.entities.calendar import CalendarEvent
 
 
+def _extract_location(event: dict[str, Any]) -> str:
+    if event.get("hangoutLink"):
+        return event["hangoutLink"]
+
+    conference = event.get("conferenceData", {})
+    for entry_point in conference.get("entryPoints", []):
+        if entry_point.get("entryPointType") == "video":
+            return entry_point.get("uri", "")
+
+    return event.get("location", "")
+
+
 def gcal_event_to_entity(event: dict[str, Any]) -> CalendarEvent:
     start_raw = event.get("start", {})
     end_raw = event.get("end", {})
@@ -19,5 +31,5 @@ def gcal_event_to_entity(event: dict[str, Any]) -> CalendarEvent:
         start_date=start_dt,
         end_date=end_dt,
         description=event.get("description", ""),
-        location=event.get("location", ""),
+        location=_extract_location(event),
     )

@@ -6,7 +6,7 @@ load_dotenv()
 
 class Settings:
     PORT: int = int(os.getenv("PORT", "8001"))
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql+psycopg2://postgres:postgres@localhost:5432/ms_ai")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/ms_ai")
     GOOGLE_CALENDAR_ID: str = os.getenv("GOOGLE_CALENDAR_ID", "primary")
     SECRETS_LOCATION: str = os.getenv("SECRETS_LOCATION", "secrets")
     CLIENT_SECRET: str = os.getenv("CLIENT_SECRET", "")

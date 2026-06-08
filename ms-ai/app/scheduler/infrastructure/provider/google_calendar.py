@@ -1,5 +1,6 @@
 import os
 import pickle
+import uuid
 from datetime import datetime
 from typing import List
 
@@ -49,6 +50,7 @@ class GoogleCalendarProvider(ICalendarRepository):
         end_date: datetime,
         description: str,
         location: str,
+        *,
         summary: str = "Cita UCaldas",
         attendee_email: str | None = None,
         virtual: bool = False,
@@ -58,20 +60,25 @@ class GoogleCalendarProvider(ICalendarRepository):
         body: dict = {
             "summary": summary,
             "description": description,
-            "location": location,
             "start": {"dateTime": start_date.isoformat(), "timeZone": settings.TIMEZONE},
             "end": {"dateTime": end_date.isoformat(), "timeZone": settings.TIMEZONE},
         }
+
+        if virtual:
+            body["conferenceData"] = {
+                "createRequest": {
+                    "requestId": f"meet-{uuid.uuid4()}",
+                    "conferenceSolutionKey": {"type": "hangoutsMeet"},
+                }
+            }
+        else:
+            body["location"] = location
 
         if attendee_email:
             body["attendees"] = [{"email": attendee_email}]
 
         kwargs: dict = {"calendarId": self.calendar_id, "body": body}
-
         if virtual:
-            body["conferenceData"] = {
-                "createRequest": {"requestId": f"meet-{start_date.isoformat()}"}
-            }
             kwargs["conferenceDataVersion"] = 1
 
         event = service.events().insert(**kwargs).execute()
@@ -81,12 +88,14 @@ class GoogleCalendarProvider(ICalendarRepository):
         self, start_date: datetime, end_date: datetime
     ) -> List[CalendarEvent]:
         service = self._get_service()
+        time_min = start_date.isoformat() + "Z" if start_date.tzinfo is None else start_date.isoformat()
+        time_max = end_date.isoformat() + "Z" if end_date.tzinfo is None else end_date.isoformat()
         events_result = (
             service.events()
             .list(
                 calendarId=self.calendar_id,
-                timeMin=start_date.isoformat() + "Z" if start_date.tzinfo is None else start_date.isoformat(),
-                timeMax=end_date.isoformat() + "Z" if end_date.tzinfo is None else end_date.isoformat(),
+                timeMin=time_min,
+                timeMax=time_max,
                 singleEvents=True,
                 orderBy="startTime",
             )
@@ -101,19 +110,35 @@ class GoogleCalendarProvider(ICalendarRepository):
         end_date: datetime,
         description: str,
         location: str,
+        *,
+        virtual: bool = False,
     ) -> CalendarEvent:
         service = self._get_service()
-        body = {
+        body: dict = {
             "start": {"dateTime": start_date.isoformat(), "timeZone": settings.TIMEZONE},
             "end": {"dateTime": end_date.isoformat(), "timeZone": settings.TIMEZONE},
             "description": description,
-            "location": location,
         }
-        event = (
-            service.events()
-            .patch(calendarId=self.calendar_id, eventId=calendar_event_id, body=body)
-            .execute()
-        )
+
+        if virtual:
+            body["conferenceData"] = {
+                "createRequest": {
+                    "requestId": f"meet-{uuid.uuid4()}",
+                    "conferenceSolutionKey": {"type": "hangoutsMeet"},
+                }
+            }
+        else:
+            body["location"] = location
+
+        kwargs: dict = {
+            "calendarId": self.calendar_id,
+            "eventId": calendar_event_id,
+            "body": body,
+        }
+        if virtual:
+            kwargs["conferenceDataVersion"] = 1
+
+        event = service.events().patch(**kwargs).execute()
         return gcal_event_to_entity(event)
 
     def cancel_calendar_event(self, calendar_event_id: str) -> None:

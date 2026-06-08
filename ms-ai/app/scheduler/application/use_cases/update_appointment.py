@@ -33,6 +33,7 @@ class UpdateAppointmentUseCase:
         new_type = type or existing.type
         new_reason = reason or existing.reason
         new_description = description if description is not None else existing.description
+        virtual = new_type == AppointmentType.VIRTUAL
 
         if date_time and date_time != existing.date_time:
             slot_end = new_date_time + timedelta(minutes=settings.SLOT_DURATION_MINUTES)
@@ -44,9 +45,7 @@ class UpdateAppointmentUseCase:
             if checker._overlaps_busy(start_tz, end_tz, busy_events):
                 raise ValueError("The selected time slot is not available")
 
-        virtual = new_type == AppointmentType.VIRTUAL
-        new_location = settings.OFFICE_LOCATION if not virtual else existing.location
-
+        new_location = existing.location
         if existing.calendar_event_id:
             slot_end = new_date_time + timedelta(minutes=settings.SLOT_DURATION_MINUTES)
             updated_event = self.calendar_repo.update_calendar_event(
@@ -54,8 +53,10 @@ class UpdateAppointmentUseCase:
                 start_date=new_date_time,
                 end_date=slot_end,
                 description=new_description,
-                location=new_location,
+                location=settings.OFFICE_LOCATION,
+                virtual=virtual,
             )
+            new_location = updated_event.location
 
         updated = existing.model_copy(update={
             "type": new_type,

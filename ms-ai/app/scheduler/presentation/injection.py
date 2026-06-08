@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from sqlalchemy.orm import Session
+import psycopg2.extensions
 from fastapi import Depends
 
 from app.scheduler.infrastructure.database import get_db
@@ -27,36 +27,48 @@ def _get_notification_client() -> HttpNotificationClient:
     return HttpNotificationClient()
 
 
-def get_create_appointment(db: Session = Depends(get_db)) -> CreateAppointmentUseCase:
+def get_create_appointment(
+    conn: psycopg2.extensions.connection = Depends(get_db),
+) -> CreateAppointmentUseCase:
     return CreateAppointmentUseCase(
-        appointment_repo=AppointmentRepository(db),
+        appointment_repo=AppointmentRepository(conn),
         calendar_repo=_get_calendar_provider(),
         notification_port=_get_notification_client(),
     )
 
 
-def get_appointment_by_id(db: Session = Depends(get_db)) -> GetAppointmentByIdUseCase:
-    return GetAppointmentByIdUseCase(AppointmentRepository(db))
+def get_appointment_by_id(
+    conn: psycopg2.extensions.connection = Depends(get_db),
+) -> GetAppointmentByIdUseCase:
+    return GetAppointmentByIdUseCase(AppointmentRepository(conn))
 
 
-def get_all_appointments(db: Session = Depends(get_db)) -> GetAllAppointmentsUseCase:
-    return GetAllAppointmentsUseCase(AppointmentRepository(db))
+def get_all_appointments(
+    conn: psycopg2.extensions.connection = Depends(get_db),
+) -> GetAllAppointmentsUseCase:
+    return GetAllAppointmentsUseCase(AppointmentRepository(conn))
 
 
-def get_appointments_by_user_id(db: Session = Depends(get_db)) -> GetAppointmentsByUserIdUseCase:
-    return GetAppointmentsByUserIdUseCase(AppointmentRepository(db))
+def get_appointments_by_user_id(
+    conn: psycopg2.extensions.connection = Depends(get_db),
+) -> GetAppointmentsByUserIdUseCase:
+    return GetAppointmentsByUserIdUseCase(AppointmentRepository(conn))
 
 
-def get_update_appointment(db: Session = Depends(get_db)) -> UpdateAppointmentUseCase:
+def get_update_appointment(
+    conn: psycopg2.extensions.connection = Depends(get_db),
+) -> UpdateAppointmentUseCase:
     return UpdateAppointmentUseCase(
-        appointment_repo=AppointmentRepository(db),
+        appointment_repo=AppointmentRepository(conn),
         calendar_repo=_get_calendar_provider(),
     )
 
 
-def get_delete_appointment(db: Session = Depends(get_db)) -> DeleteAppointmentUseCase:
+def get_delete_appointment(
+    conn: psycopg2.extensions.connection = Depends(get_db),
+) -> DeleteAppointmentUseCase:
     return DeleteAppointmentUseCase(
-        appointment_repo=AppointmentRepository(db),
+        appointment_repo=AppointmentRepository(conn),
         calendar_repo=_get_calendar_provider(),
         notification_port=_get_notification_client(),
     )
