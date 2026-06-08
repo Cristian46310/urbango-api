@@ -8,6 +8,7 @@ from app.scheduler.application.use_cases.get_available_slots import GetAvailable
 from app.scheduler.domain.entities.appoitment import AppointmentType, AppointmentReason
 from app.scheduler.domain.ports.iappointment_repository import IAppointmentRepository
 from app.scheduler.domain.ports.icalendar_repository import ICalendarRepository
+from app.scheduler.domain.ports.inotification_port import INotificationPort
 
 
 class UpdateAppointmentUseCase:
@@ -15,9 +16,11 @@ class UpdateAppointmentUseCase:
         self,
         appointment_repo: IAppointmentRepository,
         calendar_repo: ICalendarRepository,
+        notification_port: INotificationPort,
     ) -> None:
         self.appointment_repo = appointment_repo
         self.calendar_repo = calendar_repo
+        self.notification_port = notification_port
 
     def execute(
         self,
@@ -65,5 +68,16 @@ class UpdateAppointmentUseCase:
             "description": new_description,
             "location": new_location,
         })
+
+        changed = (
+            new_type != existing.type
+            or new_reason != existing.reason
+            or new_date_time != existing.date_time
+            or new_description != existing.description
+            or new_location != existing.location
+        )
+
         saved = self.appointment_repo.update_appointment(updated)
+        if changed:
+            self.notification_port.send_update(saved)
         return appointment_to_dto(saved)

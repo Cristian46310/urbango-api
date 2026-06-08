@@ -61,6 +61,7 @@ def get_update_appointment(
     return UpdateAppointmentUseCase(
         appointment_repo=AppointmentRepository(conn),
         calendar_repo=_get_calendar_provider(),
+        notification_port=_get_notification_client(),
     )
 
 

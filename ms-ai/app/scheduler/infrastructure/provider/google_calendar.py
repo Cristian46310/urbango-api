@@ -36,7 +36,7 @@ class GoogleCalendarProvider(ICalendarRepository):
             else:
                 secrets_file = os.path.join(settings.SECRETS_LOCATION, settings.CLIENT_SECRET)
                 flow = InstalledAppFlow.from_client_secrets_file(secrets_file, settings.SCOPES)
-                creds = flow.run_local_server(port=0)
+                creds = flow.run_local_server(port=8765)
 
             with open(token_path, "wb") as f:
                 pickle.dump(creds, f)
@@ -51,7 +51,7 @@ class GoogleCalendarProvider(ICalendarRepository):
         description: str,
         location: str,
         *,
-        summary: str = "Cita UCaldas",
+        summary: str = "Cita",
         attendee_email: str | None = None,
         virtual: bool = False,
     ) -> CalendarEvent:

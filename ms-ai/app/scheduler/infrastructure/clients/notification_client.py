@@ -36,6 +36,32 @@ class HttpNotificationClient(INotificationPort):
             body=body,
         )
 
+    def send_update(self, appointment: Appointment) -> None:
+        tz = ZoneInfo(settings.TIMEZONE)
+        dt_local = appointment.date_time.astimezone(tz)
+        date_str = dt_local.strftime("%d/%m/%Y %H:%M")
+
+        if appointment.type == AppointmentType.VIRTUAL:
+            location_label = f"Enlace Google Meet: {appointment.location}"
+        else:
+            location_label = f"Ubicación: {appointment.location}"
+
+        body = (
+            f"Hola,\n\n"
+            f"Tu cita ha sido actualizada.\n\n"
+            f"Fecha y hora: {date_str} (hora Colombia)\n"
+            f"Tipo: {'Virtual (videollamada)' if appointment.type == AppointmentType.VIRTUAL else 'Presencial'}\n"
+            f"Motivo: {appointment.reason.value.replace('_', ' ').title()}\n"
+            f"{location_label}\n\n"
+            f"Si necesitas cancelar, contacta con atención al cliente.\n\n"
+        )
+
+        self._post_email(
+            to=appointment.user_email,
+            subject="Actualización de cita",
+            body=body,
+        )
+
     def send_cancellation(self, appointment: Appointment) -> None:
         tz = ZoneInfo(settings.TIMEZONE)
         dt_local = appointment.date_time.astimezone(tz)
