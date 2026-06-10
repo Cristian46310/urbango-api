@@ -55,18 +55,20 @@ export class DashboardController {
     @Query('enterpriseId') enterpriseId?: string,
     @Query('routeId') routeId?: string,
   ): Promise<ResponseRealtimeBusListDto> {
-    return this.dashboardRealtimeService.getRealtimeFleet(enterpriseId, routeId);
+    return this.dashboardRealtimeService.getRealtimeFleet(
+      enterpriseId,
+      routeId,
+    );
   }
 
   @Get('realtime/incidents')
   @ApiOperation({
     summary: 'Lista de incidentes activos',
-    description: 'Devuelve los incidentes no resueltos que afectan a la flota en tiempo real.',
+    description:
+      'Devuelve los incidentes no resueltos que afectan a la flota en tiempo real.',
   })
   @ApiOkResponse({ type: [ResponseIncidentDto] })
-  getActiveIncidents(
-    @Query('enterpriseId') enterpriseId?: string,
-  ) {
+  getActiveIncidents(@Query('enterpriseId') enterpriseId?: string) {
     return this.dashboardRealtimeService.getActiveIncidents(enterpriseId);
   }
 
@@ -77,7 +79,9 @@ export class DashboardController {
       'Devuelve los datos de GPS y estado operativo de un bus, incluyendo su ruta, paradero siguiente y ETA.',
   })
   @ApiOkResponse({ type: ResponseRealtimeBusDto })
-  getBusRealtimeStatus(@Param('id') id: string): Promise<ResponseRealtimeBusDto> {
+  getBusRealtimeStatus(
+    @Param('id') id: string,
+  ): Promise<ResponseRealtimeBusDto> {
     return this.dashboardRealtimeService.getBusRealtimeStatus(id);
   }
 
@@ -88,9 +92,7 @@ export class DashboardController {
       'Registra una suscripción y envía la alerta cuando el bus está dentro de los minutos de anticipación configurados.',
   })
   @ApiOkResponse({ type: Object })
-  sendArrivalNotification(
-    @Body() payload: CreateArrivalNotificationDto,
-  ) {
+  sendArrivalNotification(@Body() payload: CreateArrivalNotificationDto) {
     return this.dashboardRealtimeService.sendArrivalNotification(payload);
   }
 

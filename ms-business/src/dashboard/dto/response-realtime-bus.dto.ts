@@ -12,7 +12,7 @@ export class ResponseRealtimeBusDto {
   @ApiProperty({ example: 'operativo' })
   status!: string;
 
-  @ApiProperty({ example: 4.7490 })
+  @ApiProperty({ example: 4.749 })
   latitude!: number;
 
   @ApiProperty({ example: -74.0695 })

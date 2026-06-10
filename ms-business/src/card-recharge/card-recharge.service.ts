@@ -123,7 +123,9 @@ export class CardRechargeService {
     const citizen = await this.citizenService.findByUserId(currentUser.id);
 
     try {
-      const synced = await this.syncPendingSandboxPaymentsForCitizen(citizen.id);
+      const synced = await this.syncPendingSandboxPaymentsForCitizen(
+        citizen.id,
+      );
       if (synced > 0) {
         this.logger.log(
           `Sandbox: ${synced} recarga(s) pending acreditadas al listar tarjetas (ciudadano ${citizen.id})`,

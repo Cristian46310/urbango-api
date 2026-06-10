@@ -27,7 +27,7 @@ export class CitizenController {
   @Post()
   @Authenticated()
   @ApiOperation({
-    summary: 'Registrar perfil de ciudadano (userId desde token)',
+    summary: 'Registrar perfil de ciudadano (solo JWT, sin RBAC — onboarding)',
   })
   create(
     @Body() createCitizenDto: CreateCitizenDto,

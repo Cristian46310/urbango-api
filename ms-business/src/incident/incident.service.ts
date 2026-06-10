@@ -283,7 +283,9 @@ export class IncidentService {
       query.andWhere('enterprise.id = :enterpriseId', { enterpriseId });
     }
 
-    const incidents = await query.orderBy('incident.createdAt', 'DESC').getMany();
+    const incidents = await query
+      .orderBy('incident.createdAt', 'DESC')
+      .getMany();
     return Promise.all(
       incidents.map((incident) => {
         const busPlate = incident.incidentBuses?.[0]?.bus?.plate;

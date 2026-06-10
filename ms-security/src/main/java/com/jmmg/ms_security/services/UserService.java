@@ -59,6 +59,15 @@ public class UserService {
                 .map(GetUserListDTO::fromModel);
     }
 
+    public Page<GetUserListDTO> searchByNameOrEmail(String query, Pageable pageable) {
+        String normalizedQuery = query == null ? "" : query.trim();
+        if (normalizedQuery.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        return this.userRepository.searchByNameOrEmail(normalizedQuery, pageable)
+                .map(GetUserListDTO::fromModel);
+    }
+
     public GetUserDTO getById(String id) {
         User user = userRepository.findById(id).orElse(null);
         List<RoleSummaryDTO> roles = user != null ? this.getRoleSummariesByUserId(user.getId()) : null;

@@ -241,12 +241,7 @@ export class HistoryService {
   private async loadTicketForTripDetails(ticketId: string): Promise<Ticket> {
     const ticket = await this.ticketRepository.findOne({
       where: { id: ticketId },
-      relations: [
-        'scheduler',
-        'scheduler.bus',
-        'scheduler.route',
-        'citizen',
-      ],
+      relations: ['scheduler', 'scheduler.bus', 'scheduler.route', 'citizen'],
     });
     if (!ticket) {
       throw new NotFoundException(`Ticket ${ticketId} not found`);
