@@ -9,9 +9,21 @@ import { DashboardExportService } from './services/dashboard-export.service';
 import { PaymentMethodIncomeService } from './services/payment-method-income.service';
 import { IncidentTrendByTypeService } from './services/incident-trend-by-type.service';
 import { PassengerAgeDistributionService } from './services/passenger-age-distribution.service';
+import { DashboardRealtimeService } from './services/dashboard-realtime.service';
+import { BusModule } from '@/bus/bus.module';
+import { TicketModule } from '@/ticket/ticket.module';
+import { IncidentModule } from '@/incident/incident.module';
+import { StopModule } from '@/stop/stop.module';
+import { NotificationSubscription } from './entities/notification-subscription.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Ticket, Incident, Enterprise])],
+  imports: [
+    TypeOrmModule.forFeature([Ticket, Incident, Enterprise, NotificationSubscription]),
+    BusModule,
+    TicketModule,
+    IncidentModule,
+    StopModule,
+  ],
   controllers: [DashboardController],
   providers: [
     DashboardPeriodService,
@@ -19,6 +31,7 @@ import { PassengerAgeDistributionService } from './services/passenger-age-distri
     PaymentMethodIncomeService,
     IncidentTrendByTypeService,
     PassengerAgeDistributionService,
+    DashboardRealtimeService,
   ],
 })
 export class DashboardModule {}

@@ -8,5 +8,6 @@ import { Stop } from './entities/stop.entity';
   imports: [TypeOrmModule.forFeature([Stop])],
   controllers: [StopController],
   providers: [StopService],
+  exports: [StopService],
 })
 export class StopModule {}

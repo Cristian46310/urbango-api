@@ -3,6 +3,7 @@ import { DashboardController } from './dashboard.controller';
 import { IncidentTrendByTypeService } from './services/incident-trend-by-type.service';
 import { PaymentMethodIncomeService } from './services/payment-method-income.service';
 import { PassengerAgeDistributionService } from './services/passenger-age-distribution.service';
+import { DashboardRealtimeService } from './services/dashboard-realtime.service';
 
 describe('DashboardController', () => {
   let controller: DashboardController;
@@ -22,6 +23,14 @@ describe('DashboardController', () => {
         {
           provide: PassengerAgeDistributionService,
           useValue: { getAgeDistribution: jest.fn() },
+        },
+        {
+          provide: DashboardRealtimeService,
+          useValue: {
+            getRealtimeFleet: jest.fn(),
+            getBusRealtimeStatus: jest.fn(),
+            sendArrivalNotification: jest.fn(),
+          },
         },
       ],
     }).compile();

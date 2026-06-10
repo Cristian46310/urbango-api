@@ -24,6 +24,6 @@ import { IncidentPhotoModule } from '@/incident-photo/incident-photo.module';
     IncidentNotificationService,
     NotificationService,
   ],
-  exports: [IncidentService, TypeOrmModule],
+  exports: [IncidentService, NotificationService, TypeOrmModule],
 })
 export class IncidentModule {}
