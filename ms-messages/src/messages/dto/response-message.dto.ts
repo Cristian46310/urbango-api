@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
+import { MessageType } from '../enums/message-type.enum';
 
 export class ResponseMessageDto {
   @Expose()
@@ -13,6 +14,22 @@ export class ResponseMessageDto {
   @Expose()
   @ApiProperty()
   senderId!: string;
+
+  @Expose()
+  @ApiProperty({ enum: MessageType })
+  messageType!: MessageType;
+
+  @Expose()
+  @ApiPropertyOptional({
+    description: 'Presente cuando messageType es group',
+  })
+  groupId?: string;
+
+  @Expose()
+  @ApiPropertyOptional({
+    description: 'Presente cuando messageType es group',
+  })
+  groupName?: string;
 
   @Expose()
   @ApiProperty()
@@ -41,4 +58,17 @@ export class ResponseMessageDto {
     description: 'Marca temporal de lectura por el destinatario',
   })
   readAt?: Date;
+
+  @Expose()
+  @ApiPropertyOptional({
+    description:
+      'Cantidad de miembros que leyeron (solo mensajes grupales, vista remitente)',
+  })
+  readCount?: number;
+
+  @Expose()
+  @ApiPropertyOptional({
+    description: 'Total de miembros del grupo excluyendo remitente',
+  })
+  totalRecipients?: number;
 }

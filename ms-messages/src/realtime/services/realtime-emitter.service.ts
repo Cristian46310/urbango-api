@@ -33,4 +33,32 @@ export class RealtimeEmitterService {
   emitGroupMemberAdded(userId: string, payload: GroupMemberAddedPayload): void {
     this.gateway?.emitToUser(userId, ChatEvent.GROUP_MEMBER_ADDED, payload);
   }
+
+  emitMessageDeleted(
+    userIds: string[],
+    payload: {
+      messageId: string;
+      conversationId: string;
+      groupId: string;
+    },
+  ): void {
+    for (const userId of userIds) {
+      this.gateway?.emitToUser(userId, ChatEvent.MESSAGE_DELETED, payload);
+    }
+  }
+
+  emitGroupMessageRead(
+    userIds: string[],
+    payload: {
+      messageId: string;
+      conversationId: string;
+      groupId: string;
+      userId: string;
+      readAt: Date;
+    },
+  ): void {
+    for (const userId of userIds) {
+      this.gateway?.emitToUser(userId, ChatEvent.MESSAGE_READ, payload);
+    }
+  }
 }

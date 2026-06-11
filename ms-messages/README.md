@@ -6,6 +6,7 @@ Microservicio NestJS de mensajería (UCaldas). Puerto **3001**.
 
 - **HU-ENTR-3-004**: mensaje directo, búsqueda de usuarios, bandeja enviados/recibidos, lectura con timestamp, ubicación opcional, notificación en tiempo real vía WebSocket.
 - **HU-ENTR-3-006**: creación de grupos de interés, miembros, unirse a grupos públicos, ícono. Solo **ciudadanos con perfil registrado** en PostgreSQL (`persons`, `type=citizen`).
+- **HU-ENTR-3-005**: envío de mensajes a uno o varios grupos, historial grupal, lecturas, eliminación por admin. Solo **conductores registrados** (`persons`, `type=driver`) pueden enviar a grupos.
 
 ## Requisitos
 
@@ -47,6 +48,7 @@ const socket = io('http://localhost:3001', {
 socket.on('message:new', (message) => console.log(message));
 socket.on('message:read', (payload) => console.log(payload));
 socket.on('group:member_added', (payload) => console.log(payload));
+socket.on('message:deleted', (payload) => console.log(payload));
 ```
 
 ## Endpoints principales (HU-004)
@@ -72,6 +74,18 @@ socket.on('group:member_added', (payload) => console.log(payload));
 
 **Ciudadano registrado** = fila en `persons` con `type=citizen` y `user_id` = id del JWT (misma BD que ms-business). Conductores u otros perfiles reciben **403**.
 
+## Endpoints mensajes grupales (HU-005)
+
+| Método | Ruta | Descripción | Restricción |
+|--------|------|-------------|-------------|
+| GET | `/groups/me` | Grupos donde soy miembro | JWT |
+| POST | `/messages/group` | Enviar a 1 o N grupos | Conductor registrado + miembro del grupo |
+| GET | `/groups/:id/messages` | Historial del grupo | Miembro del grupo |
+| GET | `/messages/:id/reads` | Quién leyó (grupal) | Remitente o admin |
+| DELETE | `/messages/:id` | Eliminar mensaje grupal | Admin del grupo |
+
+**Conductor registrado** = fila en `persons` con `type=driver`.
+
 Todos los endpoints anteriores usan `@Authenticated()` (JWT válido, sin RBAC por ruta aún).
 
 ## Migraciones
@@ -82,4 +96,4 @@ Ejecutar migraciones:
 pnpm run migration:run
 ```
 
-Incluye `1749571200000-InitDirectMessages` y `1749571300000-InitGroups`.
+Incluye `1749571200000-InitDirectMessages`, `1749571300000-InitGroups` y `1749571400000-AddMessageSoftDelete`.

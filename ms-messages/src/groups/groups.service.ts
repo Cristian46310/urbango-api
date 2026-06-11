@@ -137,6 +137,51 @@ export class GroupsService {
     return this.toListDto(items, page, limit, totalItems);
   }
 
+  async findMyGroups(
+    userId: string,
+    pagination: PaginationQueryDto,
+  ): Promise<ResponseGroupListDto> {
+    const page = pagination.page ?? 1;
+    const limit = pagination.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const qb = this.groupRepository
+      .createQueryBuilder('group')
+      .innerJoinAndSelect('group.members', 'members')
+      .where('members.userId = :userId', { userId })
+      .orderBy('group.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit);
+
+    const [groups, totalItems] = await qb.getManyAndCount();
+    const items = groups.map((group) =>
+      this.toResponse(group, group.members ?? []),
+    );
+
+    return this.toListDto(items, page, limit, totalItems);
+  }
+
+  async getGroupForMember(groupId: string, userId: string): Promise<Group> {
+    const group = await this.getGroupWithMembers(groupId);
+    this.assertMember(group, userId);
+    return group;
+  }
+
+  async findByConversationId(conversationId: string): Promise<Group | null> {
+    return this.groupRepository.findOne({
+      where: { conversationId },
+      relations: ['members'],
+    });
+  }
+
+  assertGroupAdmin(group: Group, userId: string): void {
+    this.assertAdmin(group, userId);
+  }
+
+  getMemberUserIds(group: Group): string[] {
+    return (group.members ?? []).map((member) => member.userId);
+  }
+
   async addMembers(
     groupId: string,
     requesterId: string,
@@ -263,6 +308,15 @@ export class GroupsService {
       throw new ForbiddenException(
         'Solo administradores pueden realizar esta acción',
       );
+    }
+  }
+
+  private assertMember(group: Group, userId: string): void {
+    const isMember = (group.members ?? []).some(
+      (member) => member.userId === userId,
+    );
+    if (!isMember) {
+      throw new ForbiddenException('No eres miembro de este grupo');
     }
   }
 
