@@ -1,7 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { ChatEvent } from '../chat-events.enum';
 import { ResponseMessageDto } from '@/messages/dto/response-message.dto';
+import { GroupMemberRole } from '@/groups/enums/group-member-role.enum';
 import type { ChatRealtimePort } from '../chat-realtime.port';
+
+export interface GroupMemberAddedPayload {
+  groupId: string;
+  groupName: string;
+  conversationId: string;
+  role: GroupMemberRole;
+}
 
 @Injectable()
 export class RealtimeEmitterService {
@@ -20,5 +28,9 @@ export class RealtimeEmitterService {
     payload: { messageId: string; conversationId: string; readAt: Date },
   ): void {
     this.gateway?.emitToUser(senderId, ChatEvent.MESSAGE_READ, payload);
+  }
+
+  emitGroupMemberAdded(userId: string, payload: GroupMemberAddedPayload): void {
+    this.gateway?.emitToUser(userId, ChatEvent.GROUP_MEMBER_ADDED, payload);
   }
 }
