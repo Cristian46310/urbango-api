@@ -34,9 +34,12 @@ pnpm run start:dev
 
 Swagger: `http://localhost:3001/docs`
 
-## WebSocket (Socket.IO)
+## WebSocket (Socket.IO) — actualización en tiempo real
 
-Conéctate al mismo host/puerto con JWT:
+Al conectar, el servidor une al usuario a todas sus conversaciones (`conversation:{id}`).
+**No hace falta polling ni fetch repetido**: escucha eventos y actualiza el estado local.
+
+### Conexión
 
 ```javascript
 import { io } from 'socket.io-client';
@@ -45,11 +48,45 @@ const socket = io('http://localhost:3001', {
   auth: { token: '<jwt>' },
 });
 
-socket.on('message:new', (message) => console.log(message));
-socket.on('message:read', (payload) => console.log(payload));
-socket.on('group:member_added', (payload) => console.log(payload));
-socket.on('message:deleted', (payload) => console.log(payload));
+// Carga inicial UNA sola vez (REST)
+const history = await fetch('/groups/{id}/messages', { headers: { Authorization: `Bearer ${token}` } });
+
+// Tiempo real: append/update sin refetch
+socket.on('message:new', (message) => {
+  // message.conversationId, message.messageType, message.groupId, message.groupName...
+  appendToChat(message);
+  updateInboxPreview(message);
+});
+
+socket.on('message:read', ({ messageId, conversationId, userId, readAt }) => {
+  markReadInUi(messageId, userId, readAt);
+});
+
+socket.on('message:deleted', ({ messageId, conversationId }) => {
+  removeFromChat(messageId);
+});
+
+socket.on('group:member_added', ({ conversationId }) => {
+  socket.emit('conversation:join', { conversationId });
+});
 ```
+
+### Unirse a una conversación abierta en UI
+
+Si abres un chat nuevo antes de reconectar el socket:
+
+```javascript
+socket.emit('conversation:join', { conversationId: '<uuid>' });
+```
+
+### Eventos emitidos por el servidor
+
+| Evento | Cuándo |
+|--------|--------|
+| `message:new` | Mensaje directo o grupal (todos los miembros de la conversación) |
+| `message:read` | Alguien marca leído |
+| `message:deleted` | Admin elimina mensaje grupal |
+| `group:member_added` | Te agregan a un grupo |
 
 ## Endpoints principales (HU-004)
 

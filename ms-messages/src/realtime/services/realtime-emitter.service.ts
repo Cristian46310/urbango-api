@@ -11,6 +11,20 @@ export interface GroupMemberAddedPayload {
   role: GroupMemberRole;
 }
 
+export interface MessageReadPayload {
+  messageId: string;
+  conversationId: string;
+  userId: string;
+  readAt: Date;
+  groupId?: string;
+}
+
+export interface MessageDeletedPayload {
+  messageId: string;
+  conversationId: string;
+  groupId?: string;
+}
+
 @Injectable()
 export class RealtimeEmitterService {
   private gateway?: ChatRealtimePort;
@@ -19,46 +33,44 @@ export class RealtimeEmitterService {
     this.gateway = gateway;
   }
 
-  emitNewMessage(recipientId: string, message: ResponseMessageDto): void {
-    this.gateway?.emitToUser(recipientId, ChatEvent.MESSAGE_NEW, message);
+  /** Notifica a todos los miembros conectados de la conversación (sin fetch). */
+  emitNewMessage(message: ResponseMessageDto): void {
+    this.gateway?.emitToConversation(
+      message.conversationId,
+      ChatEvent.MESSAGE_NEW,
+      message,
+    );
   }
 
-  emitMessageRead(
-    senderId: string,
-    payload: { messageId: string; conversationId: string; readAt: Date },
-  ): void {
-    this.gateway?.emitToUser(senderId, ChatEvent.MESSAGE_READ, payload);
+  emitMessageRead(payload: MessageReadPayload): void {
+    this.gateway?.emitToConversation(
+      payload.conversationId,
+      ChatEvent.MESSAGE_READ,
+      payload,
+    );
+  }
+
+  emitMessageDeleted(payload: MessageDeletedPayload): void {
+    this.gateway?.emitToConversation(
+      payload.conversationId,
+      ChatEvent.MESSAGE_DELETED,
+      payload,
+    );
   }
 
   emitGroupMemberAdded(userId: string, payload: GroupMemberAddedPayload): void {
     this.gateway?.emitToUser(userId, ChatEvent.GROUP_MEMBER_ADDED, payload);
   }
 
-  emitMessageDeleted(
+  async joinUsersToConversation(
     userIds: string[],
-    payload: {
-      messageId: string;
-      conversationId: string;
-      groupId: string;
-    },
-  ): void {
-    for (const userId of userIds) {
-      this.gateway?.emitToUser(userId, ChatEvent.MESSAGE_DELETED, payload);
-    }
-  }
-
-  emitGroupMessageRead(
-    userIds: string[],
-    payload: {
-      messageId: string;
-      conversationId: string;
-      groupId: string;
-      userId: string;
-      readAt: Date;
-    },
-  ): void {
-    for (const userId of userIds) {
-      this.gateway?.emitToUser(userId, ChatEvent.MESSAGE_READ, payload);
-    }
+    conversationId: string,
+  ): Promise<void> {
+    const uniqueUserIds = [...new Set(userIds)];
+    await Promise.all(
+      uniqueUserIds.map((userId) =>
+        this.gateway?.joinUserToConversations(userId, [conversationId]),
+      ),
+    );
   }
 }

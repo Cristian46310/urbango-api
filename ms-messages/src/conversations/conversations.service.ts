@@ -70,6 +70,15 @@ export class ConversationsService {
     });
   }
 
+  async getConversationIdsForUser(userId: string): Promise<string[]> {
+    const members = await this.conversationMemberRepository.find({
+      where: { userId },
+      select: ['conversationId'],
+    });
+
+    return members.map((member) => member.conversationId);
+  }
+
   async assertMember(conversationId: string, userId: string): Promise<void> {
     const member = await this.conversationMemberRepository.findOne({
       where: { conversationId, userId },

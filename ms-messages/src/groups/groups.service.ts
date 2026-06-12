@@ -104,6 +104,11 @@ export class GroupsService {
     ];
     const savedMembers = await this.groupMemberRepository.save(groupMembers);
 
+    await this.realtimeEmitter.joinUsersToConversation(
+      allUserIds,
+      savedConversation.id,
+    );
+
     const response = this.toResponse(savedGroup, savedMembers);
     this.emitMemberAddedEvents(response, uniqueMemberIds);
 
@@ -225,6 +230,11 @@ export class GroupsService {
     );
     const saved = await this.groupMemberRepository.save(newGroupMembers);
 
+    await this.realtimeEmitter.joinUsersToConversation(
+      newIds,
+      group.conversationId,
+    );
+
     const allMembers = [...(group.members ?? []), ...saved];
     const response = this.toResponse(group, allMembers);
     this.emitMemberAddedEvents(response, newIds);
@@ -265,6 +275,12 @@ export class GroupsService {
 
     const allMembers = [...(group.members ?? []), member];
     const response = this.toResponse(group, allMembers);
+
+    await this.realtimeEmitter.joinUsersToConversation(
+      [userId],
+      group.conversationId,
+    );
+
     this.realtimeEmitter.emitGroupMemberAdded(userId, {
       groupId: group.id,
       groupName: group.name,
@@ -333,6 +349,11 @@ export class GroupsService {
     group: ResponseGroupDto,
     userIds: string[],
   ): void {
+    void this.realtimeEmitter.joinUsersToConversation(
+      userIds,
+      group.conversationId,
+    );
+
     for (const userId of userIds) {
       this.realtimeEmitter.emitGroupMemberAdded(userId, {
         groupId: group.id,

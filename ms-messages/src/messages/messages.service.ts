@@ -70,7 +70,11 @@ export class MessagesService {
       messageType: MessageType.DIRECT,
     });
 
-    this.realtimeEmitter.emitNewMessage(dto.recipientId, response);
+    await this.realtimeEmitter.joinUsersToConversation(
+      conversation.memberIds,
+      conversation.id,
+    );
+    this.realtimeEmitter.emitNewMessage(response);
 
     return response;
   }
@@ -105,13 +109,7 @@ export class MessagesService {
         memberCount: group.members?.length ?? 0,
       });
 
-      const recipients = this.groupsService
-        .getMemberUserIds(group)
-        .filter((id) => id !== senderId);
-
-      for (const recipientId of recipients) {
-        this.realtimeEmitter.emitNewMessage(recipientId, response);
-      }
+      this.realtimeEmitter.emitNewMessage(response);
 
       items.push(response);
     }
@@ -288,14 +286,7 @@ export class MessagesService {
       message.readReceipts = [...(message.readReceipts ?? []), receipt];
 
       if (group) {
-        const notifyIds = new Set<string>([message.senderId]);
-        for (const member of group.members ?? []) {
-          if (member.role === GroupMemberRole.ADMIN) {
-            notifyIds.add(member.userId);
-          }
-        }
-
-        this.realtimeEmitter.emitGroupMessageRead([...notifyIds], {
+        this.realtimeEmitter.emitMessageRead({
           messageId,
           conversationId: message.conversationId,
           groupId: group.id,
@@ -303,9 +294,10 @@ export class MessagesService {
           readAt: receipt.readAt,
         });
       } else {
-        this.realtimeEmitter.emitMessageRead(message.senderId, {
+        this.realtimeEmitter.emitMessageRead({
           messageId,
           conversationId: message.conversationId,
+          userId,
           readAt: receipt.readAt,
         });
       }
@@ -342,8 +334,7 @@ export class MessagesService {
     message.deletedAt = new Date();
     await this.messageRepository.save(message);
 
-    const memberIds = this.groupsService.getMemberUserIds(group);
-    this.realtimeEmitter.emitMessageDeleted(memberIds, {
+    this.realtimeEmitter.emitMessageDeleted({
       messageId: message.id,
       conversationId: message.conversationId,
       groupId: group.id,
