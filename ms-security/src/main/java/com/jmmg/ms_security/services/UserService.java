@@ -1,8 +1,11 @@
 package com.jmmg.ms_security.services;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
+import org.bson.types.ObjectId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +20,7 @@ import com.jmmg.ms_security.DTOs.user.PostUserDTO;
 import com.jmmg.ms_security.DTOs.user.RoleSummaryDTO;
 import com.jmmg.ms_security.models.Permission;
 import com.jmmg.ms_security.models.Profile;
+import com.jmmg.ms_security.models.Role;
 import com.jmmg.ms_security.models.RolePermission;
 import com.jmmg.ms_security.models.Session;
 import com.jmmg.ms_security.models.User;
@@ -55,6 +59,15 @@ public class UserService {
                 .map(GetUserListDTO::fromModel);
     }
 
+    public Page<GetUserListDTO> searchByNameOrEmail(String query, Pageable pageable) {
+        String normalizedQuery = query == null ? "" : query.trim();
+        if (normalizedQuery.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        return this.userRepository.searchByNameOrEmail(normalizedQuery, pageable)
+                .map(GetUserListDTO::fromModel);
+    }
+
     public GetUserDTO getById(String id) {
         User user = userRepository.findById(id).orElse(null);
         List<RoleSummaryDTO> roles = user != null ? this.getRoleSummariesByUserId(user.getId()) : null;
@@ -76,16 +89,11 @@ public class UserService {
             .map(RoleSummaryDTO::fromModel)
                 .collect(Collectors.toList());
 
-        List<GetPermissionDTO> permissions = userRoles.stream()
-                .map(UserRole::getRole)
-                .filter(java.util.Objects::nonNull)
-                .flatMap(role -> this.rolePermissionRepository.findByRoleId(role.getId()).stream())
-                .map(RolePermission::getPermission)
-                .filter(java.util.Objects::nonNull)
-                .collect(Collectors.toMap(Permission::getId, permission -> permission, (existing, replacement) -> existing))
-                .values().stream()
-                .map(GetPermissionDTO::fromModel)
-                .collect(Collectors.toList());
+        List<GetPermissionDTO> permissions = this.getPermissionsForRoles(
+                userRoles.stream()
+                        .map(UserRole::getRole)
+                        .filter(Objects::nonNull)
+                        .toList());
 
         return new GetUserDetailDTO(
                 user.getId(),
@@ -108,12 +116,51 @@ public class UserService {
         return null;
     }
 
+    /**
+     * Consulta ligera para validate-token: solo nombres de rol, sin perfil ni permisos.
+     */
+    public List<String> getRoleNamesByUserId(String userId) {
+        return this.userRoleRepository.findByUserId(userId).stream()
+                .map(UserRole::getRole)
+                .filter(Objects::nonNull)
+                .map(Role::getName)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
     private List<RoleSummaryDTO> getRoleSummariesByUserId(String userId) {
         List<UserRole> userRoles = this.userRoleRepository.findByUserId(userId);
         return userRoles.stream()
                 .map(UserRole::getRole)
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .map(RoleSummaryDTO::fromModel)
+                .collect(Collectors.toList());
+    }
+
+    private List<GetPermissionDTO> getPermissionsForRoles(List<Role> roles) {
+        List<ObjectId> roleIds = roles.stream()
+                .map(Role::getId)
+                .filter(Objects::nonNull)
+                .filter(ObjectId::isValid)
+                .map(ObjectId::new)
+                .distinct()
+                .toList();
+
+        if (roleIds.isEmpty()) {
+            return List.of();
+        }
+
+        return this.rolePermissionRepository.findByRoleIdIn(roleIds).stream()
+                .map(RolePermission::getPermission)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(
+                        Permission::getId,
+                        permission -> permission,
+                        (existing, replacement) -> existing,
+                        LinkedHashMap::new))
+                .values().stream()
+                .map(GetPermissionDTO::fromModel)
                 .collect(Collectors.toList());
     }
 

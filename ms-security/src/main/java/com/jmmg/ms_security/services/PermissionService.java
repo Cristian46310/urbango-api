@@ -122,10 +122,22 @@ public class PermissionService {
             return false;
         }
 
-        if (storedPattern.endsWith("/*")) {
-            String prefix = storedPattern.substring(0, storedPattern.length() - 2);
+        String pattern = storedPattern.trim();
+
+        // Prefijo: /route/* coincide con /route/uuid y /route/uuid/comments
+        if (pattern.endsWith("/*") && !pattern.substring(0, pattern.length() - 2).contains("/*")) {
+            String prefix = pattern.substring(0, pattern.length() - 2);
             return incomingUrl.startsWith(prefix);
         }
-        return storedPattern.equals(incomingUrl);
+
+        // Comodín por segmento: /incident-reports/*/comments
+        if (pattern.contains("/*")) {
+            String regex = pattern
+                    .replace("/", "\\/")
+                    .replace("/*", "/[^/]+");
+            return incomingUrl.matches("^" + regex + "$");
+        }
+
+        return pattern.equals(incomingUrl);
     }
 }

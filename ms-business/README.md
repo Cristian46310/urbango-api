@@ -45,6 +45,18 @@ INCIDENT_SUPERVISOR_EMAIL=supervisor@example.com
 
 `INCIDENT_SUPERVISOR_EMAIL` is only a fallback. Prefer setting `supervisorEmail` on each enterprise so high and critical reports notify the correct supervisor.
 
+## Bus fleet photos
+
+`POST /bus/:id/photo` (multipart field `photo`) uploads to Supabase Storage:
+
+```bash
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+SUPABASE_BUS_BUCKET=bus-photo
+```
+
+Create the bucket `bus-photo` in Supabase and mark it **public** (or adjust URL signing) so `photoUrl` returned by the API is reachable. Objects are stored under `buses/YYYY-MM-DD/<timestamp>-<uuid>.<ext>`.
+
 ## Compile and run the project
 
 ```bash

@@ -10,5 +10,6 @@ import { Stop } from '@/stop/entities/stop.entity';
   imports: [TypeOrmModule.forFeature([Route, Node, Stop])],
   controllers: [RouteController],
   providers: [RouteService],
+  exports: [RouteService],
 })
 export class RouteModule {}

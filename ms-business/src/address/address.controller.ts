@@ -3,7 +3,7 @@ import {
   Get,
   Post,
   Body,
-  Patch,
+  Put,
   Param,
   Delete,
   Query,
@@ -18,9 +18,11 @@ import {
   ApiCreatedResponse,
   ApiOkResponse,
   ApiNotFoundResponse,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { ResponseAddressDto } from './dto/response-address.dto';
 import { ResponseAddressListDto } from './dto/response-address-list.dto';
+import { Authenticated } from '@/auth/decorators/authenticated.decorator';
 
 @ApiTags('address')
 @Controller('address')
@@ -28,7 +30,12 @@ export class AddressController {
   constructor(private readonly addressService: AddressService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create address' })
+  @Authenticated()
+  @ApiBearerAuth('bearer')
+  @ApiOperation({
+    summary:
+      'Crear dirección (solo JWT, sin RBAC — onboarding ciudadano/conductor)',
+  })
   @ApiCreatedResponse({ type: ResponseAddressDto })
   create(@Body() createAddressDto: CreateAddressDto) {
     return this.addressService.create(createAddressDto);
@@ -48,7 +55,7 @@ export class AddressController {
     return this.addressService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   update(@Param('id') id: string, @Body() updateAddressDto: UpdateAddressDto) {
     return this.addressService.update(id, updateAddressDto);
   }

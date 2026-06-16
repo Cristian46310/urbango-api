@@ -3,7 +3,7 @@ import {
   Get,
   Post,
   Body,
-  Patch,
+  Put,
   Param,
   Delete,
   Query,
@@ -71,7 +71,7 @@ export class StopController {
     return await this.stopService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   @ApiOperation({ summary: 'Actualizar una parada por id' })
   @ApiParam({ name: 'id', description: 'Id de la parada', format: 'uuid' })
   @ApiOkResponse({ type: ResponseStopDto })

@@ -19,25 +19,17 @@ export class Node {
   @Column()
   order!: number;
 
-  @Column({
-    name: 'distance_from_previous',
-    type: 'decimal',
-    precision: 8,
-    scale: 2,
-    default: 0,
-  })
-  distanceFromPrevious!: number;
-
   @Column({ name: 'estimated_time_minutes', type: 'int', default: 0 })
   estimatedTimeMinutes!: number;
 
-  // que carge el stop al cargar el nodo y que no se puede eliminar un stop si tiene nodos asociados
-  @ManyToOne(() => Stop, { onDelete: 'RESTRICT', eager: true })
+  @ManyToOne(() => Stop, { onDelete: 'CASCADE', eager: true })
   @JoinColumn({ name: 'stopId' })
   stop!: Stop;
+
   @ManyToOne(() => Route, { onDelete: 'CASCADE', eager: false })
   @JoinColumn({ name: 'routeId' })
   route!: Route;
+
   @CreateDateColumn()
   createdAt!: Date;
 }

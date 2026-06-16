@@ -5,7 +5,12 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
+import {
+  FindOptionsWhere,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+  Repository,
+} from 'typeorm';
 import { CreateSchedulerDto } from './dto/create-scheduler.dto';
 import { UpdateSchedulerDto } from './dto/update-scheduler.dto';
 import {
@@ -18,9 +23,9 @@ import { BusService } from '@/bus/bus.service';
 import { Route } from '@/route/entities/route.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponseSchedulerDto } from './dto/response-scheduler.dto';
-import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponseSchedulerListDto } from './dto/response-scheduler-list.dto';
 import { Turn, TurnStatus } from '@/turn/entities/turn.entity';
+import { SchedulerQueryDto } from './dto/scheduler-query.dto';
 
 @Injectable()
 export class SchedulerService {
@@ -36,47 +41,87 @@ export class SchedulerService {
     private readonly turnRepository: Repository<Turn>,
   ) {}
 
-  private getDateValue(date: string | undefined, startTime: Date): string {
-    return date ?? startTime.toISOString().slice(0, 10);
+  private toResponseDto(scheduler: Scheduler): ResponseSchedulerDto {
+    return plainToInstance(ResponseSchedulerDto, {
+      ...scheduler,
+      departureTime: scheduler.startTime,
+    });
   }
 
-  private parseDateTime(value: string, date?: string): Date {
+  private parseDepartureTime(value: string, date: string): Date {
     const isTimeOnly = /^\d{2}:\d{2}(:\d{2})?$/.test(value);
     const normalizedValue = isTimeOnly ? `${date}T${value}` : value;
+    const departureTime = new Date(normalizedValue);
 
-    if (isTimeOnly && !date) {
-      throw new BadRequestException('date is required when time has no date');
+    if (Number.isNaN(departureTime.getTime())) {
+      throw new BadRequestException('Hora de salida inválida');
     }
 
-    return new Date(normalizedValue);
+    return departureTime;
   }
 
-  private validateTimeRange(startTime: Date, endTime: Date) {
-    if (Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime())) {
-      throw new BadRequestException('Invalid scheduler time range');
+  private computeRouteDurationMinutes(route: Route): number {
+    const nodes = route.nodes ?? [];
+    if (nodes.length === 0) {
+      throw new BadRequestException(
+        'La ruta no tiene paraderos configurados para calcular la duración del servicio',
+      );
     }
 
-    if (startTime >= endTime) {
-      throw new BadRequestException('endTime must be after startTime');
-    }
+    return nodes.reduce(
+      (total, node) => total + Number(node.estimatedTimeMinutes),
+      0,
+    );
+  }
+
+  private computeEndTime(departureTime: Date, route: Route): Date {
+    const durationMinutes = Math.max(
+      1,
+      this.computeRouteDurationMinutes(route),
+    );
+    return new Date(departureTime.getTime() + durationMinutes * 60 * 1000);
+  }
+
+  private getEffectiveWindowStart(
+    departureTime: Date,
+    toleranceMinutes: number,
+  ): Date {
+    return new Date(departureTime.getTime() - toleranceMinutes * 60 * 1000);
   }
 
   private async validateBusAvailability(
     busId: string,
     date: string,
-    startTime: Date,
+    departureTime: Date,
     endTime: Date,
+    toleranceMinutes: number,
+    excludeSchedulerId?: string,
   ) {
-    const overlappingScheduler = await this.schedulerRepository
+    const effectiveStart = this.getEffectiveWindowStart(
+      departureTime,
+      toleranceMinutes,
+    );
+
+    const query = this.schedulerRepository
       .createQueryBuilder('scheduler')
       .where('scheduler.bus_id = :busId', { busId })
       .andWhere('scheduler.date = :date', { date })
       .andWhere('scheduler.status = :status', {
         status: SchedulerStatus.SCHEDULED,
       })
-      .andWhere('scheduler.startTime < :endTime', { endTime })
-      .andWhere('scheduler.endTime > :startTime', { startTime })
-      .getOne();
+      .andWhere(
+        `(scheduler.startTime - (scheduler.toleranceMinutes * interval '1 minute')) < :effectiveEnd`,
+        { effectiveEnd: endTime },
+      )
+      .andWhere('scheduler.endTime > :effectiveStart', { effectiveStart });
+
+    if (excludeSchedulerId) {
+      query.andWhere('scheduler.id != :excludeSchedulerId', {
+        excludeSchedulerId,
+      });
+    }
+
+    const overlappingScheduler = await query.getOne();
 
     if (overlappingScheduler) {
       throw new ConflictException(
@@ -87,20 +132,26 @@ export class SchedulerService {
 
   private async validateDriverAssignment(
     busId: string,
-    startTime: Date,
+    departureTime: Date,
     endTime: Date,
+    toleranceMinutes: number,
   ) {
+    const effectiveStart = this.getEffectiveWindowStart(
+      departureTime,
+      toleranceMinutes,
+    );
+
     const turn = await this.turnRepository.findOne({
       where: [
         {
           bus: { id: busId },
-          startTime: LessThanOrEqual(startTime),
+          startTime: LessThanOrEqual(effectiveStart),
           endTime: MoreThanOrEqual(endTime),
           status: TurnStatus.SCHEDULED,
         },
         {
           bus: { id: busId },
-          startTime: LessThanOrEqual(startTime),
+          startTime: LessThanOrEqual(effectiveStart),
           endTime: MoreThanOrEqual(endTime),
           status: TurnStatus.IN_PROGRESS,
         },
@@ -108,7 +159,7 @@ export class SchedulerService {
       relations: ['bus', 'driver'],
     });
 
-    if (!turn) {
+    if (!turn?.driver?.id) {
       throw new BadRequestException(
         'No hay conductor asignado para este bus en el horario de la programación',
       );
@@ -123,37 +174,46 @@ export class SchedulerService {
     });
     if (!bus) throw new BadRequestException('Bus not found');
     this.busService.assertBusAvailableForScheduling(bus);
+
     const route = await this.routeRepository.findOne({
       where: { id: createSchedulerDto.routeId },
+      relations: ['nodes'],
     });
     if (!route) throw new BadRequestException('Route not found');
 
-    const startTime = this.parseDateTime(
-      createSchedulerDto.startTime,
+    const departureTime = this.parseDepartureTime(
+      createSchedulerDto.departureTime,
       createSchedulerDto.date,
     );
-    const endTime = this.parseDateTime(
-      createSchedulerDto.endTime,
-      createSchedulerDto.date,
-    );
-    this.validateTimeRange(startTime, endTime);
-    const date = this.getDateValue(createSchedulerDto.date, startTime);
+    const endTime = this.computeEndTime(departureTime, route);
+    const toleranceMinutes = createSchedulerDto.toleranceMinutes ?? 0;
 
-    await this.validateBusAvailability(bus.id, date, startTime, endTime);
-    await this.validateDriverAssignment(bus.id, startTime, endTime);
+    await this.validateBusAvailability(
+      bus.id,
+      createSchedulerDto.date,
+      departureTime,
+      endTime,
+      toleranceMinutes,
+    );
+    await this.validateDriverAssignment(
+      bus.id,
+      departureTime,
+      endTime,
+      toleranceMinutes,
+    );
 
     const scheduler = this.schedulerRepository.create({
       bus: { id: bus.id } as Bus,
       route: { id: route.id } as Route,
-      date,
-      startTime,
+      date: createSchedulerDto.date,
+      startTime: departureTime,
       endTime,
-      status: createSchedulerDto.status ?? SchedulerStatus.SCHEDULED,
-      toleranceMinutes: createSchedulerDto.toleranceMinutes ?? 0,
+      status: SchedulerStatus.SCHEDULED,
+      toleranceMinutes,
       recurrenceType: createSchedulerDto.recurrenceType ?? RecurrenceType.NONE,
-    } as Partial<Scheduler>);
+    });
     const saved = await this.schedulerRepository.save(scheduler);
-    return plainToInstance(ResponseSchedulerDto, saved);
+    return this.toResponseDto(saved);
   }
 
   private buildPaginationMeta(page: number, limit: number, totalItems: number) {
@@ -168,19 +228,27 @@ export class SchedulerService {
     };
   }
 
-  async findAll(
-    pagination: PaginationQueryDto,
-  ): Promise<ResponseSchedulerListDto> {
-    const page = pagination.page ?? 1;
-    const limit = pagination.limit ?? 10;
+  async findAll(query: SchedulerQueryDto): Promise<ResponseSchedulerListDto> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const where: FindOptionsWhere<Scheduler> = {
+      status: query.status ?? SchedulerStatus.SCHEDULED,
+    };
+
+    if (query.date) where.date = query.date;
+    if (query.routeId) where.route = { id: query.routeId };
+    if (query.busId) where.bus = { id: query.busId };
+
     const [items, totalItems] = await this.schedulerRepository.findAndCount({
+      where,
       relations: ['bus', 'route'],
-      order: { startTime: 'DESC' },
+      order: { startTime: 'ASC' },
       skip: (page - 1) * limit,
       take: limit,
     });
+
     return {
-      items: plainToInstance(ResponseSchedulerDto, items),
+      items: items.map((item) => this.toResponseDto(item)),
       meta: this.buildPaginationMeta(page, limit, totalItems),
     };
   }
@@ -191,51 +259,90 @@ export class SchedulerService {
       relations: ['bus', 'route'],
     });
     if (!scheduler) throw new NotFoundException(`Scheduler ${id} not found`);
-    return plainToInstance(ResponseSchedulerDto, scheduler);
+    return this.toResponseDto(scheduler);
   }
 
   async update(
     id: string,
     updateSchedulerDto: UpdateSchedulerDto,
   ): Promise<ResponseSchedulerDto> {
-    const preloadData: Partial<Scheduler> = { id };
+    const existing = await this.schedulerRepository.findOne({
+      where: { id },
+      relations: ['bus', 'route', 'route.nodes'],
+    });
+    if (!existing) throw new NotFoundException(`Scheduler ${id} not found`);
+
+    const busId = updateSchedulerDto.busId ?? existing.bus.id;
+    const routeId = updateSchedulerDto.routeId ?? existing.route.id;
+    const date = updateSchedulerDto.date ?? existing.date;
+    const toleranceMinutes =
+      updateSchedulerDto.toleranceMinutes ?? existing.toleranceMinutes;
+
     if (updateSchedulerDto.busId) {
       const bus = await this.busRepository.findOne({
         where: { id: updateSchedulerDto.busId },
       });
       if (!bus) throw new BadRequestException('Bus not found');
       this.busService.assertBusAvailableForScheduling(bus);
-      preloadData.bus = { id: bus.id } as Bus;
     }
-    if (updateSchedulerDto.routeId) {
-      const route = await this.routeRepository.findOne({
-        where: { id: updateSchedulerDto.routeId },
-      });
-      if (!route) throw new BadRequestException('Route not found');
-      preloadData.route = { id: route.id } as Route;
-    }
-    if (updateSchedulerDto.startTime)
-      preloadData.startTime = new Date(updateSchedulerDto.startTime);
-    if (updateSchedulerDto.endTime)
-      preloadData.endTime = new Date(updateSchedulerDto.endTime);
-    if (updateSchedulerDto.date) preloadData.date = updateSchedulerDto.date;
-    if (updateSchedulerDto.status)
-      preloadData.status = updateSchedulerDto.status;
-    if (updateSchedulerDto.toleranceMinutes !== undefined)
-      preloadData.toleranceMinutes = updateSchedulerDto.toleranceMinutes;
-    if (updateSchedulerDto.recurrenceType !== undefined)
-      preloadData.recurrenceType = updateSchedulerDto.recurrenceType;
 
-    const scheduler = await this.schedulerRepository.preload(preloadData);
-    if (!scheduler) throw new NotFoundException(`Scheduler ${id} not found`);
-    const saved = await this.schedulerRepository.save(scheduler);
-    return plainToInstance(ResponseSchedulerDto, saved);
+    let route = existing.route;
+    if (updateSchedulerDto.routeId) {
+      const loadedRoute = await this.routeRepository.findOne({
+        where: { id: updateSchedulerDto.routeId },
+        relations: ['nodes'],
+      });
+      if (!loadedRoute) throw new BadRequestException('Route not found');
+      route = loadedRoute;
+    } else if (!route.nodes?.length) {
+      const loadedRoute = await this.routeRepository.findOne({
+        where: { id: route.id },
+        relations: ['nodes'],
+      });
+      if (loadedRoute) route = loadedRoute;
+    }
+
+    const departureTime = updateSchedulerDto.departureTime
+      ? this.parseDepartureTime(updateSchedulerDto.departureTime, date)
+      : existing.startTime;
+    const endTime = this.computeEndTime(departureTime, route);
+
+    await this.validateBusAvailability(
+      busId,
+      date,
+      departureTime,
+      endTime,
+      toleranceMinutes,
+      id,
+    );
+    await this.validateDriverAssignment(
+      busId,
+      departureTime,
+      endTime,
+      toleranceMinutes,
+    );
+
+    existing.bus = { id: busId } as Bus;
+    existing.route = { id: routeId } as Route;
+    existing.date = date;
+    existing.startTime = departureTime;
+    existing.endTime = endTime;
+    existing.toleranceMinutes = toleranceMinutes;
+
+    if (updateSchedulerDto.recurrenceType !== undefined) {
+      existing.recurrenceType = updateSchedulerDto.recurrenceType;
+    }
+    if (updateSchedulerDto.status !== undefined) {
+      existing.status = updateSchedulerDto.status;
+    }
+
+    const saved = await this.schedulerRepository.save(existing);
+    return this.toResponseDto(saved);
   }
 
   async remove(id: string): Promise<void> {
     const scheduler = await this.schedulerRepository.findOne({ where: { id } });
     if (!scheduler) throw new NotFoundException(`Scheduler ${id} not found`);
     await this.schedulerRepository.delete(id);
-    return;
   }
 }

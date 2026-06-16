@@ -14,7 +14,6 @@ import {
 } from './utils/card-number.util';
 import { PaymentMethodCitizen } from '@/payment-method-citizen/entities/payment-method-citizen.entity';
 import { PaymentMethod } from '@/payment-method/entities/payment-method.entity';
-import { Citizen } from '@/citizen/entities/citizen.entity';
 import { CitizenService } from '@/citizen/citizen.service';
 import { PaymentMethodCitizenService } from '@/payment-method-citizen/payment-method-citizen.service';
 import { RegisterRechargeableCardDto } from './dto/register-rechargeable-card.dto';
@@ -36,6 +35,15 @@ import { ResponseCardRechargePreviewDto } from './dto/response-card-recharge-pre
 import { ResponseCardRechargeCheckoutDto } from './dto/response-card-recharge-checkout.dto';
 import { ResponseCardRechargeStatusDto } from './dto/response-card-recharge-status.dto';
 import type { JwtPayload } from '@/auth/types';
+import {
+  encodeApprovedReference,
+  encodeFailedReference,
+  encodeRejectedReference,
+  extractReference,
+  getTransactionStatus,
+  isPendingTransaction,
+} from './utils/card-recharge-transaction.util';
+import { Like } from 'typeorm';
 
 @Injectable()
 export class CardRechargeService {
@@ -113,12 +121,24 @@ export class CardRechargeService {
     currentUser: JwtPayload,
   ): Promise<ResponseRechargeableCardDto[]> {
     const citizen = await this.citizenService.findByUserId(currentUser.id);
-    const synced = await this.syncPendingSandboxPaymentsForCitizen(citizen.id);
-    if (synced > 0) {
-      this.logger.log(
-        `Sandbox: ${synced} recarga(s) pending acreditadas al listar tarjetas (ciudadano ${citizen.id})`,
+
+    try {
+      const synced = await this.syncPendingSandboxPaymentsForCitizen(
+        citizen.id,
+      );
+      if (synced > 0) {
+        this.logger.log(
+          `Sandbox: ${synced} recarga(s) pending acreditadas al listar tarjetas (ciudadano ${citizen.id})`,
+        );
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Sandbox: no se pudo auto-acreditar recargas pending al listar tarjetas: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
     }
+
     const cards = await this.pmcRepository.find({
       where: { citizen: { id: citizen.id } },
       relations: ['paymentMethod'],
@@ -130,8 +150,8 @@ export class CardRechargeService {
       .map((card) => ({
         id: card.id,
         cardDisplay: formatCardDisplay(card.cardNumber),
-        currentBalance: card.balance ?? 0,
-        paymentMethodName: card.paymentMethod.name,
+        currentBalance: Number(card.balance ?? 0),
+        paymentMethodName: card.paymentMethod?.name ?? 'Tarjeta prepagada',
         createdAt: card.createdAt,
       }));
   }
@@ -164,14 +184,9 @@ export class CardRechargeService {
     const description = `Recarga tarjeta transporte #${preview.cardDisplay}`;
 
     const transaction = this.transactionRepository.create({
-      reference,
       amount: dto.amount,
-      feeAmount: preview.feeAmount,
-      totalAmount: preview.totalToPay,
-      status: CardRechargeStatus.PENDING,
-      description,
+      epaycoTransactionId: reference,
       paymentMethodCitizen: { id: card.id } as PaymentMethodCitizen,
-      citizen: { id: card.citizen.id } as Citizen,
     });
     await this.transactionRepository.save(transaction);
 
@@ -216,17 +231,18 @@ export class CardRechargeService {
     const citizen = await this.citizenService.findByUserId(currentUser.id);
     await this.syncPendingSandboxPaymentByReference(citizen.id, reference);
 
-    const transaction = await this.transactionRepository.findOne({
-      where: { reference, citizen: { id: citizen.id } },
-      relations: ['paymentMethodCitizen'],
-    });
+    const transaction = await this.findOwnedTransactionByReference(
+      citizen.id,
+      reference,
+    );
 
     if (!transaction) {
       throw new NotFoundException('Transacción de recarga no encontrada');
     }
 
+    const status = getTransactionStatus(transaction);
     let currentBalance: number | undefined;
-    if (transaction.status === CardRechargeStatus.APPROVED) {
+    if (status === CardRechargeStatus.APPROVED) {
       const card = await this.pmcRepository.findOne({
         where: { id: transaction.paymentMethodCitizen.id },
       });
@@ -234,11 +250,14 @@ export class CardRechargeService {
     }
 
     return {
-      reference: transaction.reference,
-      status: transaction.status,
+      reference,
+      status,
       amount: transaction.amount,
       currentBalance,
-      completedAt: transaction.completedAt,
+      completedAt:
+        status === CardRechargeStatus.APPROVED
+          ? transaction.createdAt
+          : undefined,
     };
   }
 
@@ -255,8 +274,13 @@ export class CardRechargeService {
     }
 
     const transaction = await this.transactionRepository.findOne({
-      where: { reference },
-      relations: ['paymentMethodCitizen', 'citizen'],
+      where: [
+        { epaycoTransactionId: reference },
+        { epaycoTransactionId: Like(`approved:${reference}:%`) },
+        { epaycoTransactionId: encodeRejectedReference(reference) },
+        { epaycoTransactionId: encodeFailedReference(reference) },
+      ],
+      relations: ['paymentMethodCitizen'],
     });
 
     if (!transaction) {
@@ -265,46 +289,37 @@ export class CardRechargeService {
       );
     }
 
-    if (transaction.status === CardRechargeStatus.APPROVED) {
+    if (getTransactionStatus(transaction) === CardRechargeStatus.APPROVED) {
       return;
     }
 
     const response = payload.x_response ?? '';
-    const epaycoTransactionId = payload.x_transaction_id;
-    const epaycoRefPayco = payload.ref_payco ?? payload.x_ref_payco;
+    const epaycoTransactionId = payload.x_transaction_id ?? 'unknown';
 
     if (response === 'Aceptada') {
       const paidAmount = Number.parseInt(payload.x_amount ?? '0', 10);
+      const expectedTotal =
+        transaction.amount +
+        this.epaycoService.calculateFee(transaction.amount);
       if (
         Number.isFinite(paidAmount) &&
         paidAmount > 0 &&
-        paidAmount !== transaction.totalAmount
+        paidAmount !== expectedTotal
       ) {
         throw new BadRequestException(
           'Monto pagado no coincide con la recarga',
         );
       }
 
-      await this.creditApprovedTransaction(transaction, {
-        epaycoRefPayco,
-        epaycoTransactionId,
-        epaycoResponse: response,
-      });
+      await this.creditApprovedTransaction(transaction, epaycoTransactionId);
       return;
     }
 
-    const statusMap: Record<string, CardRechargeStatus> = {
-      Rechazada: CardRechargeStatus.REJECTED,
-      Fallida: CardRechargeStatus.FAILED,
-      Pendiente: CardRechargeStatus.PENDING,
-    };
-
-    transaction.status = statusMap[response] ?? CardRechargeStatus.FAILED;
-    transaction.epaycoRefPayco = epaycoRefPayco;
-    transaction.epaycoTransactionId = epaycoTransactionId;
-    transaction.epaycoResponse = response;
-    if (transaction.status !== CardRechargeStatus.PENDING) {
-      transaction.completedAt = new Date();
+    const ref = extractReference(transaction.epaycoTransactionId) ?? reference;
+    if (response === 'Rechazada') {
+      transaction.epaycoTransactionId = encodeRejectedReference(ref);
+    } else if (response === 'Fallida') {
+      transaction.epaycoTransactionId = encodeFailedReference(ref);
     }
     await this.transactionRepository.save(transaction);
   }
@@ -349,7 +364,10 @@ export class CardRechargeService {
     }
 
     const transaction = await this.transactionRepository.findOne({
-      where: { reference },
+      where: [
+        { epaycoTransactionId: reference },
+        { epaycoTransactionId: Like(`approved:${reference}:%`) },
+      ],
       relations: ['paymentMethodCitizen'],
     });
 
@@ -359,16 +377,15 @@ export class CardRechargeService {
       );
     }
 
-    if (transaction.status === CardRechargeStatus.APPROVED) {
+    if (getTransactionStatus(transaction) === CardRechargeStatus.APPROVED) {
       return { reference, status: 'approved' };
     }
 
     if (this.epaycoService.isTestMode()) {
-      await this.creditApprovedTransaction(transaction, {
-        epaycoRefPayco: payload.ref_payco ?? payload.x_ref_payco,
-        epaycoTransactionId: payload.x_transaction_id,
-        epaycoResponse: 'Aceptada',
-      });
+      await this.creditApprovedTransaction(
+        transaction,
+        payload.x_transaction_id ?? 'sandbox',
+      );
       return { reference, status: 'approved' };
     }
 
@@ -388,19 +405,16 @@ export class CardRechargeService {
 
     const pending = await this.transactionRepository.find({
       where: {
-        citizen: { id: citizenId },
-        status: CardRechargeStatus.PENDING,
+        paymentMethodCitizen: { citizen: { id: citizenId } },
+        epaycoTransactionId: Like('RC-%'),
       },
       relations: ['paymentMethodCitizen'],
       order: { createdAt: 'ASC' },
     });
 
     for (const transaction of pending) {
-      await this.creditApprovedTransaction(transaction, {
-        epaycoRefPayco: 'sandbox-auto-sync',
-        epaycoTransactionId: 'sandbox-auto-sync',
-        epaycoResponse: 'Aceptada',
-      });
+      if (!isPendingTransaction(transaction)) continue;
+      await this.creditApprovedTransaction(transaction, 'sandbox-auto-sync');
     }
 
     return pending.length;
@@ -418,60 +432,86 @@ export class CardRechargeService {
       return;
     }
 
-    const transaction = await this.transactionRepository.findOne({
-      where: {
-        reference,
-        citizen: { id: citizenId },
-        status: CardRechargeStatus.PENDING,
-      },
-      relations: ['paymentMethodCitizen'],
-    });
+    const transaction = await this.findOwnedTransactionByReference(
+      citizenId,
+      reference,
+    );
 
-    if (!transaction) {
+    if (!transaction || !isPendingTransaction(transaction)) {
       return;
     }
 
-    await this.creditApprovedTransaction(transaction, {
-      epaycoRefPayco: 'sandbox-auto-sync',
-      epaycoTransactionId: 'sandbox-auto-sync',
-      epaycoResponse: 'Aceptada',
-    });
+    await this.creditApprovedTransaction(transaction, 'sandbox-auto-sync');
   }
 
   private async creditApprovedTransaction(
     transaction: CardRechargeTransaction,
-    epaycoMeta: {
-      epaycoRefPayco?: string;
-      epaycoTransactionId?: string;
-      epaycoResponse: string;
-    },
+    epaycoTransactionId: string,
   ): Promise<void> {
+    const sandboxMode = this.epaycoService.isTestMode();
+
     await this.dataSource.transaction(async (manager) => {
       const txRepo = manager.getRepository(CardRechargeTransaction);
       const pmcRepo = manager.getRepository(PaymentMethodCitizen);
 
       const lockedTx = await txRepo.findOne({
         where: { id: transaction.id },
-        lock: { mode: 'pessimistic_write' },
+        relations: ['paymentMethodCitizen'],
+        ...(sandboxMode ? {} : { lock: { mode: 'pessimistic_write' } }),
       });
 
-      if (!lockedTx || lockedTx.status === CardRechargeStatus.APPROVED) {
+      if (
+        !lockedTx ||
+        getTransactionStatus(lockedTx) === CardRechargeStatus.APPROVED
+      ) {
         return;
       }
 
+      const paymentMethodCitizenId =
+        lockedTx.paymentMethodCitizen?.id ??
+        transaction.paymentMethodCitizen?.id;
+
+      if (!paymentMethodCitizenId) {
+        throw new BadRequestException(
+          'La transacción de recarga no tiene tarjeta asociada',
+        );
+      }
+
       await pmcRepo.increment(
-        { id: transaction.paymentMethodCitizen.id },
+        { id: paymentMethodCitizenId },
         'balance',
-        transaction.amount,
+        lockedTx.amount,
       );
 
-      lockedTx.status = CardRechargeStatus.APPROVED;
-      lockedTx.epaycoRefPayco = epaycoMeta.epaycoRefPayco;
-      lockedTx.epaycoTransactionId = epaycoMeta.epaycoTransactionId;
-      lockedTx.epaycoResponse = epaycoMeta.epaycoResponse;
-      lockedTx.completedAt = new Date();
+      const reference =
+        extractReference(lockedTx.epaycoTransactionId) ?? lockedTx.id;
+      lockedTx.epaycoTransactionId = encodeApprovedReference(
+        reference,
+        epaycoTransactionId,
+      );
       await txRepo.save(lockedTx);
     });
+  }
+
+  private async findOwnedTransactionByReference(
+    citizenId: string,
+    reference: string,
+  ): Promise<CardRechargeTransaction | null> {
+    const transaction = await this.transactionRepository.findOne({
+      where: [
+        { epaycoTransactionId: reference },
+        { epaycoTransactionId: Like(`approved:${reference}:%`) },
+        { epaycoTransactionId: encodeRejectedReference(reference) },
+        { epaycoTransactionId: encodeFailedReference(reference) },
+      ],
+      relations: ['paymentMethodCitizen', 'paymentMethodCitizen.citizen'],
+    });
+
+    if (!transaction) return null;
+    if (transaction.paymentMethodCitizen.citizen.id !== citizenId) {
+      return null;
+    }
+    return transaction;
   }
 
   private buildPreview(

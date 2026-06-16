@@ -5,11 +5,9 @@ import { IncidentService } from './incident.service';
 describe('IncidentController', () => {
   let controller: IncidentController;
   const mockService = {
-    listByBus: jest.fn(),
-    getStatistics: jest.fn(),
+    findByBus: jest.fn(),
+    findAll: jest.fn(),
     createByDriver: jest.fn(),
-    listComments: jest.fn(),
-    addComment: jest.fn(),
     updateStatus: jest.fn(),
   };
 

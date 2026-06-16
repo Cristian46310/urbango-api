@@ -10,7 +10,7 @@ Los siguientes endpoints requieren autenticación y permisos específicos:
 |----------|--------|-------------|---------------|
 | `/api/bus` | POST | Crear un bus | BUSINESS_ADMIN |
 | `/api/bus/fleet` | GET | Listar flota de mi empresa | BUSINESS_ADMIN |
-| `/api/bus/:id` | PATCH | Actualizar un bus | BUSINESS_ADMIN |
+| `/bus/*` | PUT | Actualizar un bus | BUSINESS_ADMIN |
 | `/api/bus/:id` | DELETE | Eliminar un bus | BUSINESS_ADMIN |
 | `/api/bus/:id/photo` | POST | Subir foto del bus | BUSINESS_ADMIN |
 
@@ -34,16 +34,16 @@ curl -X POST http://localhost:8080/api/permissions \
 
 # Guarda el ID retornado como PERM_POST_BUS
 
-# 2. Crear permiso: PATCH /api/bus/:id
+# 2. Crear permiso: PUT /bus/*
 curl -X POST http://localhost:8080/api/permissions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <ADMIN_JWT>" \
   -d '{
-    "url": "/api/bus/*",
-    "method": "PATCH"
+    "url": "/bus/*",
+    "method": "PUT"
   }'
 
-# Guarda el ID retornado como PERM_PATCH_BUS
+# Guarda el ID retornado como PERM_PUT_BUS
 
 # 3. Crear permiso: DELETE /api/bus/:id
 curl -X POST http://localhost:8080/api/permissions \
@@ -82,7 +82,7 @@ curl -X POST http://localhost:8080/api/role-permission/assign-multiple \
     "roleId": "<BUSINESS_ADMIN_ROLE_ID>",
     "permissionIds": [
       "<PERM_POST_BUS>",
-      "<PERM_PATCH_BUS>",
+      "<PERM_PUT_BUS>",
       "<PERM_DELETE_BUS>",
       "<PERM_POST_PHOTO>"
     ]
@@ -168,4 +168,4 @@ curl -X POST http://localhost:3000/api/bus/<BUS_ID>/photo \
 - El `enterpriseId` se resuelve desde el perfil de conductor en ms-business (`persons.enterpriseId`)
 - El endpoint POST /api/bus genera automáticamente el código QR con los datos del bus
 - Los administradores de empresa solo pueden crear buses para su propia empresa (validado contra la empresa del conductor)
-- Las fotos se almacenan en Supabase Storage (bucket: `bus-photos`)
+- Las fotos se almacenan en Supabase Storage (bucket: `SUPABASE_BUS_BUCKET`, ej. `bus-photo`)

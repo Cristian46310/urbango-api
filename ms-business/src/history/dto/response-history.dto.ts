@@ -1,23 +1,26 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
-import { HistoryEventType } from '../entities/history.entity';
 
 export class ResponseHistoryDto {
   @ApiProperty({ example: 'uuid' })
   @Expose()
   id!: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: 'ticket-uuid' })
   @Expose()
-  order!: number;
+  ticketId?: string;
 
-  @ApiProperty({ enum: HistoryEventType })
+  @ApiProperty({ example: 'node-uuid' })
   @Expose()
-  eventType!: HistoryEventType;
+  nodeId?: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: 1, required: false })
   @Expose()
-  eventTimestamp!: Date;
+  nodeOrder?: number;
+
+  @ApiProperty({ example: 'boarding', required: false })
+  @Expose()
+  eventType?: string;
 
   @ApiProperty()
   @Expose()

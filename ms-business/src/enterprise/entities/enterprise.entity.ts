@@ -6,6 +6,8 @@ import {
   OneToMany,
 } from 'typeorm';
 import { Bus } from '@/bus/entities/bus.entity';
+import { Driver } from '@/driver/entities/driver.entity';
+import { Supervisor } from '@/supervisor/entities/supervisor.entity';
 
 @Entity('enterprises')
 export class Enterprise {
@@ -18,11 +20,14 @@ export class Enterprise {
   @Column({ unique: true })
   nit!: string;
 
-  @Column({ nullable: true })
-  supervisorEmail?: string;
-
   @OneToMany(() => Bus, (bus) => bus.enterprise)
-  buses?: Bus[];
+  buses!: Bus[];
+
+  @OneToMany(() => Driver, (driver) => driver.enterprise)
+  drivers!: Driver[];
+
+  @OneToMany(() => Supervisor, (supervisor) => supervisor.enterprise)
+  supervisors?: Supervisor[];
 
   @CreateDateColumn()
   createdAt!: Date;

@@ -20,16 +20,14 @@ export class BaseBusDto {
   @IsOptional()
   model?: string;
 
-  @ApiPropertyOptional({ description: 'Color del bus', example: 'Blanco' })
+  @ApiPropertyOptional({
+    description:
+      'Color del bus (si se omite en creación, se guarda "Sin especificar")',
+    example: 'Blanco',
+  })
   @IsString()
   @IsOptional()
   color?: string;
-
-  @ApiPropertyOptional({ description: 'Capacidad total', example: 40 })
-  @IsInt()
-  @IsOptional()
-  @Min(1)
-  capacity?: number;
 
   @ApiPropertyOptional({ description: 'Año del bus', example: 2023 })
   @IsInt()
@@ -63,22 +61,6 @@ export class BaseBusDto {
   @IsEnum(BusStatus)
   @IsOptional()
   status?: BusStatus;
-
-  @ApiPropertyOptional({
-    description: 'URL de la foto del bus',
-    example: 'https://supabase.com/...',
-  })
-  @IsString()
-  @IsOptional()
-  photoUrl?: string;
-
-  @ApiPropertyOptional({
-    description: 'Código QR del bus (generado automáticamente)',
-    example: 'data:image/png;base64,...',
-  })
-  @IsString()
-  @IsOptional()
-  qrCode?: string;
 
   @ApiPropertyOptional({
     description: 'Enterprise id (solo uso interno)',

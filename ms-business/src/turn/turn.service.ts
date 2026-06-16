@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { CreateTurnDto } from './dto/create-turn.dto';
 import { UpdateTurnDto } from './dto/update-turn.dto';
+import { StartTurnRequestDto } from './dto/start-turn-request.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { Turn, TurnStatus } from './entities/turn.entity';
@@ -14,6 +15,10 @@ import { Driver } from '@/driver/entities/driver.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponseTurnDto } from './dto/response-turn.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
+import { GpsService } from '@/gps/gps.service';
+
+/** Duración por defecto si no envían endTime o viene antes del inicio. */
+const DEFAULT_TURN_DURATION_MS = 8 * 60 * 60 * 1000;
 
 @Injectable()
 export class TurnService {
@@ -24,7 +29,25 @@ export class TurnService {
     private readonly busRepository: Repository<Bus>,
     @InjectRepository(Driver)
     private readonly driverRepository: Repository<Driver>,
+    private readonly gpsService: GpsService,
   ) {}
+
+  /**
+   * Garantiza endTime > startTime. Si falta endTime o es inválido, usa inicio + 8 h.
+   */
+  private resolveTurnWindow(
+    startTime: Date,
+    endTime?: Date | null,
+  ): { startTime: Date; endTime: Date } {
+    const startMs = startTime.getTime();
+    if (!endTime || endTime.getTime() <= startMs) {
+      return {
+        startTime,
+        endTime: new Date(startMs + DEFAULT_TURN_DURATION_MS),
+      };
+    }
+    return { startTime, endTime };
+  }
 
   async create(createTurnDto: CreateTurnDto): Promise<ResponseTurnDto> {
     if (createTurnDto.busId) {
@@ -40,11 +63,15 @@ export class TurnService {
       if (!drv) throw new BadRequestException('Driver not found');
     }
 
+    const startTime = new Date(createTurnDto.startTime);
+    const { endTime } = this.resolveTurnWindow(
+      startTime,
+      createTurnDto.endTime ? new Date(createTurnDto.endTime) : undefined,
+    );
+
     const turnData: Partial<Turn> = {
-      startTime: new Date(createTurnDto.startTime),
-      endTime: createTurnDto.endTime
-        ? new Date(createTurnDto.endTime)
-        : undefined,
+      startTime,
+      endTime,
       status: createTurnDto.status,
       bus: createTurnDto.busId
         ? ({ id: createTurnDto.busId } as Bus)
@@ -97,8 +124,8 @@ export class TurnService {
     return plainToInstance(ResponseTurnDto, turn);
   }
 
-  async startTurn(driverId: string, busStatus: string, observations?: string) {
-    if (!busStatus?.trim()) {
+  async startTurn(driverId: string, dto: StartTurnRequestDto) {
+    if (!dto.busStatus?.trim()) {
       throw new BadRequestException('busStatus es requerido');
     }
 
@@ -126,10 +153,12 @@ export class TurnService {
         throw new ConflictException('Turno ya iniciado o no disponible');
       }
 
-      throw new NotFoundException('No hay turno programado para este horario');
+      throw new NotFoundException(
+        'No hay turno programado para este horario (turno scheduled con startTime ≤ ahora ≤ endTime)',
+      );
     }
 
-    if (scheduledTurn.actualStartTime) {
+    if (scheduledTurn.status === TurnStatus.IN_PROGRESS) {
       throw new ConflictException('Turno ya iniciado');
     }
 
@@ -138,12 +167,19 @@ export class TurnService {
     }
 
     scheduledTurn.actualStartTime = now;
-    scheduledTurn.busStatus = busStatus.trim();
-    scheduledTurn.busObservations = observations?.trim() || null;
-    scheduledTurn.gpsActivatedAt = now;
+    scheduledTurn.busStatus = dto.busStatus.trim();
+    scheduledTurn.busObservations = dto.observations?.trim() || null;
     scheduledTurn.status = TurnStatus.IN_PROGRESS;
 
     const saved = await this.turnRepository.save(scheduledTurn);
+
+    if (dto.latitude !== undefined && dto.longitude !== undefined) {
+      await this.gpsService.upsertBusPosition(
+        saved.bus.id,
+        dto.latitude,
+        dto.longitude,
+      );
+    }
 
     return {
       turnId: saved.id,
@@ -152,7 +188,8 @@ export class TurnService {
         placa: saved.bus.plate,
         modelo: saved.bus.model,
       },
-      actualStartTime: saved.actualStartTime!,
+      startTime: saved.actualStartTime ?? now,
+      scheduledStartTime: saved.startTime,
       status: saved.status,
     };
   }
@@ -171,14 +208,24 @@ export class TurnService {
       if (!drv) throw new BadRequestException('Driver not found');
     }
 
+    const existing = await this.turnRepository.findOne({ where: { id } });
+    if (!existing) throw new NotFoundException(`Turn ${id} not found`);
+
+    const mergedStart = updateTurnDto.startTime
+      ? new Date(updateTurnDto.startTime)
+      : existing.startTime;
+    const mergedEnd = updateTurnDto.endTime
+      ? new Date(updateTurnDto.endTime)
+      : existing.endTime;
+    const { startTime, endTime } = this.resolveTurnWindow(
+      mergedStart,
+      mergedEnd,
+    );
+
     const preloadData: Partial<Turn> = {
       id,
-      startTime: updateTurnDto.startTime
-        ? new Date(updateTurnDto.startTime)
-        : undefined,
-      endTime: updateTurnDto.endTime
-        ? new Date(updateTurnDto.endTime)
-        : undefined,
+      startTime,
+      endTime,
       status: updateTurnDto.status,
       bus: updateTurnDto.busId
         ? ({ id: updateTurnDto.busId } as Bus)

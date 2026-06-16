@@ -5,6 +5,7 @@ import { TurnService } from './turn.service';
 import { Turn, TurnStatus } from './entities/turn.entity';
 import { Bus } from '@/bus/entities/bus.entity';
 import { Driver } from '@/driver/entities/driver.entity';
+import { GpsService } from '@/gps/gps.service';
 
 describe('TurnService', () => {
   let service: TurnService;
@@ -47,6 +48,10 @@ describe('TurnService', () => {
           provide: getRepositoryToken(Driver),
           useValue: {},
         },
+        {
+          provide: GpsService,
+          useValue: { upsertBusPosition: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -61,11 +66,10 @@ describe('TurnService', () => {
     turnRepository.findOne.mockResolvedValue({ ...scheduledTurn });
     turnRepository.save.mockImplementation(async (turn) => turn);
 
-    const result = await service.startTurn(
-      'driver-1',
-      'operativo',
-      'Llantas un poco desgastadas',
-    );
+    const result = await service.startTurn('driver-1', {
+      busStatus: 'operativo',
+      observations: 'Llantas un poco desgastadas',
+    });
 
     expect(turnRepository.save).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -85,15 +89,15 @@ describe('TurnService', () => {
         },
       }),
     );
-    expect(result.actualStartTime).toBeInstanceOf(Date);
+    expect(result.startTime).toBeInstanceOf(Date);
   });
 
   it('throws 404 when there is no current turn', async () => {
     turnRepository.findOne.mockResolvedValue(null);
 
-    await expect(service.startTurn('driver-1', 'operativo')).rejects.toThrow(
-      NotFoundException,
-    );
+    await expect(
+      service.startTurn('driver-1', { busStatus: 'operativo' }),
+    ).rejects.toThrow(NotFoundException);
   });
 
   it('throws 409 when the current turn is not scheduled', async () => {
@@ -102,8 +106,8 @@ describe('TurnService', () => {
       status: TurnStatus.IN_PROGRESS,
     });
 
-    await expect(service.startTurn('driver-1', 'operativo')).rejects.toThrow(
-      ConflictException,
-    );
+    await expect(
+      service.startTurn('driver-1', { busStatus: 'operativo' }),
+    ).rejects.toThrow(ConflictException);
   });
 });

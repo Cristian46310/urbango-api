@@ -4,28 +4,34 @@ import {
   HttpException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { DataSource, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { BoardingRequestDto } from './dto/boarding-request.dto';
 import { BoardingResponseDto } from './dto/boarding-response.dto';
-import {
-  PaymentMethodCitizen,
-  PaymentMethodStatus,
-  PaymentMethodType,
-} from '@/payment-method-citizen/entities/payment-method-citizen.entity';
+import { PaymentMethodCitizen } from '@/payment-method-citizen/entities/payment-method-citizen.entity';
 import {
   Scheduler,
   SchedulerStatus,
 } from '@/scheduler/entities/scheduler.entity';
 import { Ticket, TicketStatus } from '@/ticket/entities/ticket.entity';
-import { History, HistoryEventType } from '@/history/entities/history.entity';
+import { History } from '@/history/entities/history.entity';
+import { HistoryEventType } from '@/history/enums/history-event-type.enum';
 import { Citizen } from '@/citizen/entities/citizen.entity';
 import { Node } from '@/node/entities/node.entity';
+import { Bus } from '@/bus/entities/bus.entity';
 
 @Injectable()
 export class BoardingService {
+  private readonly logger = new Logger(BoardingService.name);
+
   constructor(private readonly dataSource: DataSource) {}
+
+  private getBusCapacity(bus?: Bus | null): number | undefined {
+    if (!bus) return undefined;
+    return (bus.seatedCapacity ?? 0) + (bus.standingCapacity ?? 0);
+  }
 
   async board(
     dto: BoardingRequestDto,
@@ -43,24 +49,31 @@ export class BoardingService {
       const now = new Date();
       const today = this.formatDateInTimeZone(now, 'America/Bogota');
 
-      const scheduler = await queryRunner.manager.findOne(Scheduler, {
+      // Sin lock aquí: cargar route eager (nodes) + FOR UPDATE rompe en PostgreSQL
+      const candidates = await queryRunner.manager.find(Scheduler, {
         where: {
           bus: { id: dto.busId },
           date: today,
-          startTime: LessThanOrEqual(now),
-          endTime: MoreThanOrEqual(now),
           status: SchedulerStatus.SCHEDULED,
         },
         relations: ['bus', 'route'],
-        lock: { mode: 'pessimistic_write' },
+      });
+
+      const scheduler = candidates.find((item) => {
+        const windowStart = new Date(
+          item.startTime.getTime() - item.toleranceMinutes * 60 * 1000,
+        );
+        return now >= windowStart && now <= item.endTime;
       });
 
       if (!scheduler) {
-        throw new NotFoundException('No active scheduler found for this bus');
+        throw new NotFoundException(
+          'No hay programación activa para este bus en la fecha y hora actual. Verifique fecha del scheduler, ventana startTime–endTime y toleranceMinutes.',
+        );
       }
 
-      const capacity = scheduler.bus?.capacity;
-      if (capacity !== undefined && capacity !== null) {
+      const capacity = this.getBusCapacity(scheduler.bus);
+      if (capacity !== undefined && capacity > 0) {
         const activeTickets = await queryRunner.manager.count(Ticket, {
           where: {
             scheduler: { id: scheduler.id },
@@ -73,27 +86,36 @@ export class BoardingService {
         }
       }
 
-      const paymentMethodCitizen = await queryRunner.manager.findOne(
-        PaymentMethodCitizen,
-        {
-          where: { id: dto.paymentMethodCitizenId },
-          relations: ['citizen', 'paymentMethod'],
-          lock: { mode: 'pessimistic_write' },
-        },
-      );
+      // Bloquear solo la fila PMC; FOR UPDATE + joins (citizen/address) falla en PostgreSQL
+      const paymentMethodCitizen = await queryRunner.manager
+        .createQueryBuilder(PaymentMethodCitizen, 'pmc')
+        .setLock('pessimistic_write')
+        .where('pmc.id = :id', { id: dto.paymentMethodCitizenId })
+        .getOne();
 
       if (!paymentMethodCitizen) {
         throw new BadRequestException('Payment method not found');
       }
 
+      const pmcWithRelations = await queryRunner.manager.findOne(
+        PaymentMethodCitizen,
+        {
+          where: { id: paymentMethodCitizen.id },
+          relations: ['citizen', 'paymentMethod'],
+        },
+      );
+
+      if (!pmcWithRelations?.citizen || !pmcWithRelations.paymentMethod) {
+        throw new BadRequestException('Payment method not found');
+      }
+
+      paymentMethodCitizen.citizen = pmcWithRelations.citizen;
+      paymentMethodCitizen.paymentMethod = pmcWithRelations.paymentMethod;
+
       if (paymentMethodCitizen.citizen.id !== citizenId) {
         throw new BadRequestException(
           'Payment method does not belong to the authenticated citizen',
         );
-      }
-
-      if (paymentMethodCitizen.status !== PaymentMethodStatus.ACTIVE) {
-        throw new BadRequestException('Payment method is not active');
       }
 
       const node = await queryRunner.manager.findOne(Node, {
@@ -114,7 +136,7 @@ export class BoardingService {
       const appliedRate = Number(scheduler.route.price);
       let remainingBalance: number | undefined;
 
-      if (paymentMethodCitizen.type === PaymentMethodType.PREPAID) {
+      if (paymentMethodCitizen.paymentMethod?.isRechargeable) {
         const currentBalance = Number(paymentMethodCitizen.balance);
 
         if (currentBalance < appliedRate) {
@@ -123,13 +145,11 @@ export class BoardingService {
 
         remainingBalance = currentBalance - appliedRate;
         paymentMethodCitizen.balance = remainingBalance;
+        await queryRunner.manager.save(
+          PaymentMethodCitizen,
+          paymentMethodCitizen,
+        );
       }
-
-      paymentMethodCitizen.lastUsedAt = now;
-      await queryRunner.manager.save(
-        PaymentMethodCitizen,
-        paymentMethodCitizen,
-      );
 
       const ticket = queryRunner.manager.create(Ticket, {
         citizen: { id: citizenId } as Citizen,
@@ -137,9 +157,6 @@ export class BoardingService {
           id: paymentMethodCitizen.id,
         } as PaymentMethodCitizen,
         scheduler: { id: scheduler.id } as Scheduler,
-        buyedAt: now,
-        appliedRate,
-        amount: appliedRate,
         status: TicketStatus.ACTIVE,
         boardedAt: now,
       });
@@ -148,9 +165,7 @@ export class BoardingService {
       const history = queryRunner.manager.create(History, {
         ticket: { id: savedTicket.id } as Ticket,
         node: { id: node.id } as Node,
-        order: node.order,
         eventType: HistoryEventType.BOARDING,
-        eventTimestamp: now,
       });
       await queryRunner.manager.save(History, history);
 
@@ -170,6 +185,7 @@ export class BoardingService {
         throw error;
       }
 
+      this.logger.error('Boarding transaction failed', error);
       throw new InternalServerErrorException('Boarding could not be completed');
     } finally {
       await queryRunner.release();

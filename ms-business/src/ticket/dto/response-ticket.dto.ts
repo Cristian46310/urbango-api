@@ -7,34 +7,27 @@ export class ResponseTicketDto {
   @Expose()
   id!: string;
 
-  @ApiProperty()
-  @Expose()
-  buyedAt!: Date;
-
-  @ApiProperty()
-  @Expose()
-  appliedRate!: number;
-
   @ApiProperty({ enum: TicketStatus })
   @Expose()
   status!: TicketStatus;
-
-  @ApiProperty({ required: false })
-  @Expose()
-  boardedAt?: Date;
 
   @ApiProperty()
   @Expose()
   createdAt!: Date;
 
-  @ApiProperty({ required: false, nullable: true })
+  @ApiProperty({ required: false })
+  @Expose()
+  boardedAt?: Date | null;
+
+  @ApiProperty({ required: false })
   @Expose()
   completedAt?: Date | null;
 
   @ApiProperty({
     example: 2500,
-    description: 'Tarifa cobrada al crear el ticket',
+    description: 'Tarifa de la ruta asociada al programador',
+    required: false,
   })
   @Expose()
-  amount!: number;
+  routePrice?: number;
 }

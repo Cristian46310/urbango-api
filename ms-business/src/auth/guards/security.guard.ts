@@ -3,7 +3,7 @@ import { CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
-import { AxiosError } from 'axios';
+import { AxiosError, AxiosResponse } from 'axios';
 import { firstValueFrom } from 'rxjs';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { IS_AUTHENTICATED_KEY } from '../decorators/authenticated.decorator';
@@ -16,6 +16,11 @@ interface AuthRequest {
   originalUrl?: string;
   url?: string;
   user?: JwtPayload;
+}
+
+interface AuthorizationResponse {
+  allowed: boolean;
+  reason?: string;
 }
 
 @Injectable()
@@ -91,17 +96,19 @@ export class SecurityGuard implements CanActivate {
       'http://localhost:8080';
 
     try {
-      const response = await firstValueFrom(
-        this.httpService.post<{ allowed: boolean; reason?: string }>(
-          `${msSecurityUrl}/api/public/security/authorize`,
-          { method, url },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
+      // Se añade explicitamente el tipado AxiosResponse con la interfaz de datos esperada
+      const response: AxiosResponse<AuthorizationResponse> =
+        await firstValueFrom(
+          this.httpService.post<AuthorizationResponse>(
+            `${msSecurityUrl}/api/public/security/authorize`,
+            { method, url },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
             },
-          },
-        ),
-      );
+          ),
+        );
 
       if (response.data.allowed) {
         return true;

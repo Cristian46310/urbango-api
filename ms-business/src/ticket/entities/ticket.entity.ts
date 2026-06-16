@@ -5,6 +5,7 @@ import {
   OneToMany,
   Column,
   CreateDateColumn,
+  JoinColumn,
 } from 'typeorm';
 import { Citizen } from '@/citizen/entities/citizen.entity';
 import { PaymentMethodCitizen } from '@/payment-method-citizen/entities/payment-method-citizen.entity';
@@ -20,26 +21,23 @@ export class Ticket {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @ManyToOne(() => Citizen, (citizen) => citizen.tickets, {
+  @ManyToOne(() => Citizen, {
     eager: true,
     onDelete: 'SET NULL',
   })
-  citizen?: Citizen;
+  @JoinColumn({ name: 'citizen_id' })
+  citizen!: Citizen;
 
-  @ManyToOne(() => PaymentMethodCitizen, { onDelete: 'SET NULL', eager: false })
-  paymentMethodCitizen?: PaymentMethodCitizen;
+  @ManyToOne(() => PaymentMethodCitizen, {
+    onDelete: 'CASCADE',
+    eager: false,
+  })
+  @JoinColumn({ name: 'payment_method_citizen_id' })
+  paymentMethodCitizen!: PaymentMethodCitizen;
 
-  @ManyToOne(() => Scheduler, { onDelete: 'SET NULL', eager: true })
-  scheduler?: Scheduler;
-
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  buyedAt!: Date;
-
-  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
-  appliedRate!: number;
-
-  @Column({ type: 'integer' })
-  amount!: number;
+  @ManyToOne(() => Scheduler, { onDelete: 'CASCADE', eager: true })
+  @JoinColumn({ name: 'scheduler_id' })
+  scheduler!: Scheduler;
 
   @Column({
     type: 'enum',
@@ -49,13 +47,13 @@ export class Ticket {
   status!: TicketStatus;
 
   @Column({ type: 'timestamp with time zone', nullable: true })
-  boardedAt?: Date;
+  boardedAt?: Date | null;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamp with time zone', nullable: true })
   completedAt?: Date | null;
 
   @OneToMany(() => History, (history) => history.ticket)
-  histories?: History[];
+  histories!: History[];
 
   @CreateDateColumn()
   createdAt!: Date;

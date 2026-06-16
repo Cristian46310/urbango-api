@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DriverService } from './driver.service';
 import { DriverController } from './driver.controller';
 import { Driver } from './entities/driver.entity';
-import { Person } from '@/shared/entities/person.entitie';
+import { Person } from '@/shared/entities/person.entity';
 import { Enterprise } from '@/enterprise/entities/enterprise.entity';
 
 @Module({

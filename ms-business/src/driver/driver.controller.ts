@@ -3,7 +3,7 @@ import {
   Get,
   Post,
   Body,
-  Patch,
+  Put,
   Param,
   Delete,
   Query,
@@ -28,7 +28,7 @@ export class DriverController {
   @Authenticated()
   @ApiOperation({
     summary:
-      'Registrar perfil de conductor (userId desde token, enterpriseId en body)',
+      'Registrar perfil de conductor (solo JWT, sin RBAC — onboarding; enterpriseId en body)',
   })
   create(
     @Body() createDriverDto: CreateDriverDto,
@@ -65,7 +65,7 @@ export class DriverController {
     return this.driverService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   update(@Param('id') id: string, @Body() updateDriverDto: UpdateDriverDto) {
     return this.driverService.update(id, updateDriverDto);
   }

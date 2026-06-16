@@ -13,19 +13,25 @@ export class ResponseSchedulerDto {
   @ApiProperty({ type: () => ResponseRouteDto })
   route: ResponseRouteDto;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Fecha del servicio' })
   date: string;
 
-  @ApiProperty()
-  startTime: Date;
+  @ApiProperty({ description: 'Hora de salida programada' })
+  departureTime: Date;
 
-  @ApiProperty()
+  @ApiProperty({
+    description:
+      'Fin estimado del servicio (calculado según duración de la ruta)',
+  })
   endTime: Date;
 
   @ApiProperty({ enum: SchedulerStatus })
   status: SchedulerStatus;
 
-  @ApiProperty({ example: 5 })
+  @ApiProperty({
+    example: 5,
+    description: 'Margen de tolerancia de salida en minutos',
+  })
   toleranceMinutes: number;
 
   @ApiProperty({ enum: RecurrenceType })

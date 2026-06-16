@@ -1,36 +1,26 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ResponsePaymentMethodDto } from '@/payment-method/dto/response-payment-method.dto';
 import { ResponseCitizenDto } from '@/citizen/dto/response-citizen.dto';
-import {
-  PaymentMethodStatus,
-  PaymentMethodType,
-} from '../entities/payment-method-citizen.entity';
 
 export class ResponsePaymentMethodCitizenDto {
   @ApiProperty()
-  id: string;
+  id!: string;
 
   @ApiProperty({ type: () => ResponseCitizenDto })
-  citizen: ResponseCitizenDto;
+  citizen!: ResponseCitizenDto;
 
   @ApiProperty({ type: () => ResponsePaymentMethodDto })
-  paymentMethod: ResponsePaymentMethodDto;
+  paymentMethod!: ResponsePaymentMethodDto;
 
   @ApiProperty({
     example: 0,
     description: 'Saldo en COP (tarjetas recargables)',
   })
-  balance: number;
+  balance!: number;
 
   @ApiPropertyOptional({ example: 'TC1A2B3C4D5' })
   cardNumber?: string;
 
-  @ApiProperty({ enum: PaymentMethodType })
-  type: PaymentMethodType;
-
-  @ApiProperty({ enum: PaymentMethodStatus })
-  status: PaymentMethodStatus;
-
   @ApiProperty()
-  createdAt: Date;
+  createdAt!: Date;
 }

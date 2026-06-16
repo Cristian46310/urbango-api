@@ -83,19 +83,16 @@ describe('RouteService', () => {
       nodes: [
         {
           order: 1,
-          distanceFromPrevious: 0,
           estimatedTimeMinutes: 0,
           stop: stops[0],
         },
         {
           order: 2,
-          distanceFromPrevious: 1.4,
           estimatedTimeMinutes: 5,
           stop: stops[1],
         },
         {
           order: 3,
-          distanceFromPrevious: 2.1,
           estimatedTimeMinutes: 8,
           stop: stops[2],
         },
@@ -111,19 +108,16 @@ describe('RouteService', () => {
         {
           stopId: 'stop-1',
           order: 1,
-          distanceFromPrevious: 0,
           estimatedTimeMinutes: 0,
         },
         {
           stopId: 'stop-2',
           order: 2,
-          distanceFromPrevious: 1.4,
           estimatedTimeMinutes: 5,
         },
         {
           stopId: 'stop-3',
           order: 3,
-          distanceFromPrevious: 2.1,
           estimatedTimeMinutes: 8,
         },
       ],
@@ -136,7 +130,6 @@ describe('RouteService', () => {
     );
     expect(nodeRepository.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        distanceFromPrevious: 1.4,
         estimatedTimeMinutes: 5,
       }),
     );
@@ -159,7 +152,6 @@ describe('RouteService', () => {
           {
             stopId: 'stop-2',
             order: 2,
-            distanceFromPrevious: 1,
             estimatedTimeMinutes: 4,
           },
         ],
@@ -183,13 +175,11 @@ describe('RouteService', () => {
           {
             stopId: 'stop-1',
             order: 2,
-            distanceFromPrevious: 1,
             estimatedTimeMinutes: 4,
           },
           {
             stopId: 'stop-3',
             order: 3,
-            distanceFromPrevious: 1,
             estimatedTimeMinutes: 4,
           },
         ],

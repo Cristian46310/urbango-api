@@ -7,7 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { createHash } from 'crypto';
-
+import { AxiosResponse } from 'axios';
 export type EpaycoSessionPayload = {
   checkout_version: string;
   name: string;

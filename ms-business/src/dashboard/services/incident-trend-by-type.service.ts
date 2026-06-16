@@ -42,21 +42,23 @@ export class IncidentTrendByTypeService {
 
     const qb = this.incidentRepository
       .createQueryBuilder('incident')
-      .where('incident.reportedAt >= :from', { from: range.from })
-      .andWhere('incident.reportedAt < :to', { to: range.to });
+      .where('incident.createdAt >= :from', { from: range.from })
+      .andWhere('incident.createdAt < :to', { to: range.to });
 
     if (enterpriseId) {
-      qb.andWhere('incident.enterpriseId = :enterpriseId', { enterpriseId });
+      qb.innerJoin('incident.incidentBuses', 'ib')
+        .innerJoin('ib.bus', 'bus')
+        .andWhere('bus.enterprise_id = :enterpriseId', { enterpriseId });
     }
 
     const rows = await qb
       .select(
-        "TO_CHAR(DATE_TRUNC('month', incident.reportedAt), 'YYYY-MM')",
+        "TO_CHAR(DATE_TRUNC('month', incident.createdAt), 'YYYY-MM')",
         'month',
       )
       .addSelect('incident.type', 'type')
       .addSelect('COUNT(incident.id)', 'count')
-      .groupBy("DATE_TRUNC('month', incident.reportedAt)")
+      .groupBy("DATE_TRUNC('month', incident.createdAt)")
       .addGroupBy('incident.type')
       .getRawMany<TrendAggregateRow>();
 

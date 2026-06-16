@@ -5,22 +5,17 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { LessThanOrEqual, Repository } from 'typeorm';
 import { plainToInstance } from 'class-transformer';
 import { Incident } from './entities/incident.entity';
 import { IncidentBus } from './entities/incident-bus.entity';
-import { IncidentPhoto } from './entities/incident-photo.entity';
-import { IncidentComment } from './entities/incident-comment.entity';
 import { Bus } from '@/bus/entities/bus.entity';
-import { Turn } from '@/turn/entities/turn.entity';
+import { Turn, TurnStatus } from '@/turn/entities/turn.entity';
 import { Driver } from '@/driver/entities/driver.entity';
-import { Enterprise } from '@/enterprise/entities/enterprise.entity';
 import { CreateIncidentDriverDto } from './dto/create-incident-driver.dto';
-import {
-  IncidentStorageFile,
-  IncidentStorageService,
-} from './incident-storage.service';
 import { IncidentNotificationService } from './incident-notification.service';
+import { IncidentPhotoService } from '@/incident-photo/incident-photo.service';
+import { IncidentStorageFile } from '@/incident-photo/incident-storage.service';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { JwtPayload } from '@/auth/types';
 import {
@@ -32,11 +27,8 @@ import { BusIncidentQueryDto } from './dto/bus-incident-query.dto';
 import { ResponseBusIncidentListDto } from './dto/response-bus-incident-list.dto';
 import { ResponseIncidentDto } from './dto/response-incident.dto';
 import { ResponseIncidentDriverDto } from './dto/response-incident-driver.dto';
-import { ResponseIncidentPhotoDto } from './dto/response-incident-photo.dto';
+import { ResponseIncidentPhotoDto } from '@/incident-photo/dto/response-incident-photo.dto';
 import { ResponseIncidentStatisticsDto } from './dto/response-incident-statistics.dto';
-import { CreateIncidentCommentDto } from './dto/create-incident-comment.dto';
-import { ResponseIncidentCommentDto } from './dto/response-incident-comment.dto';
-import { ResponseIncidentCommentListDto } from './dto/response-incident-comment-list.dto';
 import { UpdateIncidentStatusDto } from './dto/update-incident-status.dto';
 
 const ALLOWED_STATUS_TRANSITIONS: Record<IncidentStatus, IncidentStatus[]> = {
@@ -54,27 +46,20 @@ export class IncidentService {
     private readonly incidentRepository: Repository<Incident>,
     @InjectRepository(IncidentBus)
     private readonly incidentBusRepository: Repository<IncidentBus>,
-    @InjectRepository(IncidentPhoto)
-    private readonly incidentPhotoRepository: Repository<IncidentPhoto>,
-    @InjectRepository(IncidentComment)
-    private readonly incidentCommentRepository: Repository<IncidentComment>,
     @InjectRepository(Bus)
     private readonly busRepository: Repository<Bus>,
     @InjectRepository(Turn)
     private readonly turnRepository: Repository<Turn>,
     @InjectRepository(Driver)
     private readonly driverRepository: Repository<Driver>,
-    @InjectRepository(Enterprise)
-    private readonly enterpriseRepository: Repository<Enterprise>,
-    private readonly incidentStorageService: IncidentStorageService,
+    private readonly incidentPhotoService: IncidentPhotoService,
     private readonly incidentNotificationService: IncidentNotificationService,
   ) {}
 
   private isTurnActive(turn: Turn, now: Date) {
-    if (turn.status) {
-      return turn.status.toLowerCase() === 'active';
+    if (turn.status === TurnStatus.IN_PROGRESS) {
+      return true;
     }
-
     return turn.startTime <= now && (!turn.endTime || turn.endTime >= now);
   }
 
@@ -94,7 +79,7 @@ export class IncidentService {
   private createBusIncidentQueryBuilder(busId: string) {
     return this.incidentRepository
       .createQueryBuilder('incident')
-      .innerJoin('incident.incidentBuses', 'ib', 'ib.busId = :busId', {
+      .innerJoin('incident.incidentBuses', 'ib', 'ib.bus_id = :busId', {
         busId,
       });
   }
@@ -112,29 +97,50 @@ export class IncidentService {
     return qb;
   }
 
-  private toResponseIncident(
+  private async resolveDriverForIncident(
     incident: Incident,
     busId: string,
-  ): ResponseIncidentDto {
+  ): Promise<ResponseIncidentDriverDto | undefined> {
+    const turn = await this.turnRepository.findOne({
+      where: {
+        bus: { id: busId },
+        startTime: LessThanOrEqual(incident.createdAt),
+      },
+      relations: ['driver'],
+      order: { startTime: 'DESC' },
+    });
+
+    if (!turn?.driver) {
+      return undefined;
+    }
+
+    return plainToInstance(ResponseIncidentDriverDto, {
+      id: turn.driver.id,
+      name: turn.driver.name,
+    });
+  }
+
+  private async toResponseIncident(
+    incident: Incident,
+    busId: string,
+  ): Promise<ResponseIncidentDto> {
     const incidentBus =
       incident.incidentBuses?.find((ib) => ib.bus?.id === busId) ??
       incident.incidentBuses?.[0];
 
     const photos = incidentBus?.photos ?? [];
+    const driver = await this.resolveDriverForIncident(incident, busId);
 
     return plainToInstance(
       ResponseIncidentDto,
       {
         id: incident.id,
-        reportedAt: incident.reportedAt,
+        createdAt: incident.createdAt,
         type: incident.type,
         severity: incident.severity,
         status: incident.status,
         description: incident.description,
-        driver: plainToInstance(ResponseIncidentDriverDto, {
-          id: incident.driver.id,
-          name: incident.driver.name,
-        }),
+        driver,
         photos: plainToInstance(ResponseIncidentPhotoDto, photos),
       },
       { excludeExtraneousValues: true },
@@ -215,21 +221,22 @@ export class IncidentService {
       this.createBusIncidentQueryBuilder(busId),
       query,
     )
-      .leftJoinAndSelect('incident.driver', 'driver')
       .leftJoinAndSelect('incident.incidentBuses', 'incidentBuses')
       .leftJoinAndSelect('incidentBuses.bus', 'bus')
       .leftJoinAndSelect('incidentBuses.photos', 'photos')
-      .orderBy('incident.reportedAt', 'DESC')
+      .orderBy('incident.createdAt', 'DESC')
       .skip((page - 1) * limit)
       .take(limit);
 
     const incidents = await listQb.getMany();
     const statistics = await this.computeStatistics(busId, query);
 
+    const items = await Promise.all(
+      incidents.map((incident) => this.toResponseIncident(incident, busId)),
+    );
+
     return {
-      items: incidents.map((incident) =>
-        this.toResponseIncident(incident, busId),
-      ),
+      items,
       meta: this.buildPaginationMeta(page, limit, totalItems),
       statistics,
     };
@@ -239,17 +246,8 @@ export class IncidentService {
     const page = paginationQuery.page ?? 1;
     const limit = paginationQuery.limit ?? 10;
     const [items, totalItems] = await this.incidentRepository.findAndCount({
-      relations: [
-        'turn',
-        'turn.bus',
-        'turn.driver',
-        'driver',
-        'enterprise',
-        'incidentBuses',
-        'incidentBuses.bus',
-        'incidentBuses.photos',
-      ],
-      order: { reportedAt: 'DESC' },
+      relations: ['incidentBuses', 'incidentBuses.bus', 'incidentBuses.photos'],
+      order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
     });
@@ -260,15 +258,63 @@ export class IncidentService {
     };
   }
 
+  async countActiveIncidentsByBus(busId: string): Promise<number> {
+    return this.incidentRepository
+      .createQueryBuilder('incident')
+      .innerJoin('incident.incidentBuses', 'ib', 'ib.bus_id = :busId', {
+        busId,
+      })
+      .andWhere('incident.status != :closed', { closed: 'CLOSED' })
+      .getCount();
+  }
+
+  async findActiveIncidents(
+    enterpriseId?: string,
+  ): Promise<ResponseIncidentDto[]> {
+    const query = this.incidentRepository
+      .createQueryBuilder('incident')
+      .leftJoinAndSelect('incident.incidentBuses', 'incidentBuses')
+      .leftJoinAndSelect('incidentBuses.bus', 'bus')
+      .leftJoinAndSelect('incidentBuses.photos', 'photos')
+      .where('incident.status != :closed', { closed: 'CLOSED' });
+
+    if (enterpriseId) {
+      query.innerJoin('bus.enterprise', 'enterprise');
+      query.andWhere('enterprise.id = :enterpriseId', { enterpriseId });
+    }
+
+    const incidents = await query
+      .orderBy('incident.createdAt', 'DESC')
+      .getMany();
+    return Promise.all(
+      incidents.map((incident) => {
+        const busPlate = incident.incidentBuses?.[0]?.bus?.plate;
+        return plainToInstance(
+          ResponseIncidentDto,
+          {
+            id: incident.id,
+            createdAt: incident.createdAt,
+            type: incident.type,
+            severity: incident.severity,
+            status: incident.status,
+            description: incident.description,
+            driver: undefined,
+            photos: plainToInstance(
+              ResponseIncidentPhotoDto,
+              incident.incidentBuses?.[0]?.photos ?? [],
+            ),
+            busPlate,
+          },
+          { excludeExtraneousValues: true },
+        );
+      }),
+    );
+  }
+
   private async findIncidentOrFail(incidentId: string): Promise<Incident> {
     const incident = await this.incidentRepository.findOne({
       where: { id: incidentId },
-      relations: [
-        'driver',
-        'incidentBuses',
-        'incidentBuses.bus',
-        'incidentBuses.photos',
-      ],
+      relations: ['incidentBuses', 'incidentBuses.bus', 'incidentBuses.photos'],
     });
 
     if (!incident) {
@@ -276,44 +322,6 @@ export class IncidentService {
     }
 
     return incident;
-  }
-
-  async addComment(
-    incidentId: string,
-    dto: CreateIncidentCommentDto,
-    currentUser: JwtPayload,
-  ): Promise<ResponseIncidentCommentDto> {
-    await this.findIncidentOrFail(incidentId);
-
-    const comment = await this.incidentCommentRepository.save(
-      this.incidentCommentRepository.create({
-        incident: { id: incidentId } as Incident,
-        text: dto.text,
-        authorUserId: currentUser.id,
-        authorName: currentUser.name,
-      }),
-    );
-
-    return plainToInstance(ResponseIncidentCommentDto, comment, {
-      excludeExtraneousValues: true,
-    });
-  }
-
-  async listComments(
-    incidentId: string,
-  ): Promise<ResponseIncidentCommentListDto> {
-    await this.findIncidentOrFail(incidentId);
-
-    const comments = await this.incidentCommentRepository.find({
-      where: { incident: { id: incidentId } },
-      order: { createdAt: 'ASC' },
-    });
-
-    return {
-      items: plainToInstance(ResponseIncidentCommentDto, comments, {
-        excludeExtraneousValues: true,
-      }),
-    };
   }
 
   async updateStatus(
@@ -332,24 +340,17 @@ export class IncidentService {
     incident.status = dto.status;
     const saved = await this.incidentRepository.save(incident);
 
-    const busId =
-      saved.incidentBuses?.find((ib) => ib.isPrimary)?.bus?.id ??
-      saved.incidentBuses?.[0]?.bus?.id;
-
+    const busId = saved.incidentBuses?.[0]?.bus?.id;
     if (!busId) {
       return plainToInstance(
         ResponseIncidentDto,
         {
           id: saved.id,
-          reportedAt: saved.reportedAt,
+          createdAt: saved.createdAt,
           type: saved.type,
           severity: saved.severity,
           status: saved.status,
           description: saved.description,
-          driver: plainToInstance(ResponseIncidentDriverDto, {
-            id: saved.driver.id,
-            name: saved.driver.name,
-          }),
           photos: [],
         },
         { excludeExtraneousValues: true },
@@ -359,18 +360,11 @@ export class IncidentService {
     return this.toResponseIncident(saved, busId);
   }
 
-  /**
-   * Crear incidente desde el driver autenticado
-   */
   async createByDriver(
     currentUser: JwtPayload,
     dto: CreateIncidentDriverDto,
     photos: IncidentStorageFile[] = [],
   ) {
-    if (photos.length > 5) {
-      throw new BadRequestException('You can attach up to 5 photos');
-    }
-
     const driver = await this.driverRepository.findOne({
       where: { userId: currentUser.id },
     });
@@ -381,15 +375,14 @@ export class IncidentService {
       );
     }
 
-    this.logger.debug(`✅ Found driver: ${driver.id} (${driver.email})`);
-
     const now = new Date();
     const activeTurn = await this.turnRepository.findOne({
       where: {
         driver: { id: driver.id },
+        status: TurnStatus.IN_PROGRESS,
       },
       relations: ['driver', 'bus', 'bus.enterprise'],
-      order: { startTime: 'DESC' },
+      order: { actualStartTime: 'DESC', startTime: 'DESC' },
     });
 
     if (!activeTurn) {
@@ -404,10 +397,8 @@ export class IncidentService {
       );
     }
 
-    if (!activeTurn.bus || !activeTurn.bus.enterprise) {
-      throw new BadRequestException(
-        'Active turn must have an assigned bus and enterprise.',
-      );
+    if (!activeTurn.bus) {
+      throw new BadRequestException('Active turn must have an assigned bus.');
     }
 
     const incident = this.incidentRepository.create({
@@ -416,62 +407,34 @@ export class IncidentService {
       description: dto.description,
       latitude: dto.latitude,
       longitude: dto.longitude,
-      reportedAt: dto.timestamp || now,
-      turn: activeTurn,
-      driver: driver,
-      enterprise: activeTurn.bus.enterprise,
     });
 
     const savedIncident = await this.incidentRepository.save(incident);
-
-    this.logger.log(
-      `✅ Incident ${savedIncident.id} created by driver ${driver.id} for bus ${activeTurn.bus.id}`,
-    );
 
     const incidentBus = await this.incidentBusRepository.save(
       this.incidentBusRepository.create({
         incident: savedIncident,
         bus: activeTurn.bus,
-        isPrimary: true,
       }),
     );
 
     if (photos.length > 0) {
-      const storedPhotos = await this.incidentStorageService.uploadMany(photos);
-
-      await this.incidentPhotoRepository.save(
-        storedPhotos.map((photo) =>
-          this.incidentPhotoRepository.create({
-            incidentBus,
-            path: photo.path,
-            publicUrl: photo.publicUrl,
-            originalName: photo.originalName,
-            mimeType: photo.mimeType,
-            size: photo.size,
-          }),
-        ),
-      );
-
-      this.logger.log(
-        `📸 ${storedPhotos.length} photos uploaded for incident ${savedIncident.id}`,
-      );
+      await this.incidentPhotoService.attachPhotos(incidentBus, photos);
     }
 
-    const criticalSeverities = [
-      IncidentSeverity.HIGH,
-      IncidentSeverity.CRITICAL,
-    ];
-    if (criticalSeverities.includes(savedIncident.severity)) {
+    if (
+      [IncidentSeverity.HIGH, IncidentSeverity.CRITICAL].includes(
+        savedIncident.severity,
+      )
+    ) {
       await this.incidentNotificationService.notifySupervisorIfNeeded(
         savedIncident,
         incidentBus,
       );
-
-      this.logger.log(
-        `📧 Supervisor notification sent for incident ${savedIncident.id}`,
-      );
     }
 
-    return savedIncident;
+    const busId = activeTurn.bus.id;
+    const withRelations = await this.findIncidentOrFail(savedIncident.id);
+    return this.toResponseIncident(withRelations, busId);
   }
 }

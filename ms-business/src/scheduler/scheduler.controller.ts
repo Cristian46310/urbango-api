@@ -3,7 +3,7 @@ import {
   Get,
   Post,
   Body,
-  Patch,
+  Put,
   Param,
   Delete,
   Query,
@@ -11,7 +11,7 @@ import {
 import { SchedulerService } from './scheduler.service';
 import { CreateSchedulerDto } from './dto/create-scheduler.dto';
 import { UpdateSchedulerDto } from './dto/update-scheduler.dto';
-import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
+import { SchedulerQueryDto } from './dto/scheduler-query.dto';
 import {
   ApiTags,
   ApiOperation,
@@ -35,10 +35,12 @@ export class SchedulerController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List schedulers (paginated)' })
+  @ApiOperation({
+    summary: 'Consulta de horarios (paginado, por defecto estado programado)',
+  })
   @ApiOkResponse({ type: ResponseSchedulerListDto })
-  findAll(@Query() pagination: PaginationQueryDto) {
-    return this.schedulerService.findAll(pagination);
+  findAll(@Query() query: SchedulerQueryDto) {
+    return this.schedulerService.findAll(query);
   }
 
   @Get(':id')
@@ -48,7 +50,7 @@ export class SchedulerController {
     return this.schedulerService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   update(
     @Param('id') id: string,
     @Body() updateSchedulerDto: UpdateSchedulerDto,

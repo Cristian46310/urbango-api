@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateStopDto } from './dto/create-stop.dto';
 import { UpdateStopDto } from './dto/update-stop.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -27,11 +31,27 @@ export class StopService {
     private readonly stopRepository: Repository<Stop>,
   ) {}
   async create(createStopDto: CreateStopDto): Promise<ResponseStopDto> {
-    const stop = this.stopRepository.create(createStopDto);
+    const code = await this.generateStopCode();
+    const { type, ...rest } = createStopDto;
+    const stop = this.stopRepository.create({
+      ...rest,
+      type,
+      code,
+    });
     return plainToInstance(
       ResponseStopDto,
       await this.stopRepository.save(stop),
     );
+  }
+  private async generateStopCode(): Promise<string> {
+    const [lastStop] = await this.stopRepository.find({
+      order: { code: 'DESC' },
+      take: 1,
+    });
+    const lastNumber = lastStop
+      ? Number.parseInt(lastStop.code.split('-')[1] ?? '', 10) || 0
+      : 0;
+    return `PAR-${lastNumber + 1}`;
   }
 
   private buildPaginationMeta(page: number, limit: number, totalItems: number) {
@@ -76,7 +96,11 @@ export class StopService {
     id: string,
     updateStopDto: UpdateStopDto,
   ): Promise<ResponseStopDto> {
-    const stop = await this.stopRepository.preload({ id, ...updateStopDto });
+    const stop = await this.stopRepository.preload({
+      id,
+      ...updateStopDto,
+      type: updateStopDto.type,
+    });
     if (!stop) {
       throw new NotFoundException(`Stop with id ${id} not found`);
     }

@@ -31,6 +31,32 @@ describe('StopService', () => {
     await expect(service.findOne('missing')).rejects.toThrow(NotFoundException);
   });
 
+  it('create assigns PAR-1 when no stops exist', async () => {
+    repo.find.mockResolvedValue([]);
+    repo.create.mockImplementation((data) => data);
+    repo.save.mockImplementation(async (data) => ({
+      id: 'stop-1',
+      createdAt: new Date('2026-01-01'),
+      ...data,
+    }));
+
+    const result = await service.create({
+      name: 'Parque',
+      location: 'Calle 1',
+      latitude: 5.07,
+      longitude: -75.51,
+    });
+
+    expect(repo.find).toHaveBeenCalledWith({
+      order: { code: 'DESC' },
+      take: 1,
+    });
+    expect(repo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'PAR-1' }),
+    );
+    expect(result.code).toBe('PAR-1');
+  });
+
   it('findNearbyStops maps raw rows and clamps limit', async () => {
     const qb = createMockQueryBuilder();
     qb.getRawMany.mockResolvedValue([

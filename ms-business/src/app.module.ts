@@ -20,13 +20,17 @@ import { PaymentMethodModule } from './payment-method/payment-method.module';
 import { PaymentMethodCitizenModule } from './payment-method-citizen/payment-method-citizen.module';
 import { EnterpriseModule } from './enterprise/enterprise.module';
 import { DriverModule } from './driver/driver.module';
+import { SupervisorModule } from './supervisor/supervisor.module';
 import { TurnModule } from './turn/turn.module';
 import { BoardingModule } from './boarding/boarding.module';
-import { AnalyticsModule } from './analytics/analytics.module';
 import { IncidentModule } from './incident/incident.module';
 import { CardRechargeModule } from './card-recharge/card-recharge.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { SharedModule } from './shared/shared.module';
+import { IncidentCommentModule } from './incident-comment/incident-comment.module';
+import { GpsModule } from './gps/gps.module';
+import { BusPhotoModule } from './bus-photo/bus-photo.module';
+import { IncidentPhotoModule } from './incident-photo/incident-photo.module';
 
 @Module({
   imports: [
@@ -59,10 +63,14 @@ import { SharedModule } from './shared/shared.module';
     PaymentMethodCitizenModule,
     EnterpriseModule,
     DriverModule,
+    SupervisorModule,
     TurnModule,
     BoardingModule,
-    AnalyticsModule,
+    GpsModule,
+    BusPhotoModule,
     IncidentModule,
+    IncidentPhotoModule,
+    IncidentCommentModule,
     CardRechargeModule,
     DashboardModule,
     SharedModule,

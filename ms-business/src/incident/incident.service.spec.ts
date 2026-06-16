@@ -4,14 +4,11 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { IncidentService } from './incident.service';
 import { Incident } from './entities/incident.entity';
 import { IncidentBus } from './entities/incident-bus.entity';
-import { IncidentPhoto } from './entities/incident-photo.entity';
-import { IncidentComment } from './entities/incident-comment.entity';
 import { Bus } from '@/bus/entities/bus.entity';
 import { Turn } from '@/turn/entities/turn.entity';
 import { Driver } from '@/driver/entities/driver.entity';
-import { Enterprise } from '@/enterprise/entities/enterprise.entity';
-import { IncidentStorageService } from './incident-storage.service';
 import { IncidentNotificationService } from './incident-notification.service';
+import { IncidentPhotoService } from '@/incident-photo/incident-photo.service';
 import { IncidentStatus } from './enums/incident.enum';
 import { provideMockRepo } from '@/test/helpers/repository-provider';
 import { createMockRepository } from '@/test/helpers/typeorm-mocks';
@@ -21,7 +18,7 @@ describe('IncidentService', () => {
   let incidentRepo: ReturnType<typeof createMockRepository<Incident>>;
   let driverRepo: ReturnType<typeof createMockRepository<Driver>>;
 
-  const mockStorage = { uploadMany: jest.fn() };
+  const mockPhotoService = { attachPhotos: jest.fn() };
   const mockNotification = { notifySupervisorIfNeeded: jest.fn() };
 
   beforeEach(async () => {
@@ -30,13 +27,10 @@ describe('IncidentService', () => {
         IncidentService,
         provideMockRepo(Incident),
         provideMockRepo(IncidentBus),
-        provideMockRepo(IncidentPhoto),
-        provideMockRepo(IncidentComment),
         provideMockRepo(Bus),
         provideMockRepo(Turn),
         provideMockRepo(Driver),
-        provideMockRepo(Enterprise),
-        { provide: IncidentStorageService, useValue: mockStorage },
+        { provide: IncidentPhotoService, useValue: mockPhotoService },
         { provide: IncidentNotificationService, useValue: mockNotification },
       ],
     }).compile();
@@ -78,28 +72,5 @@ describe('IncidentService', () => {
         [],
       ),
     ).rejects.toThrow(NotFoundException);
-  });
-
-  it('createByDriver rejects more than 5 photos', async () => {
-    driverRepo.findOne.mockResolvedValue({ id: 'd1' } as Driver);
-    const photos = Array.from({ length: 6 }, (_, i) => ({
-      buffer: Buffer.from(''),
-      originalname: `p${i}.jpg`,
-      mimetype: 'image/jpeg',
-      size: 1,
-    }));
-    await expect(
-      service.createByDriver(
-        {
-          id: 'u1',
-          name: 'U',
-          email: 'u@test.com',
-          roles: ['DRIVER'],
-          createdAt: 1,
-        },
-        { type: 'mechanical', severity: 'low', description: 'x' } as never,
-        photos,
-      ),
-    ).rejects.toThrow(BadRequestException);
   });
 });

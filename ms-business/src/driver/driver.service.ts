@@ -25,6 +25,44 @@ export class DriverService {
     private readonly enterpriseRepository: Repository<Enterprise>,
   ) {}
 
+  private async assertUniqueDriverFields(
+    fields: { document?: string; email?: string; userId?: string },
+    excludeId?: string,
+  ): Promise<void> {
+    if (fields.userId) {
+      const existingByUser = await this.driverRepository.findOne({
+        where: { userId: fields.userId },
+      });
+      if (existingByUser && existingByUser.id !== excludeId) {
+        throw new ConflictException(
+          'Ya existe un perfil de conductor para este usuario',
+        );
+      }
+    }
+
+    if (fields.document) {
+      const existingByDocument = await this.driverRepository.findOne({
+        where: { document: fields.document },
+      });
+      if (existingByDocument && existingByDocument.id !== excludeId) {
+        throw new ConflictException(
+          'Ya existe un conductor con este documento',
+        );
+      }
+    }
+
+    if (fields.email) {
+      const existingByEmail = await this.driverRepository.findOne({
+        where: { email: fields.email },
+      });
+      if (existingByEmail && existingByEmail.id !== excludeId) {
+        throw new ConflictException(
+          'Ya existe un conductor con este correo electrónico',
+        );
+      }
+    }
+  }
+
   async create(input: CreateDriverInput) {
     const ent = await this.enterpriseRepository.findOne({
       where: { id: input.enterpriseId },
@@ -33,14 +71,11 @@ export class DriverService {
       throw new BadRequestException('Enterprise not found');
     }
 
-    const existing = await this.driverRepository.findOne({
-      where: { userId: input.userId },
+    await this.assertUniqueDriverFields({
+      userId: input.userId,
+      document: input.document,
+      email: input.email,
     });
-    if (existing) {
-      throw new ConflictException(
-        'Ya existe un perfil de conductor para este usuario',
-      );
-    }
 
     const drvData: Partial<Driver> = {
       name: input.name,
@@ -110,6 +145,14 @@ export class DriverService {
   }
 
   async update(id: string, updateDriverDto: UpdateDriverDto) {
+    await this.assertUniqueDriverFields(
+      {
+        document: updateDriverDto.document,
+        email: updateDriverDto.email,
+      },
+      id,
+    );
+
     const preload: Partial<Driver> = {
       id,
       ...(updateDriverDto as Partial<Driver>),

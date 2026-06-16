@@ -10,10 +10,6 @@ export class ResponseCitizenDto {
   @Expose()
   name?: string;
 
-  @ApiProperty()
-  @Expose()
-  extraInfo?: string;
-
   @ApiProperty({ required: false })
   @Expose()
   birthDate?: Date;

@@ -8,9 +8,11 @@ import { PaymentMethodCitizen } from '@/payment-method-citizen/entities/payment-
 import { Scheduler } from '@/scheduler/entities/scheduler.entity';
 import { History } from '@/history/entities/history.entity';
 import { Node } from '@/node/entities/node.entity';
+import { HistoryModule } from '@/history/history.module';
 
 @Module({
   imports: [
+    HistoryModule,
     TypeOrmModule.forFeature([
       Ticket,
       Citizen,
@@ -22,5 +24,6 @@ import { Node } from '@/node/entities/node.entity';
   ],
   controllers: [TicketController],
   providers: [TicketService],
+  exports: [TicketService],
 })
 export class TicketModule {}
