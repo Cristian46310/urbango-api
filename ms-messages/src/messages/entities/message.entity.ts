@@ -34,6 +34,9 @@ export class Message {
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt!: Date;
 
+  @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
+  deletedAt?: Date | null;
+
   @ManyToOne('Conversation', 'messages', {
     onDelete: 'CASCADE',
   })

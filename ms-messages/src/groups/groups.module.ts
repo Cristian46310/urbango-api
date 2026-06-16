@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { GroupsController } from './groups.controller';
 import { GroupsService } from './groups.service';
@@ -9,6 +9,7 @@ import { ConversationMember } from '@/conversations/entities/conversation-member
 import { UsersModule } from '@/users/users.module';
 import { RealtimeModule } from '@/realtime/realtime.module';
 import { CitizenModule } from '@/citizen/citizen.module';
+import { MessagesModule } from '@/messages/messages.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { CitizenModule } from '@/citizen/citizen.module';
     UsersModule,
     RealtimeModule,
     CitizenModule,
+    forwardRef(() => MessagesModule),
   ],
   controllers: [GroupsController],
   providers: [GroupsService],

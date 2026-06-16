@@ -6,6 +6,7 @@ Microservicio NestJS de mensajería (UCaldas). Puerto **3001**.
 
 - **HU-ENTR-3-004**: mensaje directo, búsqueda de usuarios, bandeja enviados/recibidos, lectura con timestamp, ubicación opcional, notificación en tiempo real vía WebSocket.
 - **HU-ENTR-3-006**: creación de grupos de interés, miembros, unirse a grupos públicos, ícono. Solo **ciudadanos con perfil registrado** en PostgreSQL (`persons`, `type=citizen`).
+- **HU-ENTR-3-005**: envío de mensajes a uno o varios grupos, historial grupal, lecturas, eliminación por admin. Solo **conductores registrados** (`persons`, `type=driver`) pueden enviar a grupos.
 
 ## Requisitos
 
@@ -33,9 +34,12 @@ pnpm run start:dev
 
 Swagger: `http://localhost:3001/docs`
 
-## WebSocket (Socket.IO)
+## WebSocket (Socket.IO) — actualización en tiempo real
 
-Conéctate al mismo host/puerto con JWT:
+Al conectar, el servidor une al usuario a todas sus conversaciones (`conversation:{id}`).
+**No hace falta polling ni fetch repetido**: escucha eventos y actualiza el estado local.
+
+### Conexión
 
 ```javascript
 import { io } from 'socket.io-client';
@@ -44,10 +48,45 @@ const socket = io('http://localhost:3001', {
   auth: { token: '<jwt>' },
 });
 
-socket.on('message:new', (message) => console.log(message));
-socket.on('message:read', (payload) => console.log(payload));
-socket.on('group:member_added', (payload) => console.log(payload));
+// Carga inicial UNA sola vez (REST)
+const history = await fetch('/groups/{id}/messages', { headers: { Authorization: `Bearer ${token}` } });
+
+// Tiempo real: append/update sin refetch
+socket.on('message:new', (message) => {
+  // message.conversationId, message.messageType, message.groupId, message.groupName...
+  appendToChat(message);
+  updateInboxPreview(message);
+});
+
+socket.on('message:read', ({ messageId, conversationId, userId, readAt }) => {
+  markReadInUi(messageId, userId, readAt);
+});
+
+socket.on('message:deleted', ({ messageId, conversationId }) => {
+  removeFromChat(messageId);
+});
+
+socket.on('group:member_added', ({ conversationId }) => {
+  socket.emit('conversation:join', { conversationId });
+});
 ```
+
+### Unirse a una conversación abierta en UI
+
+Si abres un chat nuevo antes de reconectar el socket:
+
+```javascript
+socket.emit('conversation:join', { conversationId: '<uuid>' });
+```
+
+### Eventos emitidos por el servidor
+
+| Evento | Cuándo |
+|--------|--------|
+| `message:new` | Mensaje directo o grupal (todos los miembros de la conversación) |
+| `message:read` | Alguien marca leído |
+| `message:deleted` | Admin elimina mensaje grupal |
+| `group:member_added` | Te agregan a un grupo |
 
 ## Endpoints principales (HU-004)
 
@@ -72,6 +111,18 @@ socket.on('group:member_added', (payload) => console.log(payload));
 
 **Ciudadano registrado** = fila en `persons` con `type=citizen` y `user_id` = id del JWT (misma BD que ms-business). Conductores u otros perfiles reciben **403**.
 
+## Endpoints mensajes grupales (HU-005)
+
+| Método | Ruta | Descripción | Restricción |
+|--------|------|-------------|-------------|
+| GET | `/groups/me` | Grupos donde soy miembro | JWT |
+| POST | `/messages/group` | Enviar a 1 o N grupos | Conductor registrado + miembro del grupo |
+| GET | `/groups/:id/messages` | Historial del grupo | Miembro del grupo |
+| GET | `/messages/:id/reads` | Quién leyó (grupal) | Remitente o admin |
+| DELETE | `/messages/:id` | Eliminar mensaje grupal | Admin del grupo |
+
+**Conductor registrado** = fila en `persons` con `type=driver`.
+
 Todos los endpoints anteriores usan `@Authenticated()` (JWT válido, sin RBAC por ruta aún).
 
 ## Migraciones
@@ -82,4 +133,4 @@ Ejecutar migraciones:
 pnpm run migration:run
 ```
 
-Incluye `1749571200000-InitDirectMessages` y `1749571300000-InitGroups`.
+Incluye `1749571200000-InitDirectMessages`, `1749571300000-InitGroups` y `1749571400000-AddMessageSoftDelete`.

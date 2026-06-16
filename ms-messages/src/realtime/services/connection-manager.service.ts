@@ -23,6 +23,10 @@ export class ConnectionManagerService {
     }
   }
 
+  getSocketIds(userId: string): string[] {
+    return [...(this.userSockets.get(userId) ?? [])];
+  }
+
   isOnline(userId: string): boolean {
     return (this.userSockets.get(userId)?.size ?? 0) > 0;
   }

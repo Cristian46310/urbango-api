@@ -29,13 +29,18 @@ import type { JwtPayload } from '@/auth/types';
 import { RequiresCitizen } from '@/citizen/decorators/requires-citizen.decorator';
 import { CitizenGuard } from '@/citizen/guards/citizen.guard';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
+import { MessagesService } from '@/messages/messages.service';
+import { ResponseMessageListDto } from '@/messages/dto/response-message-list.dto';
 
 @ApiTags('Groups')
 @ApiBearerAuth('bearer')
 @Controller('groups')
 @UseGuards(CitizenGuard)
 export class GroupsController {
-  constructor(private readonly groupsService: GroupsService) {}
+  constructor(
+    private readonly groupsService: GroupsService,
+    private readonly messagesService: MessagesService,
+  ) {}
 
   @Post()
   @Authenticated()
@@ -52,6 +57,32 @@ export class GroupsController {
   ): Promise<ResponseGroupDto> {
     const token = authorization.replace(/^Bearer\s+/i, '');
     return this.groupsService.create(user.id, dto, token);
+  }
+
+  @Get('me')
+  @Authenticated()
+  @ApiOperation({
+    summary: 'Listar grupos donde soy miembro (para conductor/pasajeros)',
+  })
+  @ApiOkResponse({ type: ResponseGroupListDto })
+  async findMine(
+    @Query() pagination: PaginationQueryDto,
+    @CurrentUser() user: JwtPayload,
+  ): Promise<ResponseGroupListDto> {
+    return this.groupsService.findMyGroups(user.id, pagination);
+  }
+
+  @Get(':id/messages')
+  @Authenticated()
+  @ApiOperation({ summary: 'Historial de mensajes de un grupo' })
+  @ApiParam({ name: 'id', description: 'ID del grupo' })
+  @ApiOkResponse({ type: ResponseMessageListDto })
+  async findGroupMessages(
+    @Param('id') id: string,
+    @Query() pagination: PaginationQueryDto,
+    @CurrentUser() user: JwtPayload,
+  ): Promise<ResponseMessageListDto> {
+    return this.messagesService.findGroupMessages(id, user.id, pagination);
   }
 
   @Get()

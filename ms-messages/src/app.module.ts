@@ -12,6 +12,7 @@ import { MessagesModule } from '@/messages/messages.module';
 import { InboxModule } from '@/inbox/inbox.module';
 import { RealtimeModule } from '@/realtime/realtime.module';
 import { CitizenModule } from '@/citizen/citizen.module';
+import { DriverModule } from '@/driver/driver.module';
 import { GroupsModule } from '@/groups/groups.module';
 
 @Module({
@@ -38,6 +39,7 @@ import { GroupsModule } from '@/groups/groups.module';
     InboxModule,
     RealtimeModule,
     CitizenModule,
+    DriverModule,
     GroupsModule,
   ],
   controllers: [AppController],

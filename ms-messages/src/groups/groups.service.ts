@@ -104,6 +104,11 @@ export class GroupsService {
     ];
     const savedMembers = await this.groupMemberRepository.save(groupMembers);
 
+    await this.realtimeEmitter.joinUsersToConversation(
+      allUserIds,
+      savedConversation.id,
+    );
+
     const response = this.toResponse(savedGroup, savedMembers);
     this.emitMemberAddedEvents(response, uniqueMemberIds);
 
@@ -135,6 +140,51 @@ export class GroupsService {
     );
 
     return this.toListDto(items, page, limit, totalItems);
+  }
+
+  async findMyGroups(
+    userId: string,
+    pagination: PaginationQueryDto,
+  ): Promise<ResponseGroupListDto> {
+    const page = pagination.page ?? 1;
+    const limit = pagination.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const qb = this.groupRepository
+      .createQueryBuilder('group')
+      .innerJoinAndSelect('group.members', 'members')
+      .where('members.userId = :userId', { userId })
+      .orderBy('group.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit);
+
+    const [groups, totalItems] = await qb.getManyAndCount();
+    const items = groups.map((group) =>
+      this.toResponse(group, group.members ?? []),
+    );
+
+    return this.toListDto(items, page, limit, totalItems);
+  }
+
+  async getGroupForMember(groupId: string, userId: string): Promise<Group> {
+    const group = await this.getGroupWithMembers(groupId);
+    this.assertMember(group, userId);
+    return group;
+  }
+
+  async findByConversationId(conversationId: string): Promise<Group | null> {
+    return this.groupRepository.findOne({
+      where: { conversationId },
+      relations: ['members'],
+    });
+  }
+
+  assertGroupAdmin(group: Group, userId: string): void {
+    this.assertAdmin(group, userId);
+  }
+
+  getMemberUserIds(group: Group): string[] {
+    return (group.members ?? []).map((member) => member.userId);
   }
 
   async addMembers(
@@ -180,6 +230,11 @@ export class GroupsService {
     );
     const saved = await this.groupMemberRepository.save(newGroupMembers);
 
+    await this.realtimeEmitter.joinUsersToConversation(
+      newIds,
+      group.conversationId,
+    );
+
     const allMembers = [...(group.members ?? []), ...saved];
     const response = this.toResponse(group, allMembers);
     this.emitMemberAddedEvents(response, newIds);
@@ -220,6 +275,12 @@ export class GroupsService {
 
     const allMembers = [...(group.members ?? []), member];
     const response = this.toResponse(group, allMembers);
+
+    await this.realtimeEmitter.joinUsersToConversation(
+      [userId],
+      group.conversationId,
+    );
+
     this.realtimeEmitter.emitGroupMemberAdded(userId, {
       groupId: group.id,
       groupName: group.name,
@@ -266,6 +327,15 @@ export class GroupsService {
     }
   }
 
+  private assertMember(group: Group, userId: string): void {
+    const isMember = (group.members ?? []).some(
+      (member) => member.userId === userId,
+    );
+    if (!isMember) {
+      throw new ForbiddenException('No eres miembro de este grupo');
+    }
+  }
+
   private async validateUsersExist(
     userIds: string[],
     token: string,
@@ -279,6 +349,11 @@ export class GroupsService {
     group: ResponseGroupDto,
     userIds: string[],
   ): void {
+    void this.realtimeEmitter.joinUsersToConversation(
+      userIds,
+      group.conversationId,
+    );
+
     for (const userId of userIds) {
       this.realtimeEmitter.emitGroupMemberAdded(userId, {
         groupId: group.id,
