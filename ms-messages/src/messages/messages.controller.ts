@@ -75,8 +75,27 @@ export class MessagesController {
   async findSent(
     @Query() pagination: PaginationQueryDto,
     @CurrentUser() user: JwtPayload,
+    @Headers('authorization') authorization: string,
   ): Promise<ResponseMessageListDto> {
-    return this.messagesService.findSentMessages(user.id, pagination);
+    const token = authorization.replace(/^Bearer\s+/i, '');
+    return this.messagesService.findSentMessages(user.id, pagination, token);
+  }
+
+  @Get(':id')
+  @Authenticated()
+  @ApiOperation({
+    summary:
+      'Obtener mensaje por ID y marcarlo como leído si el usuario es destinatario',
+  })
+  @ApiParam({ name: 'id', description: 'ID del mensaje' })
+  @ApiOkResponse({ type: ResponseMessageDto })
+  async getById(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+    @Headers('authorization') authorization: string,
+  ): Promise<ResponseMessageDto> {
+    const token = authorization.replace(/^Bearer\s+/i, '');
+    return this.messagesService.getMessageById(id, user.id, token);
   }
 
   @Get(':id/reads')
@@ -101,8 +120,10 @@ export class MessagesController {
   async markAsRead(
     @Param('id') id: string,
     @CurrentUser() user: JwtPayload,
+    @Headers('authorization') authorization: string,
   ): Promise<ResponseMessageDto> {
-    return this.messagesService.markAsRead(id, user.id);
+    const token = authorization.replace(/^Bearer\s+/i, '');
+    return this.messagesService.markAsRead(id, user.id, token);
   }
 
   @Delete(':id')

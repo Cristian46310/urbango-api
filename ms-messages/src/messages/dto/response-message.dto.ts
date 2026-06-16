@@ -16,6 +16,14 @@ export class ResponseMessageDto {
   senderId!: string;
 
   @Expose()
+  @ApiPropertyOptional({ description: 'Nombre del emisor (ms-security)' })
+  senderName?: string;
+
+  @Expose()
+  @ApiPropertyOptional({ description: 'Email del emisor (ms-security)' })
+  senderEmail?: string;
+
+  @Expose()
   @ApiProperty({ enum: MessageType })
   messageType!: MessageType;
 
@@ -34,6 +42,12 @@ export class ResponseMessageDto {
   @Expose()
   @ApiProperty()
   body!: string;
+
+  @Expose()
+  @ApiProperty({
+    description: 'Vista previa truncada del contenido (máx. 120 caracteres)',
+  })
+  preview!: string;
 
   @Expose()
   @ApiPropertyOptional()

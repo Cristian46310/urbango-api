@@ -81,8 +81,15 @@ export class GroupsController {
     @Param('id') id: string,
     @Query() pagination: PaginationQueryDto,
     @CurrentUser() user: JwtPayload,
+    @Headers('authorization') authorization: string,
   ): Promise<ResponseMessageListDto> {
-    return this.messagesService.findGroupMessages(id, user.id, pagination);
+    const token = authorization.replace(/^Bearer\s+/i, '');
+    return this.messagesService.findGroupMessages(
+      id,
+      user.id,
+      pagination,
+      token,
+    );
   }
 
   @Get()
