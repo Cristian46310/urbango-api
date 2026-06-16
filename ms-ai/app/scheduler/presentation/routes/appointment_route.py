@@ -42,7 +42,7 @@ def get_availability(
     return AvailabilityResponse(slots=[slot_dto_to_response(s) for s in slots])
 
 
-@router.post("/", response_model=AppointmentResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=AppointmentResponse, status_code=status.HTTP_201_CREATED)
 def create_appointment(
     body: CreateAppointmentRequest,
     use_case: CreateAppointmentUseCase = Depends(get_create_appointment),
@@ -61,7 +61,7 @@ def create_appointment(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
-@router.get("/", response_model=List[AppointmentResponse])
+@router.get("", response_model=List[AppointmentResponse])
 def list_appointments(use_case: GetAllAppointmentsUseCase = Depends(get_all_appointments)):
     return [dto_to_response(dto) for dto in use_case.execute()]
 
