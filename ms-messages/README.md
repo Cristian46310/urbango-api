@@ -5,6 +5,7 @@ Microservicio NestJS de mensajería (UCaldas). Puerto **3001**.
 ## HU implementada
 
 - **HU-ENTR-3-004**: mensaje directo, búsqueda de usuarios, bandeja enviados/recibidos, lectura con timestamp, ubicación opcional, notificación en tiempo real vía WebSocket.
+- **HU-ENTR-3-006**: creación de grupos de interés, miembros, unirse a grupos públicos, ícono. Solo **ciudadanos con perfil registrado** en PostgreSQL (`persons`, `type=citizen`).
 
 ## Requisitos
 
@@ -45,6 +46,7 @@ const socket = io('http://localhost:3001', {
 
 socket.on('message:new', (message) => console.log(message));
 socket.on('message:read', (payload) => console.log(payload));
+socket.on('group:member_added', (payload) => console.log(payload));
 ```
 
 ## Endpoints principales (HU-004)
@@ -58,8 +60,26 @@ socket.on('message:read', (payload) => console.log(payload));
 | GET | `/messages/sent` | Mensajes enviados |
 | PATCH | `/messages/:id/read` | Marcar como leído |
 
+## Endpoints grupos (HU-006)
+
+| Método | Ruta | Descripción | Restricción |
+|--------|------|-------------|-------------|
+| POST | `/groups` | Crear grupo (≥2 miembros + creador admin) | Ciudadano registrado |
+| GET | `/groups` | Listar grupos públicos y propios | JWT |
+| POST | `/groups/:id/members` | Agregar miembros (admin) | Ciudadano registrado |
+| POST | `/groups/:id/join` | Unirse a grupo público | Ciudadano registrado |
+| POST | `/groups/:id/icon` | Actualizar ícono (admin) | Ciudadano registrado |
+
+**Ciudadano registrado** = fila en `persons` con `type=citizen` y `user_id` = id del JWT (misma BD que ms-business). Conductores u otros perfiles reciben **403**.
+
 Todos los endpoints anteriores usan `@Authenticated()` (JWT válido, sin RBAC por ruta aún).
 
 ## Migraciones
 
-Ejecutar la migración `src/migrations/1749571200000-InitDirectMessages.ts` con el flujo TypeORM del proyecto (pendiente script CLI si se requiere automatización).
+Ejecutar migraciones:
+
+```bash
+pnpm run migration:run
+```
+
+Incluye `1749571200000-InitDirectMessages` y `1749571300000-InitGroups`.

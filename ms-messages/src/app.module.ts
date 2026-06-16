@@ -11,6 +11,8 @@ import { ConversationsModule } from '@/conversations/conversations.module';
 import { MessagesModule } from '@/messages/messages.module';
 import { InboxModule } from '@/inbox/inbox.module';
 import { RealtimeModule } from '@/realtime/realtime.module';
+import { CitizenModule } from '@/citizen/citizen.module';
+import { GroupsModule } from '@/groups/groups.module';
 
 @Module({
   imports: [
@@ -35,6 +37,8 @@ import { RealtimeModule } from '@/realtime/realtime.module';
     MessagesModule,
     InboxModule,
     RealtimeModule,
+    CitizenModule,
+    GroupsModule,
   ],
   controllers: [AppController],
 })
