@@ -3,6 +3,7 @@ import { Agent as HttpsAgent } from 'https';
 import { HttpModule } from '@nestjs/axios';
 import { Global, Module } from '@nestjs/common';
 import { JwtValidationService } from './services/jwt-validation.service';
+import { RolesGuard } from './guards/roles.guard';
 
 @Global()
 @Module({
@@ -24,7 +25,7 @@ import { JwtValidationService } from './services/jwt-validation.service';
       }),
     }),
   ],
-  providers: [JwtValidationService],
-  exports: [HttpModule, JwtValidationService],
+  providers: [JwtValidationService, RolesGuard],
+  exports: [HttpModule, JwtValidationService, RolesGuard],
 })
 export class AuthModule {}

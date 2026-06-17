@@ -90,4 +90,41 @@ export class SecurityUserClientService {
       throw new NotFoundException(`User ${userId} not found`);
     }
   }
+
+  async getAllUserIds(token: string): Promise<string[]> {
+    const userIds: string[] = [];
+    let page = 0;
+    const size = 200;
+
+    while (true) {
+      try {
+        const response = await axios.get<SecurityUserPage>(
+          `${this.securityServiceUrl}/api/public/users`,
+          {
+            params: { page, size },
+            headers: { Authorization: `Bearer ${token}` },
+            timeout: 30000,
+          },
+        );
+
+        const content = response.data.content ?? [];
+        userIds.push(...content.map((user) => user.id));
+
+        const totalPages = response.data.totalPages ?? 0;
+        if (page + 1 >= totalPages || content.length === 0) {
+          break;
+        }
+
+        page += 1;
+      } catch {
+        this.logger.error('Failed to list users from ms-security');
+        throw new HttpException(
+          'User listing service unavailable',
+          HttpStatus.SERVICE_UNAVAILABLE,
+        );
+      }
+    }
+
+    return [...new Set(userIds)];
+  }
 }

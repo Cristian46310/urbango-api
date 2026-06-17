@@ -7,6 +7,7 @@ Microservicio NestJS de mensajería (UCaldas). Puerto **3001**.
 - **HU-ENTR-3-004**: mensaje directo, búsqueda de usuarios, bandeja enviados/recibidos, lectura con timestamp, ubicación opcional, notificación en tiempo real vía WebSocket.
 - **HU-ENTR-3-006**: creación de grupos de interés, miembros, unirse a grupos públicos, ícono. Solo **ciudadanos con perfil registrado** en PostgreSQL (`persons`, `type=citizen`).
 - **HU-ENTR-3-005**: envío de mensajes a uno o varios grupos, historial grupal, lecturas, eliminación por admin. Solo **conductores registrados** (`persons`, `type=driver`) pueden enviar a grupos.
+- **HU-ENTR-3-008**: alertas masivas (admin): alcance todos/ruta/zona, urgente con push WebSocket, envío programado, contador de destinatarios, estadísticas de lectura. Comunicación unidireccional (`canReply: false`).
 
 ## Requisitos
 
@@ -87,6 +88,8 @@ socket.emit('conversation:join', { conversationId: '<uuid>' });
 | `message:read` | Alguien marca leído |
 | `message:deleted` | Admin elimina mensaje grupal |
 | `group:member_added` | Te agregan a un grupo |
+| `alert:new` | Alerta masiva no urgente (bandeja del usuario) |
+| `alert:push` | Alerta masiva **urgente** — push inmediato al usuario conectado |
 
 ## Endpoints principales (HU-004)
 
@@ -125,6 +128,21 @@ socket.emit('conversation:join', { conversationId: '<uuid>' });
 
 Todos los endpoints anteriores usan `@Authenticated()` (JWT válido, sin RBAC por ruta aún).
 
+## Endpoints alertas masivas (HU-008)
+
+Solo usuarios con rol **`ADMIN`** en el claim `roles` del JWT (validado vía ms-security `validate-token`). Los endpoints `/alerts` son para cualquier usuario autenticado.
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| POST | `/mass-alerts/preview-recipients` | Contador de destinatarios antes de enviar |
+| POST | `/mass-alerts` | Crear y enviar (inmediato) o programar alerta |
+| GET | `/mass-alerts` | Listar alertas (admin) |
+| GET | `/mass-alerts/:id` | Detalle de alerta |
+| GET | `/mass-alerts/:id/stats` | Estadísticas entrega/lectura |
+| GET | `/alerts` | Bandeja de alertas del usuario |
+| GET | `/alerts/unread-count` | Contador sin leer |
+| PATCH | `/alerts/:id/read` | Marcar alerta como leída |
+
 ## Migraciones
 
 Ejecutar migraciones:
@@ -133,4 +151,4 @@ Ejecutar migraciones:
 pnpm run migration:run
 ```
 
-Incluye `1749571200000-InitDirectMessages`, `1749571300000-InitGroups` y `1749571400000-AddMessageSoftDelete`.
+Incluye `1749571200000-InitDirectMessages`, `1749571300000-InitGroups`, `1749571400000-AddMessageSoftDelete` y `1749571500000-InitMassAlerts`.

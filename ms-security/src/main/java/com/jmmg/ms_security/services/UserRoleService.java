@@ -37,13 +37,20 @@ public class UserRoleService {
             String roleId) {
         User user = this.userRepository.findById(userId).orElse(null);
         Role role = this.roleRepository.findById(roleId).orElse(null);
-        if (user != null && role != null) {
-            UserRole userRole = new UserRole(user, role);
-            this.userRoleRepository.save(userRole);
-            return true;
-        } else {
+        if (user == null || role == null) {
             return false;
         }
+
+        boolean alreadyAssigned = this.userRoleRepository.findByUserId(userId).stream()
+                .map(UserRole::getRole)
+                .filter(java.util.Objects::nonNull)
+                .anyMatch(existingRole -> roleId.equals(existingRole.getId()));
+        if (alreadyAssigned) {
+            return true;
+        }
+
+        this.userRoleRepository.save(new UserRole(user, role));
+        return true;
     }
 
     public boolean removeUserRole(String userRoleId) {
@@ -56,6 +63,40 @@ public class UserRoleService {
         }
     }
 
+    /**
+     * Asigna un rol por nombre sin quitar los roles existentes (idempotente).
+     */
+    public boolean addUserRoleByName(String userId, String roleName) {
+        if (roleName == null || roleName.isBlank()) {
+            return false;
+        }
+
+        User user = this.userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            return false;
+        }
+
+        List<Role> roles = this.roleRepository.findByNameIn(List.of(roleName.trim()));
+        if (roles.isEmpty()) {
+            return false;
+        }
+
+        Role role = roles.get(0);
+        boolean alreadyAssigned = this.userRoleRepository.findByUserId(userId).stream()
+                .map(UserRole::getRole)
+                .filter(java.util.Objects::nonNull)
+                .anyMatch(existingRole -> roleName.equalsIgnoreCase(existingRole.getName()));
+        if (alreadyAssigned) {
+            return true;
+        }
+
+        this.userRoleRepository.save(new UserRole(user, role));
+        return true;
+    }
+
+    /**
+     * Agrega roles al usuario sin eliminar los que ya tenía.
+     */
     public boolean assignMultipleRoles(AssignRolesDTO assignRolesDTO) {
         User user = this.userRepository.findById(assignRolesDTO.userId()).orElse(null);
         if (user == null) {
@@ -84,29 +125,28 @@ public class UserRoleService {
                 .map(Role::getId)
                 .collect(Collectors.toSet());
 
-        List<UserRole> rolesToRemove = existingRoles.stream()
-                .filter(userRole -> userRole.getRole() == null || !requestedRoleIds.contains(userRole.getRole().getId()))
-                .collect(Collectors.toList());
-        if (!rolesToRemove.isEmpty()) {
-            this.userRoleRepository.deleteAll(rolesToRemove);
-        }
-
+        List<Role> newlyAddedRoles = new java.util.ArrayList<>();
         for (String roleId : requestedRoleIds) {
             if (!existingRoleIds.contains(roleId)) {
                 Role role = requestedRolesById.get(roleId);
                 this.userRoleRepository.save(new UserRole(user, role));
+                newlyAddedRoles.add(role);
             }
         }
 
-        String roleNames = requestedRoles.stream()
+        if (newlyAddedRoles.isEmpty()) {
+            return true;
+        }
+
+        String roleNames = newlyAddedRoles.stream()
                 .map(Role::getName)
                 .collect(Collectors.joining(", "));
 
         // Construir y enviar notificación por email
         String emailContent = String.format(
                 "Hola %s,\n\n"
-                        + "Te informamos que tus roles/permisos en el sistema han sido actualizados.\n\n"
-                        + "Roles asignados: %s\n\n"
+                        + "Te informamos que se te han asignado nuevos roles en el sistema.\n\n"
+                        + "Roles agregados: %s\n\n"
                         + "Si tienes dudas, contacta al administrador.\n\n"
                         + "Saludos,\n"
                         + "Sistema de Seguridad",
@@ -120,4 +160,5 @@ public class UserRoleService {
         return true;
     }
 
+}
 }

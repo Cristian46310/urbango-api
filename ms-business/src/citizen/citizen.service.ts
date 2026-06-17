@@ -13,6 +13,10 @@ import { Address } from '@/address/entities/address.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponseCitizenDto } from './dto/response-citizen.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
+import {
+  SecurityRoleClientService,
+  SecurityRoleName,
+} from '@/auth/services/security-role-client.service';
 
 export type CreateCitizenInput = CreateCitizenDto & { userId: string };
 
@@ -23,6 +27,7 @@ export class CitizenService {
     private readonly citizenRepository: Repository<Citizen>,
     @InjectRepository(Address)
     private readonly addressRepository: Repository<Address>,
+    private readonly securityRoleClient: SecurityRoleClientService,
   ) {}
 
   private async assertUniqueCitizenFields(
@@ -90,6 +95,10 @@ export class CitizenService {
     };
     const cit = this.citizenRepository.create(citData);
     const saved = await this.citizenRepository.save(cit);
+    await this.securityRoleClient.assignRoleByName(
+      input.userId,
+      SecurityRoleName.CITIZEN,
+    );
     return plainToInstance(ResponseCitizenDto, saved);
   }
 

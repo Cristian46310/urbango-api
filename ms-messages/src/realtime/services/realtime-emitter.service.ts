@@ -3,6 +3,7 @@ import { ChatEvent } from '../chat-events.enum';
 import { ResponseMessageDto } from '@/messages/dto/response-message.dto';
 import { GroupMemberRole } from '@/groups/enums/group-member-role.enum';
 import type { ChatRealtimePort } from '../chat-realtime.port';
+import type { ResponseUserAlertDto } from '@/mass-alerts/dto/response-user-alert.dto';
 
 export interface GroupMemberAddedPayload {
   groupId: string;
@@ -72,5 +73,15 @@ export class RealtimeEmitterService {
         this.gateway?.joinUserToConversations(userId, [conversationId]),
       ),
     );
+  }
+
+  /** Push inmediato para alertas urgentes (room por usuario). */
+  emitUrgentAlertPush(userId: string, alert: ResponseUserAlertDto): void {
+    this.gateway?.emitToUser(userId, ChatEvent.ALERT_PUSH, alert);
+  }
+
+  /** Notificación de alerta masiva (no urgente) en bandeja del usuario. */
+  emitNewAlert(userId: string, alert: ResponseUserAlertDto): void {
+    this.gateway?.emitToUser(userId, ChatEvent.ALERT_NEW, alert);
   }
 }
