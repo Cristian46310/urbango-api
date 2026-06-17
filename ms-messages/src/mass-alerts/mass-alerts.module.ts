@@ -5,6 +5,8 @@ import { UserAlertsController } from './user-alerts.controller';
 import { MassAlertsService } from './mass-alerts.service';
 import { MassAlert } from './entities/mass-alert.entity';
 import { MassAlertRecipient } from './entities/mass-alert-recipient.entity';
+import { MassAlertRoute } from './entities/mass-alert-route.entity';
+import { MassAlertZone } from './entities/mass-alert-zone.entity';
 import { MassAlertRecipientResolverService } from './services/mass-alert-recipient-resolver.service';
 import { MassAlertSchedulerService } from './services/mass-alert-scheduler.service';
 import { UsersModule } from '@/users/users.module';
@@ -12,7 +14,12 @@ import { RealtimeModule } from '@/realtime/realtime.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([MassAlert, MassAlertRecipient]),
+    TypeOrmModule.forFeature([
+      MassAlert,
+      MassAlertRecipient,
+      MassAlertRoute,
+      MassAlertZone,
+    ]),
     UsersModule,
     RealtimeModule,
   ],

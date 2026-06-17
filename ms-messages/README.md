@@ -151,4 +151,4 @@ Ejecutar migraciones:
 pnpm run migration:run
 ```
 
-Incluye `1749571200000-InitDirectMessages`, `1749571300000-InitGroups`, `1749571400000-AddMessageSoftDelete` y `1749571500000-InitMassAlerts`.
+Incluye `1749571200000-InitDirectMessages`, `1749571300000-InitGroups`, `1749571400000-AddMessageSoftDelete`, `1749571500000-InitMassAlerts` y `1749571600000-NormalizeMassAlertScope`.

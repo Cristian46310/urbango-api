@@ -9,12 +9,18 @@ import type { Relation } from 'typeorm';
 import { MassAlertScope } from '../enums/mass-alert-scope.enum';
 import { MassAlertStatus } from '../enums/mass-alert-status.enum';
 import type { MassAlertRecipient } from './mass-alert-recipient.entity';
+import type { MassAlertRoute } from './mass-alert-route.entity';
+import type { MassAlertZone } from './mass-alert-zone.entity';
 
 @Entity('mass_alerts')
 export class MassAlert {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
+  /**
+   * ID del administrador emisor en ms-security (JWT `id` / MongoDB User).
+   * Referencia lógica externa; no hay FK en PostgreSQL (mismo criterio que `messages.sender_id`).
+   */
   @Column({ name: 'sender_id', type: 'varchar', length: 64 })
   senderId!: string;
 
@@ -29,12 +35,6 @@ export class MassAlert {
     enum: MassAlertScope,
   })
   scope!: MassAlertScope;
-
-  @Column({ name: 'route_ids', type: 'jsonb', nullable: true })
-  routeIds?: string[] | null;
-
-  @Column({ name: 'zone_names', type: 'jsonb', nullable: true })
-  zoneNames?: string[] | null;
 
   @Column({ name: 'is_urgent', type: 'boolean', default: false })
   isUrgent!: boolean;
@@ -60,4 +60,10 @@ export class MassAlert {
 
   @OneToMany('MassAlertRecipient', 'massAlert')
   recipients?: Relation<MassAlertRecipient[]>;
+
+  @OneToMany('MassAlertRoute', 'massAlert')
+  routes?: Relation<MassAlertRoute[]>;
+
+  @OneToMany('MassAlertZone', 'massAlert')
+  zones?: Relation<MassAlertZone[]>;
 }

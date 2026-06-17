@@ -14,8 +14,8 @@ import { plainToInstance } from 'class-transformer';
 import { ResponseCitizenDto } from './dto/response-citizen.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import {
+  SecurityProfileRole,
   SecurityRoleClientService,
-  SecurityRoleName,
 } from '@/auth/services/security-role-client.service';
 
 export type CreateCitizenInput = CreateCitizenDto & { userId: string };
@@ -95,9 +95,9 @@ export class CitizenService {
     };
     const cit = this.citizenRepository.create(citData);
     const saved = await this.citizenRepository.save(cit);
-    await this.securityRoleClient.assignRoleByName(
+    await this.securityRoleClient.assignProfileRole(
       input.userId,
-      SecurityRoleName.CITIZEN,
+      SecurityProfileRole.CITIZEN,
     );
     return plainToInstance(ResponseCitizenDto, saved);
   }

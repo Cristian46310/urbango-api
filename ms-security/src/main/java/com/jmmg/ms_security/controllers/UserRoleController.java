@@ -39,18 +39,6 @@ public class UserRoleController {
         }
     }
 
-    @PostMapping("user/{userId}/role-name/{roleName}")
-    public ResponseEntity<ResponseMessage> addUserRoleByName(
-            @PathVariable String userId,
-            @PathVariable String roleName) {
-
-        boolean response = this.userRoleService.addUserRoleByName(userId, roleName);
-        if (response) {
-            return ResponseEntity.ok(new ResponseMessage("Role assigned successfully"));
-        } else {
-            return ResponseEntity.badRequest().body(new ResponseMessage("Failed to assign role"));
-        }
-    }
     @DeleteMapping("{userRoleId}")
     public ResponseEntity<Void> removeUserRole(
             @PathVariable String userRoleId) {

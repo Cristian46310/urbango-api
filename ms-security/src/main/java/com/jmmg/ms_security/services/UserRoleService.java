@@ -12,10 +12,11 @@ import com.jmmg.ms_security.repositories.IRoleRepository;
 import com.jmmg.ms_security.repositories.IUserRepository;
 import com.jmmg.ms_security.repositories.IUserRoleRepository;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.LinkedHashSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -33,41 +34,11 @@ public class UserRoleService {
     @Autowired
     private EmailService emailService;
 
-    public boolean addUserRole(String userId,
-            String roleId) {
-        User user = this.userRepository.findById(userId).orElse(null);
-        Role role = this.roleRepository.findById(roleId).orElse(null);
-        if (user == null || role == null) {
-            return false;
-        }
-
-        boolean alreadyAssigned = this.userRoleRepository.findByUserId(userId).stream()
-                .map(UserRole::getRole)
-                .filter(java.util.Objects::nonNull)
-                .anyMatch(existingRole -> roleId.equals(existingRole.getId()));
-        if (alreadyAssigned) {
-            return true;
-        }
-
-        this.userRoleRepository.save(new UserRole(user, role));
-        return true;
-    }
-
-    public boolean removeUserRole(String userRoleId) {
-        UserRole userRole = this.userRoleRepository.findById(userRoleId).orElse(null);
-        if (userRole != null) {
-            this.userRoleRepository.delete(userRole);
-            return true;
-        } else {
-            return false;
-        }
-    }
-
     /**
-     * Asigna un rol por nombre sin quitar los roles existentes (idempotente).
+     * Agrega un rol al usuario por MongoDB role ID (aditivo, idempotente).
      */
-    public boolean addUserRoleByName(String userId, String roleName) {
-        if (roleName == null || roleName.isBlank()) {
+    public boolean addUserRole(String userId, String roleId) {
+        if (userId == null || userId.isBlank() || roleId == null || roleId.isBlank()) {
             return false;
         }
 
@@ -76,26 +47,27 @@ public class UserRoleService {
             return false;
         }
 
-        List<Role> roles = this.roleRepository.findByNameIn(List.of(roleName.trim()));
-        if (roles.isEmpty()) {
+        Role role = this.roleRepository.findById(roleId).orElse(null);
+        if (role == null) {
             return false;
         }
 
-        Role role = roles.get(0);
-        boolean alreadyAssigned = this.userRoleRepository.findByUserId(userId).stream()
-                .map(UserRole::getRole)
-                .filter(java.util.Objects::nonNull)
-                .anyMatch(existingRole -> roleName.equalsIgnoreCase(existingRole.getName()));
-        if (alreadyAssigned) {
+        List<Role> addedRoles = this.appendRoleIdsToUser(user, List.of(roleId), Map.of(roleId, role));
+        return !addedRoles.isEmpty() || this.userHasRoleId(userId, roleId);
+    }
+
+    public boolean removeUserRole(String userRoleId) {
+        UserRole userRole = this.userRoleRepository.findById(userRoleId).orElse(null);
+        if (userRole != null) {
+            this.userRoleRepository.delete(userRole);
             return true;
         }
 
-        this.userRoleRepository.save(new UserRole(user, role));
-        return true;
+        return false;
     }
 
     /**
-     * Agrega roles al usuario sin eliminar los que ya tenía.
+     * Agrega roles al usuario por MongoDB role IDs sin eliminar los existentes.
      */
     public boolean assignMultipleRoles(AssignRolesDTO assignRolesDTO) {
         User user = this.userRepository.findById(assignRolesDTO.userId()).orElse(null);
@@ -118,21 +90,10 @@ public class UserRoleService {
         Map<String, Role> requestedRolesById = requestedRoles.stream()
                 .collect(Collectors.toMap(Role::getId, Function.identity()));
 
-        List<UserRole> existingRoles = this.userRoleRepository.findByUserId(assignRolesDTO.userId());
-        Set<String> existingRoleIds = existingRoles.stream()
-                .map(UserRole::getRole)
-                .filter(java.util.Objects::nonNull)
-                .map(Role::getId)
-                .collect(Collectors.toSet());
-
-        List<Role> newlyAddedRoles = new java.util.ArrayList<>();
-        for (String roleId : requestedRoleIds) {
-            if (!existingRoleIds.contains(roleId)) {
-                Role role = requestedRolesById.get(roleId);
-                this.userRoleRepository.save(new UserRole(user, role));
-                newlyAddedRoles.add(role);
-            }
-        }
+        List<Role> newlyAddedRoles = this.appendRoleIdsToUser(
+                user,
+                new ArrayList<>(requestedRoleIds),
+                requestedRolesById);
 
         if (newlyAddedRoles.isEmpty()) {
             return true;
@@ -142,7 +103,6 @@ public class UserRoleService {
                 .map(Role::getName)
                 .collect(Collectors.joining(", "));
 
-        // Construir y enviar notificación por email
         String emailContent = String.format(
                 "Hola %s,\n\n"
                         + "Te informamos que se te han asignado nuevos roles en el sistema.\n\n"
@@ -160,5 +120,40 @@ public class UserRoleService {
         return true;
     }
 
-}
+    private List<Role> appendRoleIdsToUser(
+            User user,
+            List<String> roleIds,
+            Map<String, Role> rolesById) {
+        Set<String> existingRoleIds = this.userRoleRepository.findByUserId(user.getId()).stream()
+                .map(UserRole::getRole)
+                .filter(java.util.Objects::nonNull)
+                .map(Role::getId)
+                .collect(Collectors.toSet());
+
+        List<Role> newlyAddedRoles = new ArrayList<>();
+        for (String roleId : roleIds) {
+            if (existingRoleIds.contains(roleId)) {
+                continue;
+            }
+
+            Role role = rolesById.get(roleId);
+            if (role == null) {
+                continue;
+            }
+
+            this.userRoleRepository.save(new UserRole(user, role));
+            existingRoleIds.add(roleId);
+            newlyAddedRoles.add(role);
+        }
+
+        return newlyAddedRoles;
+    }
+
+    private boolean userHasRoleId(String userId, String roleId) {
+        return this.userRoleRepository.findByUserId(userId).stream()
+                .map(UserRole::getRole)
+                .filter(java.util.Objects::nonNull)
+                .anyMatch(role -> roleId.equals(role.getId()));
+    }
+
 }

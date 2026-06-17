@@ -14,8 +14,8 @@ import { plainToInstance } from 'class-transformer';
 import { ResponseDriverDto } from './dto/response-driver.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import {
+  SecurityProfileRole,
   SecurityRoleClientService,
-  SecurityRoleName,
 } from '@/auth/services/security-role-client.service';
 
 export type CreateDriverInput = CreateDriverDto & { userId: string };
@@ -97,9 +97,9 @@ export class DriverService {
 
     const drv = this.driverRepository.create(drvData);
     const saved = await this.driverRepository.save(drv);
-    await this.securityRoleClient.assignRoleByName(
+    await this.securityRoleClient.assignProfileRole(
       input.userId,
-      SecurityRoleName.DRIVER,
+      SecurityProfileRole.DRIVER,
     );
     return this.toResponse(saved);
   }

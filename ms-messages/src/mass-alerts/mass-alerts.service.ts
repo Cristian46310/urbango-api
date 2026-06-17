@@ -8,6 +8,8 @@ import { plainToInstance } from 'class-transformer';
 import { IsNull, Not, Repository } from 'typeorm';
 import { MassAlert } from './entities/mass-alert.entity';
 import { MassAlertRecipient } from './entities/mass-alert-recipient.entity';
+import { MassAlertRoute } from './entities/mass-alert-route.entity';
+import { MassAlertZone } from './entities/mass-alert-zone.entity';
 import { MassAlertScope } from './enums/mass-alert-scope.enum';
 import { MassAlertStatus } from './enums/mass-alert-status.enum';
 import { PreviewMassAlertRecipientsDto } from './dto/create-mass-alert.dto';
@@ -38,6 +40,10 @@ export class MassAlertsService {
     private readonly massAlertRepository: Repository<MassAlert>,
     @InjectRepository(MassAlertRecipient)
     private readonly recipientRepository: Repository<MassAlertRecipient>,
+    @InjectRepository(MassAlertRoute)
+    private readonly massAlertRouteRepository: Repository<MassAlertRoute>,
+    @InjectRepository(MassAlertZone)
+    private readonly massAlertZoneRepository: Repository<MassAlertZone>,
     private readonly recipientResolver: MassAlertRecipientResolverService,
     private readonly realtimeEmitter: RealtimeEmitterService,
     private readonly securityUserClient: SecurityUserClientService,
@@ -94,8 +100,6 @@ export class MassAlertsService {
       title: dto.title,
       body: dto.body,
       scope: dto.scope,
-      routeIds: dto.scope === MassAlertScope.ROUTE ? dto.routeIds : null,
-      zoneNames: dto.scope === MassAlertScope.ZONE ? dto.zoneNames : null,
       isUrgent: dto.isUrgent ?? false,
       scheduledAt: sendImmediately ? null : scheduledAt,
       status: sendImmediately
@@ -105,6 +109,7 @@ export class MassAlertsService {
     });
 
     const savedAlert = await this.massAlertRepository.save(alert);
+    await this.saveScopeTargets(savedAlert.id, dto);
     await this.insertRecipients(savedAlert.id, recipientUserIds);
 
     if (sendImmediately) {
@@ -115,10 +120,46 @@ export class MassAlertsService {
     }
 
     return this.toAlertDto(
-      await this.massAlertRepository.findOneOrFail({
-        where: { id: savedAlert.id },
-      }),
+      await this.findAlertWithScopeTargets(savedAlert.id),
     );
+  }
+
+  private async findAlertWithScopeTargets(alertId: string): Promise<MassAlert> {
+    return this.massAlertRepository.findOneOrFail({
+      where: { id: alertId },
+      relations: ['routes', 'zones'],
+    });
+  }
+
+  private async saveScopeTargets(
+    alertId: string,
+    dto: Pick<CreateMassAlertDto, 'scope' | 'routeIds' | 'zoneNames'>,
+  ): Promise<void> {
+    if (dto.scope === MassAlertScope.ROUTE && dto.routeIds?.length) {
+      const uniqueRouteIds = [...new Set(dto.routeIds)];
+      await this.massAlertRouteRepository.save(
+        uniqueRouteIds.map((routeId) =>
+          this.massAlertRouteRepository.create({
+            massAlertId: alertId,
+            routeId,
+          }),
+        ),
+      );
+    }
+
+    if (dto.scope === MassAlertScope.ZONE && dto.zoneNames?.length) {
+      const uniqueZoneNames = [
+        ...new Set(dto.zoneNames.map((zone) => zone.trim()).filter(Boolean)),
+      ];
+      await this.massAlertZoneRepository.save(
+        uniqueZoneNames.map((zoneName) =>
+          this.massAlertZoneRepository.create({
+            massAlertId: alertId,
+            zoneName,
+          }),
+        ),
+      );
+    }
   }
 
   async processDueScheduledAlerts(): Promise<number> {
@@ -182,14 +223,7 @@ export class MassAlertsService {
   }
 
   async getAlertById(alertId: string): Promise<ResponseMassAlertDto> {
-    const alert = await this.massAlertRepository.findOne({
-      where: { id: alertId },
-    });
-
-    if (!alert) {
-      throw new NotFoundException(`Alert ${alertId} not found`);
-    }
-
+    const alert = await this.findAlertWithScopeTargets(alertId);
     return this.toAlertDto(alert);
   }
 
@@ -202,6 +236,7 @@ export class MassAlertsService {
 
     const [alerts, totalItems] = await this.massAlertRepository.findAndCount({
       order: { createdAt: 'DESC' },
+      relations: ['routes', 'zones'],
       skip,
       take: limit,
     });
@@ -415,8 +450,8 @@ export class MassAlertsService {
         title: alert.title,
         body: alert.body,
         scope: alert.scope,
-        routeIds: alert.routeIds ?? undefined,
-        zoneNames: alert.zoneNames ?? undefined,
+        routeIds: this.extractRouteIds(alert),
+        zoneNames: this.extractZoneNames(alert),
         isUrgent: alert.isUrgent,
         scheduledAt: alert.scheduledAt ?? undefined,
         status: alert.status,
@@ -426,6 +461,16 @@ export class MassAlertsService {
       },
       { excludeExtraneousValues: true },
     );
+  }
+
+  private extractRouteIds(alert: MassAlert): string[] | undefined {
+    const routeIds = alert.routes?.map((route) => route.routeId) ?? [];
+    return routeIds.length > 0 ? routeIds : undefined;
+  }
+
+  private extractZoneNames(alert: MassAlert): string[] | undefined {
+    const zoneNames = alert.zones?.map((zone) => zone.zoneName) ?? [];
+    return zoneNames.length > 0 ? zoneNames : undefined;
   }
 
   private toUserAlertDto(
