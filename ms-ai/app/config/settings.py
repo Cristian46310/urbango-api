@@ -52,5 +52,25 @@ class Settings:
     PQRS_DEFAULT_SLA_DAYS: int = int(os.getenv("PQRS_DEFAULT_SLA_DAYS", "5"))
     PQRS_SLA_DAYS_BY_CATEGORY: dict[str, int] = _parse_sla_days()
 
+    OPENWEATHER_API_KEY: str = os.getenv("OPENWEATHER_API_KEY", "")
+    OPENWEATHER_GEO_URL: str = os.getenv(
+        "OPENWEATHER_GEO_URL",
+        "https://api.openweathermap.org/geo/1.0/direct",
+    )
+    OPENWEATHER_FORECAST_URL: str = os.getenv(
+        "OPENWEATHER_FORECAST_URL",
+        "https://api.openweathermap.org/data/2.5/forecast",
+    )
+    OPENWEATHER_HOURLY_FORECAST_URL: str = os.getenv(
+        "OPENWEATHER_HOURLY_FORECAST_URL",
+        "https://api.openweathermap.org/data/2.5/forecast/hourly",
+    )
+    OPENWEATHER_FORECAST_MODE: str = os.getenv("OPENWEATHER_FORECAST_MODE", "three_hour")
+    WEATHER_RAIN_THRESHOLD_PERCENT: int = int(os.getenv("WEATHER_RAIN_THRESHOLD_PERCENT", "50"))
+    WEATHER_ALERT_MAX_HOURS_BEFORE: int = int(os.getenv("WEATHER_ALERT_MAX_HOURS_BEFORE", "2"))
+    WEATHER_CHECK_INTERVAL_SECONDS: int = int(os.getenv("WEATHER_CHECK_INTERVAL_SECONDS", "3600"))
+    WHATSAPP_NOTIFICATION_URL: str = os.getenv("WHATSAPP_NOTIFICATION_URL", "")
+    PUSH_NOTIFICATION_URL: str = os.getenv("PUSH_NOTIFICATION_URL", "")
+
 
 settings = Settings()
