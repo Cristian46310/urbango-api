@@ -23,6 +23,9 @@ export class NotificationSubscription {
   @Column({ type: 'text', nullable: true })
   message?: string;
 
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  notifiedAt?: Date;
+
   @CreateDateColumn()
   createdAt!: Date;
 }

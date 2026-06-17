@@ -9,6 +9,7 @@ import {
   Body,
   Param,
 } from '@nestjs/common';
+import { Authenticated } from '@/auth/decorators/authenticated.decorator';
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -35,6 +36,7 @@ import { DashboardPeriodMonths } from './enums/dashboard-period-months.enum';
 
 @ApiTags('dashboard')
 @ApiBearerAuth()
+@Authenticated()
 @Controller('dashboard')
 export class DashboardController {
   constructor(

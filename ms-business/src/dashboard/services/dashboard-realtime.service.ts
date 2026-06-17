@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { BusService } from '@/bus/bus.service';
 import { TicketService } from '@/ticket/ticket.service';
 import { IncidentService } from '@/incident/incident.service';
@@ -15,6 +15,15 @@ import { CreateArrivalNotificationDto } from '../dto/create-arrival-notification
 import { Scheduler, SchedulerStatus } from '@/scheduler/entities/scheduler.entity';
 import { NotificationSubscription } from '../entities/notification-subscription.entity';
 import { ResponseIncidentDto } from '@/incident/dto/response-incident.dto';
+
+export type ArrivalNotificationDispatchResult = {
+  subscription: NotificationSubscription;
+  sent: boolean;
+  scheduled: boolean;
+  etaMinutes?: number;
+  nextStopName?: string;
+  status?: ResponseRealtimeBusDto;
+};
 
 @Injectable()
 export class DashboardRealtimeService {
@@ -63,6 +72,21 @@ export class DashboardRealtimeService {
     etaMinutes?: number;
     nextStopName?: string;
   }> {
+    const subscription = await this.createArrivalSubscription(payload);
+    const result = await this.dispatchArrivalSubscription(subscription);
+
+    return {
+      subscribed: true,
+      sent: result.sent,
+      scheduled: result.scheduled,
+      etaMinutes: result.etaMinutes,
+      nextStopName: result.nextStopName,
+    };
+  }
+
+  async createArrivalSubscription(
+    payload: CreateArrivalNotificationDto,
+  ): Promise<NotificationSubscription> {
     const subscription = this.notificationSubscriptionRepository.create({
       email: payload.email,
       routeId: payload.routeId,
@@ -71,12 +95,32 @@ export class DashboardRealtimeService {
       anticipationMinutes: payload.anticipationMinutes ?? 10,
       message: payload.message,
     });
-    await this.notificationSubscriptionRepository.save(subscription);
 
-    const status = await this.findTargetBusStatus(payload);
+    return this.notificationSubscriptionRepository.save(subscription);
+  }
+
+  async getPendingArrivalSubscriptions(): Promise<NotificationSubscription[]> {
+    return this.notificationSubscriptionRepository.find({
+      where: { notifiedAt: IsNull() },
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  async dispatchArrivalSubscription(
+    subscription: NotificationSubscription,
+  ): Promise<ArrivalNotificationDispatchResult> {
+    const status = await this.findTargetBusStatus({
+      email: subscription.email,
+      routeId: subscription.routeId,
+      busId: subscription.busId,
+      stopId: subscription.stopId,
+      anticipationMinutes: subscription.anticipationMinutes,
+      message: subscription.message ?? '',
+    });
+
     if (!status) {
       return {
-        subscribed: true,
+        subscription,
         sent: false,
         scheduled: true,
       };
@@ -88,22 +132,41 @@ export class DashboardRealtimeService {
 
     if (!shouldSendNow) {
       return {
-        subscribed: true,
+        subscription,
         sent: false,
         scheduled: true,
         etaMinutes: status.estimatedMinutesToNextStop,
         nextStopName: status.nextStop?.name,
+        status,
       };
     }
 
     const sent = await this.sendArrivalEmail(status, subscription);
+    if (sent) {
+      await this.markArrivalSubscriptionAsNotified(subscription.id);
+    }
+
     return {
-      subscribed: true,
+      subscription,
       sent,
       scheduled: !sent,
       etaMinutes: status.estimatedMinutesToNextStop,
       nextStopName: status.nextStop?.name,
+      status,
     };
+  }
+
+  async processPendingArrivalSubscriptions(): Promise<
+    ArrivalNotificationDispatchResult[]
+  > {
+    const subscriptions = await this.getPendingArrivalSubscriptions();
+    const results: ArrivalNotificationDispatchResult[] = [];
+
+    for (const subscription of subscriptions) {
+      results.push(await this.dispatchArrivalSubscription(subscription));
+    }
+
+    return results;
   }
 
   private async buildRealtimeBus(bus: any): Promise<ResponseRealtimeBusDto> {
@@ -316,6 +379,14 @@ export class DashboardRealtimeService {
     enterpriseId?: string,
   ): Promise<ResponseIncidentDto[]> {
     return this.incidentService.findActiveIncidents(enterpriseId);
+  }
+
+  private async markArrivalSubscriptionAsNotified(
+    subscriptionId: string,
+  ): Promise<void> {
+    await this.notificationSubscriptionRepository.update(subscriptionId, {
+      notifiedAt: new Date(),
+    });
   }
 
   private async findTargetBusStatus(
