@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { JwtValidationService } from './services/jwt-validation.service';
 import { ProfileContextService } from './services/profile-context.service';
+import { SecurityRoleClientService } from './services/security-role-client.service';
 import { Person } from '@/shared/entities/person.entity';
 import { Citizen } from '@/citizen/entities/citizen.entity';
 import { Driver } from '@/driver/entities/driver.entity';
@@ -31,7 +32,12 @@ import { Driver } from '@/driver/entities/driver.entity';
     }),
     TypeOrmModule.forFeature([Person, Citizen, Driver]),
   ],
-  providers: [JwtValidationService, ProfileContextService],
-  exports: [HttpModule, JwtValidationService, ProfileContextService],
+  providers: [JwtValidationService, ProfileContextService, SecurityRoleClientService],
+  exports: [
+    HttpModule,
+    JwtValidationService,
+    ProfileContextService,
+    SecurityRoleClientService,
+  ],
 })
 export class AuthModule {}

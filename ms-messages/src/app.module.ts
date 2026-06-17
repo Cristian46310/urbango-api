@@ -14,6 +14,7 @@ import { RealtimeModule } from '@/realtime/realtime.module';
 import { CitizenModule } from '@/citizen/citizen.module';
 import { DriverModule } from '@/driver/driver.module';
 import { GroupsModule } from '@/groups/groups.module';
+import { MassAlertsModule } from '@/mass-alerts/mass-alerts.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { GroupsModule } from '@/groups/groups.module';
     CitizenModule,
     DriverModule,
     GroupsModule,
+    MassAlertsModule,
   ],
   controllers: [AppController],
 })

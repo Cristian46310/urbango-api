@@ -3,6 +3,8 @@ export enum ChatEvent {
   MESSAGE_READ = 'message:read',
   GROUP_MEMBER_ADDED = 'group:member_added',
   MESSAGE_DELETED = 'message:deleted',
+  ALERT_NEW = 'alert:new',
+  ALERT_PUSH = 'alert:push',
   /** Cliente → servidor: unirse a room de una conversación abierta en UI */
   CONVERSATION_JOIN = 'conversation:join',
 }

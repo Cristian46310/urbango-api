@@ -38,6 +38,7 @@ public class UserRoleController {
             return ResponseEntity.notFound().build();
         }
     }
+
     @DeleteMapping("{userRoleId}")
     public ResponseEntity<Void> removeUserRole(
             @PathVariable String userRoleId) {

@@ -12,10 +12,11 @@ import com.jmmg.ms_security.repositories.IRoleRepository;
 import com.jmmg.ms_security.repositories.IUserRepository;
 import com.jmmg.ms_security.repositories.IUserRoleRepository;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.LinkedHashSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -33,17 +34,26 @@ public class UserRoleService {
     @Autowired
     private EmailService emailService;
 
-    public boolean addUserRole(String userId,
-            String roleId) {
-        User user = this.userRepository.findById(userId).orElse(null);
-        Role role = this.roleRepository.findById(roleId).orElse(null);
-        if (user != null && role != null) {
-            UserRole userRole = new UserRole(user, role);
-            this.userRoleRepository.save(userRole);
-            return true;
-        } else {
+    /**
+     * Agrega un rol al usuario por MongoDB role ID (aditivo, idempotente).
+     */
+    public boolean addUserRole(String userId, String roleId) {
+        if (userId == null || userId.isBlank() || roleId == null || roleId.isBlank()) {
             return false;
         }
+
+        User user = this.userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            return false;
+        }
+
+        Role role = this.roleRepository.findById(roleId).orElse(null);
+        if (role == null) {
+            return false;
+        }
+
+        List<Role> addedRoles = this.appendRoleIdsToUser(user, List.of(roleId), Map.of(roleId, role));
+        return !addedRoles.isEmpty() || this.userHasRoleId(userId, roleId);
     }
 
     public boolean removeUserRole(String userRoleId) {
@@ -51,11 +61,14 @@ public class UserRoleService {
         if (userRole != null) {
             this.userRoleRepository.delete(userRole);
             return true;
-        } else {
-            return false;
         }
+
+        return false;
     }
 
+    /**
+     * Agrega roles al usuario por MongoDB role IDs sin eliminar los existentes.
+     */
     public boolean assignMultipleRoles(AssignRolesDTO assignRolesDTO) {
         User user = this.userRepository.findById(assignRolesDTO.userId()).orElse(null);
         if (user == null) {
@@ -77,36 +90,23 @@ public class UserRoleService {
         Map<String, Role> requestedRolesById = requestedRoles.stream()
                 .collect(Collectors.toMap(Role::getId, Function.identity()));
 
-        List<UserRole> existingRoles = this.userRoleRepository.findByUserId(assignRolesDTO.userId());
-        Set<String> existingRoleIds = existingRoles.stream()
-                .map(UserRole::getRole)
-                .filter(java.util.Objects::nonNull)
-                .map(Role::getId)
-                .collect(Collectors.toSet());
+        List<Role> newlyAddedRoles = this.appendRoleIdsToUser(
+                user,
+                new ArrayList<>(requestedRoleIds),
+                requestedRolesById);
 
-        List<UserRole> rolesToRemove = existingRoles.stream()
-                .filter(userRole -> userRole.getRole() == null || !requestedRoleIds.contains(userRole.getRole().getId()))
-                .collect(Collectors.toList());
-        if (!rolesToRemove.isEmpty()) {
-            this.userRoleRepository.deleteAll(rolesToRemove);
+        if (newlyAddedRoles.isEmpty()) {
+            return true;
         }
 
-        for (String roleId : requestedRoleIds) {
-            if (!existingRoleIds.contains(roleId)) {
-                Role role = requestedRolesById.get(roleId);
-                this.userRoleRepository.save(new UserRole(user, role));
-            }
-        }
-
-        String roleNames = requestedRoles.stream()
+        String roleNames = newlyAddedRoles.stream()
                 .map(Role::getName)
                 .collect(Collectors.joining(", "));
 
-        // Construir y enviar notificación por email
         String emailContent = String.format(
                 "Hola %s,\n\n"
-                        + "Te informamos que tus roles/permisos en el sistema han sido actualizados.\n\n"
-                        + "Roles asignados: %s\n\n"
+                        + "Te informamos que se te han asignado nuevos roles en el sistema.\n\n"
+                        + "Roles agregados: %s\n\n"
                         + "Si tienes dudas, contacta al administrador.\n\n"
                         + "Saludos,\n"
                         + "Sistema de Seguridad",
@@ -118,6 +118,42 @@ public class UserRoleService {
                 emailContent));
 
         return true;
+    }
+
+    private List<Role> appendRoleIdsToUser(
+            User user,
+            List<String> roleIds,
+            Map<String, Role> rolesById) {
+        Set<String> existingRoleIds = this.userRoleRepository.findByUserId(user.getId()).stream()
+                .map(UserRole::getRole)
+                .filter(java.util.Objects::nonNull)
+                .map(Role::getId)
+                .collect(Collectors.toSet());
+
+        List<Role> newlyAddedRoles = new ArrayList<>();
+        for (String roleId : roleIds) {
+            if (existingRoleIds.contains(roleId)) {
+                continue;
+            }
+
+            Role role = rolesById.get(roleId);
+            if (role == null) {
+                continue;
+            }
+
+            this.userRoleRepository.save(new UserRole(user, role));
+            existingRoleIds.add(roleId);
+            newlyAddedRoles.add(role);
+        }
+
+        return newlyAddedRoles;
+    }
+
+    private boolean userHasRoleId(String userId, String roleId) {
+        return this.userRoleRepository.findByUserId(userId).stream()
+                .map(UserRole::getRole)
+                .filter(java.util.Objects::nonNull)
+                .anyMatch(role -> roleId.equals(role.getId()));
     }
 
 }
