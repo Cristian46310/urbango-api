@@ -114,6 +114,68 @@ URL pública: `{SUPABASE_URL}/storage/v1/object/public/{bucket}/{path}`
 
 ---
 
+## 2c. Alertas de clima (ms-ai → OpenWeatherMap / ms-notifications)
+
+### Endpoints Weather
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| POST | `/api/weather/alerts` | Crear alerta de clima (requiere `user_id` en body) |
+| GET | `/api/weather/alerts/user/{user_id}` | Listar alertas de un usuario |
+| GET | `/api/weather/alerts/{alert_id}` | Consultar alerta por id |
+| PUT | `/api/weather/alerts/{alert_id}` | Actualizar alerta por id |
+| DELETE | `/api/weather/alerts/{alert_id}` | Desactivar alerta por id |
+
+**Body POST (`CreateWeatherAlertRequest`):**
+
+```json
+{
+  "user_id": "mongo-user-id",
+  "user_email": "ciudadano@example.com",
+  "travel_hour": 7,
+  "city_name": "Manizales,CO",
+  "preferred_channel": "email"
+}
+```
+
+**Body PUT (`UpdateWeatherAlertRequest`):**
+
+```json
+{
+  "user_email": "ciudadano@example.com",
+  "travel_hour": 7,
+  "city_name": "Manizales,CO",
+  "preferred_channel": "email"
+}
+```
+
+`preferred_channel`: `email` | `whatsapp` | `push` (WhatsApp y push son stubs hasta integrar ms-notifications).
+
+### Flujo de alertas
+
+1. Usuario activa alerta con horario de viaje y ciudad (geocodificada vía OpenWeatherMap Geocoding API).
+2. Job horario evalúa suscripciones activas y consulta pronóstico por `lat/lon`.
+3. Se selecciona el bloque horario más cercano al `travel_hour` usando el `timezone` de la ciudad devuelto por OpenWeatherMap (la API gratuita de 5 días usa pasos de 3 h).
+4. LangGraph + LLM genera mensaje personalizado según pronóstico (lluvia > 50% → recomendar salir antes + paraguas).
+5. Despacho por canal preferido: email real vía `MS_NOTIFICATION_URL`; WhatsApp/push stub.
+
+### Variables clima (ms-ai)
+
+| Variable | Default | Descripción |
+|----------|---------|-------------|
+| `OPENWEATHER_API_KEY` | — | API key OpenWeatherMap |
+| `OPENWEATHER_GEO_URL` | `https://api.openweathermap.org/geo/1.0/direct` | Geocoding |
+| `OPENWEATHER_FORECAST_URL` | `https://api.openweathermap.org/data/2.5/forecast` | Pronóstico 5 días / paso 3 h |
+| `OPENWEATHER_HOURLY_FORECAST_URL` | `https://api.openweathermap.org/data/2.5/forecast/hourly` | Pronóstico horario (4 días) |
+| `OPENWEATHER_FORECAST_MODE` | `three_hour` | `three_hour` o `hourly` |
+| `WEATHER_RAIN_THRESHOLD_PERCENT` | `50` | Umbral lluvia para alerta preventiva |
+| `WEATHER_ALERT_MAX_HOURS_BEFORE` | `2` | Ventana máxima antes del viaje |
+| `WEATHER_CHECK_INTERVAL_SECONDS` | `3600` | Intervalo job horario |
+| `WHATSAPP_NOTIFICATION_URL` | — | Stub/futuro endpoint WhatsApp |
+| `PUSH_NOTIFICATION_URL` | — | Stub/futuro endpoint push |
+
+---
+
 ## 3. Variables de entorno compartidas
 
 | Variable | Usado en | Descripción |
