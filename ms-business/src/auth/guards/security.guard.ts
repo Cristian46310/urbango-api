@@ -97,17 +97,18 @@ export class SecurityGuard implements CanActivate {
 
     try {
       // Se añade explicitamente el tipado AxiosResponse con la interfaz de datos esperada
-      const response: AxiosResponse<AuthorizationResponse> = await firstValueFrom(
-        this.httpService.post<AuthorizationResponse>(
-          `${msSecurityUrl}/api/public/security/authorize`,
-          { method, url },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
+      const response: AxiosResponse<AuthorizationResponse> =
+        await firstValueFrom(
+          this.httpService.post<AuthorizationResponse>(
+            `${msSecurityUrl}/api/public/security/authorize`,
+            { method, url },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
             },
-          },
-        ),
-      );
+          ),
+        );
 
       if (response.data.allowed) {
         return true;

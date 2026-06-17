@@ -10,6 +10,6 @@ export class RealtimeStopInfoDto {
   @ApiProperty({ example: -74.0695 })
   latitude!: number;
 
-  @ApiProperty({ example: 4.7490 })
+  @ApiProperty({ example: 4.749 })
   longitude!: number;
 }

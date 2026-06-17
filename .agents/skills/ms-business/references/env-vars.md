@@ -20,7 +20,8 @@
 |----------|-------------|
 | `SUPABASE_URL` | URL proyecto Supabase |
 | `SUPABASE_SERVICE_ROLE_KEY` | Clave service role |
-| `SUPABASE_INCIDENT_BUCKET` | Bucket fotos (ej. `incident-report`) |
+| `SUPABASE_BUS_BUCKET` | Bucket fotos de flota (default `bus-photo`; debe coincidir con el nombre en Supabase Storage) |
+| `SUPABASE_INCIDENT_BUCKET` | Bucket fotos de incidentes (ej. `incident-report`) |
 | `INCIDENT_SUPERVISOR_EMAIL` | Fallback si enterprise no tiene supervisor |
 
 ## Ejemplo

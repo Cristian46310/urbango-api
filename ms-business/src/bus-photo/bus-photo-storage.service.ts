@@ -32,7 +32,7 @@ export class BusPhotoStorageService {
       this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') ??
       this.configService.get<string>('SUPABASE_ANON_KEY');
     this.bucket =
-      this.configService.get<string>('SUPABASE_BUS_BUCKET') ?? 'bus-photos';
+      this.configService.get<string>('SUPABASE_BUS_BUCKET') ?? 'bus-photo';
   }
 
   async upload(file: BusPhotoStorageFile): Promise<StoredBusPhoto> {

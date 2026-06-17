@@ -1,0 +1,22 @@
+{
+  "driver": {
+    "email": "juan.miranda41303@ucaldas.edu.co",
+    "slack_webhook": ""
+  },
+  "bus": {
+    "email": "flota@ucaldas.edu.co",
+    "slack_webhook": ""
+  },
+  "route": {
+    "email": "rutas@ucaldas.edu.co",
+    "slack_webhook": ""
+  },
+  "card": {
+    "email": "tarjeta@ucaldas.edu.co",
+    "slack_webhook": ""
+  },
+  "other": {
+    "email": "pqrs@ucaldas.edu.co",
+    "slack_webhook": ""
+  }
+}

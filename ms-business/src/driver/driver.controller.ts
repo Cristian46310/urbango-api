@@ -28,7 +28,7 @@ export class DriverController {
   @Authenticated()
   @ApiOperation({
     summary:
-      'Registrar perfil de conductor (userId desde token, enterpriseId en body)',
+      'Registrar perfil de conductor (solo JWT, sin RBAC — onboarding; enterpriseId en body)',
   })
   create(
     @Body() createDriverDto: CreateDriverDto,

@@ -9,15 +9,15 @@ import org.springframework.stereotype.Service;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.jmmg.ms_security.DTOs.auth.ValidateTokenResponseDTO;
-import com.jmmg.ms_security.DTOs.email.EmailSendBody;
 import com.jmmg.ms_security.DTOs.auth.ValidatedTokenClaims;
-import com.jmmg.ms_security.DTOs.user.GetUserDetailDTO;
+import com.jmmg.ms_security.DTOs.email.EmailSendBody;
 import com.jmmg.ms_security.DTOs.login.LoginChallengeDTO;
 import com.jmmg.ms_security.DTOs.login.LoginDTO;
 import com.jmmg.ms_security.DTOs.login.RegisterUserDTO;
 import com.jmmg.ms_security.DTOs.login.Verify2FADTO;
 import com.jmmg.ms_security.DTOs.password.ForgotPasswordDTO;
 import com.jmmg.ms_security.DTOs.password.ResetPasswordDTO;
+import com.jmmg.ms_security.DTOs.user.GetUserDetailDTO;
 import com.jmmg.ms_security.infra.config.PasswordResetProperties;
 import com.jmmg.ms_security.models.AuthFactor;
 import com.jmmg.ms_security.models.User;
@@ -51,24 +51,24 @@ public class SecurityService {
     private PasswordResetProperties passwordResetProperties;
 
     public Mono<LoginChallengeDTO> login(LoginDTO loginUser) {
-        return recaptchaService.verifyToken(loginUser.recaptchaToken())
+        return this.recaptchaService.verifyToken(loginUser.recaptchaToken())
                 .flatMap(isValid -> {
                     if (!isValid) {
                         return Mono.error(new IllegalArgumentException("Token de reCAPTCHA inválido"));
                     }
 
-                    var user = new User(loginUser);
-                    user = this.userRepository.findByEmail(user.getEmail());
+                    User user = this.userRepository.findByEmail(new User(loginUser).getEmail());
 
                     if (user != null
-                            && user.getPassword().equals(theEncryptionService.convertSHA256(loginUser.password()))) {
+                            && user.getPassword().equals(
+                                    this.theEncryptionService.convertSHA256(loginUser.password()))) {
                         AuthFactor authFactor = this.authFactorService.createPendingFactor(user);
 
                         String emailContent = String.format(
-                                "Hola %s,\n\n"
-                                        + "Tu codigo de autenticacion para iniciar sesion es: %s\n\n"
-                                        + "Si no solicitaste este acceso, ignora este mensaje.\n\n"
-                                        + "Saludos,\n"
+                                "Hola %s,%n%n"
+                                        + "Tu codigo de autenticacion para iniciar sesion es: %s%n%n"
+                                        + "Si no solicitaste este acceso, ignora este mensaje.%n%n"
+                                        + "Saludos,%n"
                                         + "Sistema de Seguridad",
                                 user.getName(),
                                 authFactor.getCode());
@@ -89,7 +89,9 @@ public class SecurityService {
     }
 
     public String verifyTwoFactor(Verify2FADTO verify2FADTO) {
-        User user = this.authFactorService.validateFactor(verify2FADTO.challengeToken(), verify2FADTO.code());
+        User user = this.authFactorService.validateFactor(
+                verify2FADTO.challengeToken(),
+                verify2FADTO.code());
 
         if (user == null) {
             return null;
@@ -122,11 +124,11 @@ public class SecurityService {
         }
 
         String emailContent = String.format(
-                "Hola %s,\n\n"
-                        + "Tu cuenta ha sido creada exitosamente en el Sistema de Seguridad.\n"
-                        + "Ya puedes iniciar sesion con tu correo registrado.\n\n"
-                        + "Si no realizaste este registro, contacta al administrador.\n\n"
-                        + "Saludos,\n"
+                "Hola %s,%n%n"
+                        + "Tu cuenta ha sido creada exitosamente en el Sistema de Seguridad.%n"
+                        + "Ya puedes iniciar sesion con tu correo registrado.%n%n"
+                        + "Si no realizaste este registro, contacta al administrador.%n%n"
+                        + "Saludos,%n"
                         + "Sistema de Seguridad",
                 newUser.getName());
 
@@ -173,12 +175,11 @@ public class SecurityService {
     }
 
     /**
-     * HU-ENTR-1-013: Solicitud de recuperación de contraseña. Always returns a
-     * generic message regardless of whether the email exists, to avoid
-     * revealing account existence (OWASP information disclosure).
+     * HU-ENTR-1-013: mensaje genérico aunque el email no exista (OWASP).
      */
     public String forgotPassword(ForgotPasswordDTO dto) {
         String genericMessage = "Si el email existe, recibirá instrucciones de recuperación";
+
         Boolean isRecaptchaValid = this.recaptchaService.verifyToken(dto.recaptchaToken()).block();
         if (!Boolean.TRUE.equals(isRecaptchaValid)) {
             throw new IllegalArgumentException("Token de reCAPTCHA inválido");
@@ -193,13 +194,13 @@ public class SecurityService {
         AuthFactor resetFactor = this.authFactorService.createPasswordResetFactor(user);
         String resetLink = this.passwordResetProperties.getBaseUrl() + "?token=" + resetFactor.getToken();
         String emailContent = String.format(
-                "Hola %s,\n\n"
-                        + "Recibimos una solicitud para restablecer la contraseña de tu cuenta.\n\n"
-                        + "Haz clic en el siguiente enlace para crear una nueva contraseña:\n"
-                        + "%s\n\n"
-                        + "Este enlace es válido por 30 minutos.\n\n"
-                        + "Si no solicitaste este cambio, ignora este mensaje. Tu contraseña no será modificada.\n\n"
-                        + "Saludos,\n"
+                "Hola %s,%n%n"
+                        + "Recibimos una solicitud para restablecer la contraseña de tu cuenta.%n%n"
+                        + "Haz clic en el siguiente enlace para crear una nueva contraseña:%n"
+                        + "%s%n%n"
+                        + "Este enlace es válido por 30 minutos.%n%n"
+                        + "Si no solicitaste este cambio, ignora este mensaje. Tu contraseña no será modificada.%n%n"
+                        + "Saludos,%n"
                         + "Sistema de Seguridad",
                 user.getName(),
                 resetLink);
@@ -212,10 +213,6 @@ public class SecurityService {
         return genericMessage;
     }
 
-    /**
-     * Validates the reset token and updates the password. Returns true on
-     * success, false if token is invalid or expired.
-     */
     public boolean resetPassword(ResetPasswordDTO dto) {
         User user = this.authFactorService.validatePasswordResetFactor(dto.token());
         if (user == null) {
@@ -230,7 +227,7 @@ public class SecurityService {
     }
 
     public String loginWithGoogle(String idTokenString) {
-        GoogleIdToken.Payload payload = theGoogleTokenVerifierService.verify(idTokenString);
+        GoogleIdToken.Payload payload = this.theGoogleTokenVerifierService.verify(idTokenString);
         if (payload == null) {
             return null;
         }
@@ -243,9 +240,10 @@ public class SecurityService {
             user = new User();
             user.setEmail(email);
             user.setName(name);
-            user.setPassword(theEncryptionService.convertSHA256(UUID.randomUUID().toString()));
+            user.setPassword(this.theEncryptionService.convertSHA256(UUID.randomUUID().toString()));
             this.userRepository.save(user);
         }
-        return theJwtService.generateToken(user);
+        return this.theJwtService.generateToken(user);
     }
+
 }

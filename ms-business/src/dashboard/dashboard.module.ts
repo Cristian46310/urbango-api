@@ -19,7 +19,12 @@ import { DashboardRealtimeGateway } from './services/dashboard-realtime.gateway'
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Ticket, Incident, Enterprise, NotificationSubscription]),
+    TypeOrmModule.forFeature([
+      Ticket,
+      Incident,
+      Enterprise,
+      NotificationSubscription,
+    ]),
     BusModule,
     TicketModule,
     IncidentModule,

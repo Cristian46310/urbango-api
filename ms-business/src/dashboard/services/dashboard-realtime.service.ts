@@ -12,7 +12,10 @@ import { ResponseRealtimeBusListDto } from '../dto/response-realtime-bus-list.dt
 import { RealtimeStopInfoDto } from '../dto/realtime-stop-info.dto';
 import { RealtimeBusRouteDto } from '../dto/realtime-bus-route.dto';
 import { CreateArrivalNotificationDto } from '../dto/create-arrival-notification.dto';
-import { Scheduler, SchedulerStatus } from '@/scheduler/entities/scheduler.entity';
+import {
+  Scheduler,
+  SchedulerStatus,
+} from '@/scheduler/entities/scheduler.entity';
 import { NotificationSubscription } from '../entities/notification-subscription.entity';
 import { ResponseIncidentDto } from '@/incident/dto/response-incident.dto';
 
@@ -41,7 +44,8 @@ export class DashboardRealtimeService {
     enterpriseId?: string,
     routeId?: string,
   ): Promise<ResponseRealtimeBusListDto> {
-    const buses = await this.busService.findAllWithGpsAndSchedules(enterpriseId);
+    const buses =
+      await this.busService.findAllWithGpsAndSchedules(enterpriseId);
     const filtered = routeId
       ? buses.filter((bus) =>
           (bus.schedulers ?? []).some(
@@ -189,7 +193,11 @@ export class DashboardRealtimeService {
       : undefined;
 
     const nearestStop =
-      this.findNearestStop(bus.gps.latitude, bus.gps.longitude, routeDto?.stops ?? []) ??
+      this.findNearestStop(
+        bus.gps.latitude,
+        bus.gps.longitude,
+        routeDto?.stops ?? [],
+      ) ??
       (await this.findNearestPublicStop(bus.gps.latitude, bus.gps.longitude));
 
     const nextStop = nearestStop
@@ -205,9 +213,8 @@ export class DashboardRealtimeService {
     const activePassengers = await this.ticketService.countActiveTicketsByBus(
       bus.id,
     );
-    const activeIncidents = await this.incidentService.countActiveIncidentsByBus(
-      bus.id,
-    );
+    const activeIncidents =
+      await this.incidentService.countActiveIncidentsByBus(bus.id);
     const capacity = (bus.seatedCapacity ?? 0) + (bus.standingCapacity ?? 0);
     const occupancyPercent =
       capacity > 0
@@ -216,7 +223,8 @@ export class DashboardRealtimeService {
     const isFull = capacity > 0 ? activePassengers >= capacity : false;
     const delayAlert =
       activeIncidents > 0 ||
-      (estimatedMinutesToNextStop !== undefined && estimatedMinutesToNextStop > 15);
+      (estimatedMinutesToNextStop !== undefined &&
+        estimatedMinutesToNextStop > 15);
     const statusColor = activeIncidents > 0 ? 'red' : 'green';
 
     return plainToInstance(ResponseRealtimeBusDto, {
@@ -242,7 +250,7 @@ export class DashboardRealtimeService {
   private findCurrentScheduler(schedulers: Scheduler[]): Scheduler | undefined {
     const now = new Date().getTime();
     const today = new Date().toISOString().slice(0, 10);
-    
+
     const candidates = schedulers.filter(
       (scheduler) =>
         scheduler.status === SchedulerStatus.SCHEDULED &&
@@ -260,7 +268,9 @@ export class DashboardRealtimeService {
     }
 
     return candidates.sort(
-      (left, right) => new Date(right.startTime).getTime() - new Date(left.startTime).getTime(),
+      (left, right) =>
+        new Date(right.startTime).getTime() -
+        new Date(left.startTime).getTime(),
     )[0];
   }
 
@@ -281,23 +291,26 @@ export class DashboardRealtimeService {
     if (!stops.length) {
       return undefined;
     }
-    return stops.reduce((nearest, current) => {
-      if (!nearest) return current;
-      return this.calculateDistanceMeters(
-        latitude,
-        longitude,
-        current.latitude,
-        current.longitude,
-      ) <
-        this.calculateDistanceMeters(
+    return stops.reduce(
+      (nearest, current) => {
+        if (!nearest) return current;
+        return this.calculateDistanceMeters(
           latitude,
           longitude,
-          nearest.latitude,
-          nearest.longitude,
-        )
-        ? current
-        : nearest;
-    }, undefined as RealtimeStopInfoDto | undefined);
+          current.latitude,
+          current.longitude,
+        ) <
+          this.calculateDistanceMeters(
+            latitude,
+            longitude,
+            nearest.latitude,
+            nearest.longitude,
+          )
+          ? current
+          : nearest;
+      },
+      undefined as RealtimeStopInfoDto | undefined,
+    );
   }
 
   private calculateDistanceMeters(
@@ -354,7 +367,8 @@ export class DashboardRealtimeService {
     return Math.max(
       0,
       // Se agregó validación en caso de que vengan como strings de la BD
-      Number(nextNode.estimatedTimeMinutes) - Number(currentNode.estimatedTimeMinutes),
+      Number(nextNode.estimatedTimeMinutes) -
+        Number(currentNode.estimatedTimeMinutes),
     );
   }
 
@@ -362,7 +376,12 @@ export class DashboardRealtimeService {
     latitude: number,
     longitude: number,
   ): Promise<RealtimeStopInfoDto | undefined> {
-    const nearby = await this.stopService.findNearbyStops(latitude, longitude, 1, 2000);
+    const nearby = await this.stopService.findNearbyStops(
+      latitude,
+      longitude,
+      1,
+      2000,
+    );
     if (!nearby || !nearby.length) {
       return undefined;
     }
@@ -408,7 +427,8 @@ export class DashboardRealtimeService {
         if (
           current.estimatedMinutesToNextStop === undefined ||
           (best.estimatedMinutesToNextStop !== undefined &&
-            current.estimatedMinutesToNextStop < best.estimatedMinutesToNextStop)
+            current.estimatedMinutesToNextStop <
+              best.estimatedMinutesToNextStop)
         ) {
           return current;
         }

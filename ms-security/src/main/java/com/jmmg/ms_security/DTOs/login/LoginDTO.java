@@ -14,7 +14,6 @@ public record LoginDTO(
                 message = "Password must be at least 8 characters long and include uppercase, lowercase, number, and special character"
         )
 	String password,
-	@NotBlank(message = "reCAPTCHA token is required")
 	String recaptchaToken
 ) {
 }

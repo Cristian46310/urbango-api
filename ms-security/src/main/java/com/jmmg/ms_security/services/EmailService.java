@@ -9,6 +9,9 @@ import com.jmmg.ms_security.DTOs.email.EmailSendResponse;
 import com.jmmg.ms_security.infra.config.EmailProperties;
 import com.jmmg.ms_security.infra.exception.NotPermitted;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 public class EmailService {
 

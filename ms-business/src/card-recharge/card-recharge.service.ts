@@ -121,12 +121,24 @@ export class CardRechargeService {
     currentUser: JwtPayload,
   ): Promise<ResponseRechargeableCardDto[]> {
     const citizen = await this.citizenService.findByUserId(currentUser.id);
-    const synced = await this.syncPendingSandboxPaymentsForCitizen(citizen.id);
-    if (synced > 0) {
-      this.logger.log(
-        `Sandbox: ${synced} recarga(s) pending acreditadas al listar tarjetas (ciudadano ${citizen.id})`,
+
+    try {
+      const synced = await this.syncPendingSandboxPaymentsForCitizen(
+        citizen.id,
+      );
+      if (synced > 0) {
+        this.logger.log(
+          `Sandbox: ${synced} recarga(s) pending acreditadas al listar tarjetas (ciudadano ${citizen.id})`,
+        );
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Sandbox: no se pudo auto-acreditar recargas pending al listar tarjetas: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
     }
+
     const cards = await this.pmcRepository.find({
       where: { citizen: { id: citizen.id } },
       relations: ['paymentMethod'],
@@ -138,8 +150,8 @@ export class CardRechargeService {
       .map((card) => ({
         id: card.id,
         cardDisplay: formatCardDisplay(card.cardNumber),
-        currentBalance: card.balance ?? 0,
-        paymentMethodName: card.paymentMethod.name,
+        currentBalance: Number(card.balance ?? 0),
+        paymentMethodName: card.paymentMethod?.name ?? 'Tarjeta prepagada',
         createdAt: card.createdAt,
       }));
   }
@@ -436,13 +448,16 @@ export class CardRechargeService {
     transaction: CardRechargeTransaction,
     epaycoTransactionId: string,
   ): Promise<void> {
+    const sandboxMode = this.epaycoService.isTestMode();
+
     await this.dataSource.transaction(async (manager) => {
       const txRepo = manager.getRepository(CardRechargeTransaction);
       const pmcRepo = manager.getRepository(PaymentMethodCitizen);
 
       const lockedTx = await txRepo.findOne({
         where: { id: transaction.id },
-        lock: { mode: 'pessimistic_write' },
+        relations: ['paymentMethodCitizen'],
+        ...(sandboxMode ? {} : { lock: { mode: 'pessimistic_write' } }),
       });
 
       if (
@@ -452,10 +467,20 @@ export class CardRechargeService {
         return;
       }
 
+      const paymentMethodCitizenId =
+        lockedTx.paymentMethodCitizen?.id ??
+        transaction.paymentMethodCitizen?.id;
+
+      if (!paymentMethodCitizenId) {
+        throw new BadRequestException(
+          'La transacción de recarga no tiene tarjeta asociada',
+        );
+      }
+
       await pmcRepo.increment(
-        { id: transaction.paymentMethodCitizen.id },
+        { id: paymentMethodCitizenId },
         'balance',
-        transaction.amount,
+        lockedTx.amount,
       );
 
       const reference =

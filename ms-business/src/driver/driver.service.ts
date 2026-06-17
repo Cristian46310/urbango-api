@@ -13,6 +13,10 @@ import { Enterprise } from '@/enterprise/entities/enterprise.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponseDriverDto } from './dto/response-driver.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
+import {
+  SecurityProfileRole,
+  SecurityRoleClientService,
+} from '@/auth/services/security-role-client.service';
 
 export type CreateDriverInput = CreateDriverDto & { userId: string };
 
@@ -23,6 +27,7 @@ export class DriverService {
     private readonly driverRepository: Repository<Driver>,
     @InjectRepository(Enterprise)
     private readonly enterpriseRepository: Repository<Enterprise>,
+    private readonly securityRoleClient: SecurityRoleClientService,
   ) {}
 
   private async assertUniqueDriverFields(
@@ -92,6 +97,10 @@ export class DriverService {
 
     const drv = this.driverRepository.create(drvData);
     const saved = await this.driverRepository.save(drv);
+    await this.securityRoleClient.assignProfileRole(
+      input.userId,
+      SecurityProfileRole.DRIVER,
+    );
     return this.toResponse(saved);
   }
 

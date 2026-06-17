@@ -39,6 +39,21 @@ public class ValidatorService {
     private static final String BEARER = "Bearer ";
 
     /**
+     * Rutas que solo requieren JWT válido (onboarding: elegir rol ciudadano/conductor/supervisor).
+     * Equivalente a @Authenticated() en ms-business — sin permiso RBAC en BD.
+     */
+    private boolean isAuthenticatedOnly(String url, String method) {
+        if (method == null || url == null || !"GET".equalsIgnoreCase(method)) {
+            return false;
+        }
+
+        int queryIndex = url.indexOf('?');
+        String path = queryIndex >= 0 ? url.substring(0, queryIndex) : url;
+
+        return "/api/roles".equals(path) || path.matches("^/api/roles/[^/]+$");
+    }
+
+    /**
      * Valida una solicitud HTTP:
      * 1. Valida el token JWT
      * 2. Valida los permisos del usuario
@@ -65,8 +80,13 @@ public class ValidatorService {
                 ValidationErrorType.TOKEN_INVALID
             );
         }
+
+        // Paso 3: Rutas de onboarding — JWT suficiente, sin roles previos
+        if (isAuthenticatedOnly(url, method)) {
+            return new ValidationResult();
+        }
         
-        // Paso 3: Validar permisos
+        // Paso 4: Validar permisos RBAC
         boolean hasPermission = validatePermissions(user, url, method);
         if (!hasPermission) {
             return new ValidationResult(

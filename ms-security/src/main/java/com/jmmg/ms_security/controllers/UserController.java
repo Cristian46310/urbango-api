@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.jmmg.ms_security.DTOs.message.ResponseMessage;
@@ -32,7 +33,12 @@ public class UserController {
     private UserService userService;
 
     @GetMapping("")
-    public ResponseEntity<Page<GetUserListDTO>> getAllUsers(Pageable pageable) {
+    public ResponseEntity<Page<GetUserListDTO>> getAllUsers(
+            @RequestParam(value = "q", required = false) String query,
+            Pageable pageable) {
+        if (query != null && !query.trim().isEmpty()) {
+            return ResponseEntity.ok(userService.searchByNameOrEmail(query, pageable));
+        }
         return ResponseEntity.ok(userService.getAll(pageable));
     }
 
@@ -87,3 +93,4 @@ public class UserController {
     }
 
 }
+

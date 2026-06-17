@@ -16,6 +16,9 @@ export class CreateArrivalNotificationDto {
   @ApiPropertyOptional({ example: 10 })
   anticipationMinutes?: number;
 
-  @ApiProperty({ example: 'Quiero recibir una alerta cuando el bus esté próximo al paradero.' })
+  @ApiProperty({
+    example:
+      'Quiero recibir una alerta cuando el bus esté próximo al paradero.',
+  })
   message!: string;
 }
