@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
-import { IsNull, Repository } from 'typeorm';
+import { IsNull, Repository, SelectQueryBuilder } from 'typeorm';
 import { Message } from './entities/message.entity';
 import { MessageReadReceipt } from './entities/message-read-receipt.entity';
 import { CreateDirectMessageDto } from './dto/create-direct-message.dto';
@@ -25,12 +25,11 @@ import { Group } from '@/groups/entities/group.entity';
 import { GroupMemberRole } from '@/groups/enums/group-member-role.enum';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { PaginationMetaDto } from '@/shared/dto/pagination-meta.dto';
+import { InboxQueryDto } from '@/inbox/dto/inbox-query.dto';
+import { SecurityUserClientService } from '@/users/services/security-user-client.service';
+import { ResponseUserSummaryDto } from '@/users/dto/response-user-summary.dto';
 
-interface GroupContext {
-  groupId: string;
-  groupName: string;
-  memberCount: number;
-}
+const PREVIEW_MAX_LENGTH = 120;
 
 @Injectable()
 export class MessagesService {
@@ -42,6 +41,7 @@ export class MessagesService {
     private readonly conversationsService: ConversationsService,
     private readonly groupsService: GroupsService,
     private readonly realtimeEmitter: RealtimeEmitterService,
+    private readonly securityUserClient: SecurityUserClientService,
   ) {}
 
   async sendDirectMessage(
@@ -121,6 +121,7 @@ export class MessagesService {
     groupId: string,
     userId: string,
     pagination: PaginationQueryDto,
+    token?: string,
   ): Promise<ResponseMessageListDto> {
     const group = await this.groupsService.getGroupForMember(groupId, userId);
     const page = pagination.page ?? 1;
@@ -138,18 +139,40 @@ export class MessagesService {
       relations: ['readReceipts'],
     });
 
-    const groupContext: GroupContext = {
+    const items = await this.enrichMessages(messages, userId, token, {
+      messageType: MessageType.GROUP,
       groupId: group.id,
       groupName: group.name,
       memberCount: group.members?.length ?? 0,
-    };
+    });
 
-    const items = messages.map((message) =>
-      this.toResponseDto(message, userId, {
-        messageType: MessageType.GROUP,
-        ...groupContext,
-      }),
-    );
+    return this.toListDto(items, page, limit, totalItems);
+  }
+
+  async findConversationMessages(
+    conversationId: string,
+    userId: string,
+    pagination: PaginationQueryDto,
+    token?: string,
+  ): Promise<ResponseMessageListDto> {
+    await this.conversationsService.assertMember(conversationId, userId);
+
+    const page = pagination.page ?? 1;
+    const limit = pagination.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const [messages, totalItems] = await this.messageRepository.findAndCount({
+      where: {
+        conversationId,
+        deletedAt: IsNull(),
+      },
+      order: { createdAt: 'DESC' },
+      skip,
+      take: limit,
+      relations: ['readReceipts'],
+    });
+
+    const items = await this.enrichMessages(messages, userId, token);
 
     return this.toListDto(items, page, limit, totalItems);
   }
@@ -157,6 +180,7 @@ export class MessagesService {
   async findSentMessages(
     userId: string,
     pagination: PaginationQueryDto,
+    token?: string,
   ): Promise<ResponseMessageListDto> {
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? 10;
@@ -170,35 +194,69 @@ export class MessagesService {
       relations: ['readReceipts'],
     });
 
-    const items = await this.enrichMessages(messages, userId);
+    const items = await this.enrichMessages(messages, userId, token);
 
     return this.toListDto(items, page, limit, totalItems);
   }
 
   async findInboxMessages(
     userId: string,
-    pagination: PaginationQueryDto,
+    query: InboxQueryDto,
+    token?: string,
   ): Promise<ResponseMessageListDto> {
-    const page = pagination.page ?? 1;
-    const limit = pagination.limit ?? 10;
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
     const skip = (page - 1) * limit;
 
-    const qb = this.messageRepository
-      .createQueryBuilder('message')
-      .innerJoin('message.conversation', 'conversation')
-      .innerJoin('conversation.members', 'member')
-      .where('member.userId = :userId', { userId })
-      .andWhere('message.senderId != :userId', { userId })
-      .andWhere('message.deletedAt IS NULL')
-      .leftJoinAndSelect('message.readReceipts', 'readReceipts')
+    const qb = this.buildInboxQueryBuilder(userId);
+
+    this.applyInboxFilters(qb, userId, query);
+
+    qb
       .orderBy('message.createdAt', 'DESC')
       .skip(skip)
       .take(limit);
 
     const [messages, totalItems] = await qb.getManyAndCount();
-    const items = await this.enrichMessages(messages, userId);
+    const items = await this.enrichMessages(messages, userId, token);
 
     return this.toListDto(items, page, limit, totalItems);
+  }
+
+  async countUnreadInboxMessages(userId: string): Promise<number> {
+    const qb = this.buildInboxQueryBuilder(userId);
+
+    qb.andWhere(
+      `NOT EXISTS (
+        SELECT 1 FROM message_read_receipts rr
+        WHERE rr.message_id = message.id AND rr.user_id = :userId
+      )`,
+    );
+
+    return qb.getCount();
+  }
+
+  async getMessageById(
+    messageId: string,
+    userId: string,
+    token?: string,
+  ): Promise<ResponseMessageDto> {
+    const message = await this.getActiveMessage(messageId, ['readReceipts']);
+
+    await this.conversationsService.assertMember(message.conversationId, userId);
+
+    if (message.senderId !== userId) {
+      const existing = await this.readReceiptRepository.findOne({
+        where: { messageId, userId },
+      });
+
+      if (!existing) {
+        return this.markAsRead(messageId, userId, token);
+      }
+    }
+
+    const [response] = await this.enrichMessages([message], userId, token);
+    return response;
   }
 
   async getMessageReads(
@@ -257,6 +315,7 @@ export class MessagesService {
   async markAsRead(
     messageId: string,
     userId: string,
+    token?: string,
   ): Promise<ResponseMessageDto> {
     const message = await this.getActiveMessage(messageId, ['readReceipts']);
 
@@ -303,18 +362,23 @@ export class MessagesService {
       }
     }
 
-    return this.toResponseDto(
-      message,
+    const context = group
+      ? {
+          messageType: MessageType.GROUP,
+          groupId: group.id,
+          groupName: group.name,
+          memberCount: group.members?.length ?? 0,
+        }
+      : { messageType: MessageType.DIRECT };
+
+    const [response] = await this.enrichMessages(
+      [message],
       userId,
-      group
-        ? {
-            messageType: MessageType.GROUP,
-            groupId: group.id,
-            groupName: group.name,
-            memberCount: group.members?.length ?? 0,
-          }
-        : { messageType: MessageType.DIRECT },
+      token,
+      context,
     );
+
+    return response;
   }
 
   async deleteMessage(messageId: string, userId: string): Promise<void> {
@@ -357,26 +421,92 @@ export class MessagesService {
     return message;
   }
 
+  private buildInboxQueryBuilder(userId: string) {
+    return this.messageRepository
+      .createQueryBuilder('message')
+      .innerJoin('message.conversation', 'conversation')
+      .innerJoin('conversation.members', 'member')
+      .where('member.userId = :userId', { userId })
+      .andWhere('message.senderId != :userId', { userId })
+      .andWhere('message.deletedAt IS NULL')
+      .leftJoinAndSelect('message.readReceipts', 'readReceipts');
+  }
+
+  private applyInboxFilters(
+    qb: SelectQueryBuilder<Message>,
+    userId: string,
+    query: InboxQueryDto,
+  ): void {
+    if (query.unreadOnly) {
+      qb.andWhere(
+        `NOT EXISTS (
+          SELECT 1 FROM message_read_receipts rr
+          WHERE rr.message_id = message.id AND rr.user_id = :userId
+        )`,
+      );
+    }
+
+    if (query.fromDate) {
+      qb.andWhere('message.createdAt >= :fromDate', {
+        fromDate: query.fromDate,
+      });
+    }
+
+    if (query.toDate) {
+      qb.andWhere('message.createdAt <= :toDate', {
+        toDate: query.toDate,
+      });
+    }
+
+    if (query.messageType === MessageType.DIRECT) {
+      qb.andWhere(
+        `NOT EXISTS (
+          SELECT 1 FROM groups g WHERE g.conversation_id = conversation.id
+        )`,
+      );
+    } else if (query.messageType === MessageType.GROUP) {
+      qb.andWhere(
+        `EXISTS (
+          SELECT 1 FROM groups g WHERE g.conversation_id = conversation.id
+        )`,
+      );
+    }
+  }
+
   private async enrichMessages(
     messages: Message[],
     viewerId: string,
+    token?: string,
+    fixedContext?: {
+      messageType: MessageType;
+      groupId?: string;
+      groupName?: string;
+      memberCount?: number;
+    },
   ): Promise<ResponseMessageDto[]> {
-    const conversationIds = [
-      ...new Set(messages.map((message) => message.conversationId)),
-    ];
     const groupByConversation = new Map<string, Group>();
 
-    await Promise.all(
-      conversationIds.map(async (conversationId) => {
-        const group =
-          await this.groupsService.findByConversationId(conversationId);
-        if (group) {
-          groupByConversation.set(conversationId, group);
-        }
-      }),
-    );
+    if (!fixedContext) {
+      const conversationIds = [
+        ...new Set(messages.map((message) => message.conversationId)),
+      ];
 
-    return messages.map((message) => {
+      await Promise.all(
+        conversationIds.map(async (conversationId) => {
+          const group =
+            await this.groupsService.findByConversationId(conversationId);
+          if (group) {
+            groupByConversation.set(conversationId, group);
+          }
+        }),
+      );
+    }
+
+    const items = messages.map((message) => {
+      if (fixedContext) {
+        return this.toResponseDto(message, viewerId, fixedContext);
+      }
+
       const group = groupByConversation.get(message.conversationId);
       if (group) {
         return this.toResponseDto(message, viewerId, {
@@ -391,6 +521,57 @@ export class MessagesService {
         messageType: MessageType.DIRECT,
       });
     });
+
+    if (!token) {
+      return items;
+    }
+
+    const senderIds = [...new Set(messages.map((message) => message.senderId))];
+    const senders = await this.resolveSenders(senderIds, token);
+
+    return items.map((item) => {
+      const sender = senders.get(item.senderId);
+      if (!sender) {
+        return item;
+      }
+
+      return plainToInstance(ResponseMessageDto, {
+        ...item,
+        senderName: sender.name,
+        senderEmail: sender.email,
+      });
+    });
+  }
+
+  private async resolveSenders(
+    senderIds: string[],
+    token: string,
+  ): Promise<Map<string, ResponseUserSummaryDto>> {
+    const result = new Map<string, ResponseUserSummaryDto>();
+
+    await Promise.all(
+      senderIds.map(async (senderId) => {
+        try {
+          const user = await this.securityUserClient.getUserById(
+            senderId,
+            token,
+          );
+          result.set(senderId, user);
+        } catch {
+          // omit sender info when lookup fails
+        }
+      }),
+    );
+
+    return result;
+  }
+
+  private buildPreview(body: string): string {
+    if (body.length <= PREVIEW_MAX_LENGTH) {
+      return body;
+    }
+
+    return `${body.slice(0, PREVIEW_MAX_LENGTH)}...`;
   }
 
   private toResponseDto(
@@ -450,6 +631,7 @@ export class MessagesService {
       groupId: context.groupId,
       groupName: context.groupName,
       body: message.body,
+      preview: this.buildPreview(message.body),
       latitude:
         message.latitude !== null && message.latitude !== undefined
           ? Number(message.latitude)
