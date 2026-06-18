@@ -106,9 +106,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     event: string,
     payload: unknown,
   ): void {
-    this.server
-      .to(this.conversationRoom(conversationId))
-      .emit(event, payload);
+    this.server.to(this.conversationRoom(conversationId)).emit(event, payload);
   }
 
   async joinUserToConversations(
@@ -124,6 +122,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const socket = this.server.sockets.sockets.get(socketId);
       if (socket) {
         await this.joinSocketToConversations(socket, conversationIds);
+      }
+    }
+  }
+
+  async removeUserFromConversation(
+    userId: string,
+    conversationId: string,
+  ): Promise<void> {
+    const socketIds = this.connectionManager.getSocketIds(userId);
+    const room = this.conversationRoom(conversationId);
+    for (const socketId of socketIds) {
+      const socket = this.server.sockets.sockets.get(socketId);
+      if (socket) {
+        await socket.leave(room);
       }
     }
   }
