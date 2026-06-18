@@ -12,6 +12,13 @@ export interface GroupMemberAddedPayload {
   role: GroupMemberRole;
 }
 
+export interface GroupMemberLeftPayload {
+  groupId: string;
+  groupName: string;
+  conversationId: string;
+  userId: string;
+}
+
 export interface MessageReadPayload {
   messageId: string;
   conversationId: string;
@@ -63,14 +70,30 @@ export class RealtimeEmitterService {
     this.gateway?.emitToUser(userId, ChatEvent.GROUP_MEMBER_ADDED, payload);
   }
 
+  emitGroupMemberLeft(
+    adminUserId: string,
+    payload: GroupMemberLeftPayload,
+  ): void {
+    this.gateway?.emitToUser(adminUserId, ChatEvent.GROUP_MEMBER_LEFT, payload);
+  }
+
+  async removeUserFromConversation(
+    userId: string,
+    conversationId: string,
+  ): Promise<void> {
+    if (!this.gateway) return;
+    await this.gateway.removeUserFromConversation(userId, conversationId);
+  }
+
   async joinUsersToConversation(
     userIds: string[],
     conversationId: string,
   ): Promise<void> {
+    if (!this.gateway) return;
     const uniqueUserIds = [...new Set(userIds)];
     await Promise.all(
       uniqueUserIds.map((userId) =>
-        this.gateway?.joinUserToConversations(userId, [conversationId]),
+        this.gateway!.joinUserToConversations(userId, [conversationId]),
       ),
     );
   }

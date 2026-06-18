@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { Group } from './entities/group.entity';
 import { GroupMember } from './entities/group-member.entity';
 import { CreateGroupDto } from './dto/create-group.dto';
@@ -27,6 +27,11 @@ import { SecurityUserClientService } from '@/users/services/security-user-client
 import { RealtimeEmitterService } from '@/realtime/services/realtime-emitter.service';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { PaginationMetaDto } from '@/shared/dto/pagination-meta.dto';
+
+export interface ResponseLeaveGroupDto {
+  groupId: string;
+  leftAt: Date;
+}
 
 @Injectable()
 export class GroupsService {
@@ -125,11 +130,16 @@ export class GroupsService {
 
     const qb = this.groupRepository
       .createQueryBuilder('group')
-      .leftJoinAndSelect('group.members', 'members')
-      .where('(group.visibility = :public OR members.userId = :userId)', {
-        public: GroupVisibility.PUBLIC,
-        userId,
-      })
+      .leftJoinAndSelect('group.members', 'members', 'members.leftAt IS NULL')
+      .where(
+        `(group.visibility = :public OR EXISTS (
+          SELECT 1 FROM group_members gm
+          WHERE gm.group_id = group.id
+            AND gm.user_id = :userId
+            AND gm.left_at IS NULL
+        ))`,
+        { public: GroupVisibility.PUBLIC, userId },
+      )
       .orderBy('group.createdAt', 'DESC')
       .skip(skip)
       .take(limit);
@@ -152,8 +162,16 @@ export class GroupsService {
 
     const qb = this.groupRepository
       .createQueryBuilder('group')
-      .innerJoinAndSelect('group.members', 'members')
-      .where('members.userId = :userId', { userId })
+      .innerJoinAndSelect('group.members', 'members', 'members.leftAt IS NULL')
+      .where(
+        `EXISTS (
+          SELECT 1 FROM group_members gm
+          WHERE gm.group_id = group.id
+            AND gm.user_id = :userId
+            AND gm.left_at IS NULL
+        )`,
+        { userId },
+      )
       .orderBy('group.createdAt', 'DESC')
       .skip(skip)
       .take(limit);
@@ -184,7 +202,7 @@ export class GroupsService {
   }
 
   getMemberUserIds(group: Group): string[] {
-    return (group.members ?? []).map((member) => member.userId);
+    return this.getActiveMembers(group).map((member) => member.userId);
   }
 
   async addMembers(
@@ -204,14 +222,33 @@ export class GroupsService {
       throw new BadRequestException('No hay miembros nuevos para agregar');
     }
 
-    const existingIds = new Set((group.members ?? []).map((m) => m.userId));
-    const newIds = uniqueIds.filter((id) => !existingIds.has(id));
+    const activeIds = new Set(
+      this.getActiveMembers(group).map((m) => m.userId),
+    );
+    const newIds = uniqueIds.filter((id) => !activeIds.has(id));
 
     if (newIds.length === 0) {
-      throw new ConflictException('Todos los usuarios ya son miembros');
+      throw new ConflictException('Todos los usuarios ya son miembros activos');
     }
 
     await this.validateUsersExist(newIds, token);
+
+    // For former members (leftAt != null), reactivate; otherwise insert new row
+    const formerMembersMap = new Map(
+      (group.members ?? [])
+        .filter((m) => m.leftAt != null && newIds.includes(m.userId))
+        .map((m) => [m.userId, m]),
+    );
+
+    const brandNewIds = newIds.filter((id) => !formerMembersMap.has(id));
+    const reactivatedIds = newIds.filter((id) => formerMembersMap.has(id));
+
+    for (const userId of reactivatedIds) {
+      const former = formerMembersMap.get(userId)!;
+      former.leftAt = null;
+      former.role = GroupMemberRole.MEMBER;
+      await this.groupMemberRepository.save(former);
+    }
 
     const newConversationMembers = newIds.map((userId) =>
       this.conversationMemberRepository.create({
@@ -221,7 +258,7 @@ export class GroupsService {
     );
     await this.conversationMemberRepository.save(newConversationMembers);
 
-    const newGroupMembers = newIds.map((userId) =>
+    const newGroupMembers = brandNewIds.map((userId) =>
       this.groupMemberRepository.create({
         groupId: group.id,
         userId,
@@ -235,7 +272,7 @@ export class GroupsService {
       group.conversationId,
     );
 
-    const allMembers = [...(group.members ?? []), ...saved];
+    const allMembers = [...this.getActiveMembers(group), ...saved];
     const response = this.toResponse(group, allMembers);
     this.emitMemberAddedEvents(response, newIds);
 
@@ -251,29 +288,49 @@ export class GroupsService {
       );
     }
 
-    const isMember = (group.members ?? []).some(
+    const existingMember = (group.members ?? []).find(
       (member) => member.userId === userId,
     );
-    if (isMember) {
+
+    if (existingMember && existingMember.leftAt == null) {
       throw new ConflictException('Ya eres miembro de este grupo');
     }
 
-    await this.conversationMemberRepository.save(
-      this.conversationMemberRepository.create({
-        conversationId: group.conversationId,
-        userId,
-      }),
-    );
+    let member: GroupMember;
 
-    const member = await this.groupMemberRepository.save(
-      this.groupMemberRepository.create({
-        groupId: group.id,
-        userId,
-        role: GroupMemberRole.MEMBER,
-      }),
-    );
+    if (existingMember && existingMember.leftAt != null) {
+      // Reactivate former member
+      existingMember.leftAt = null;
+      existingMember.role = GroupMemberRole.MEMBER;
+      member = await this.groupMemberRepository.save(existingMember);
 
-    const allMembers = [...(group.members ?? []), member];
+      await this.conversationMemberRepository.save(
+        this.conversationMemberRepository.create({
+          conversationId: group.conversationId,
+          userId,
+        }),
+      );
+    } else {
+      await this.conversationMemberRepository.save(
+        this.conversationMemberRepository.create({
+          conversationId: group.conversationId,
+          userId,
+        }),
+      );
+
+      member = await this.groupMemberRepository.save(
+        this.groupMemberRepository.create({
+          groupId: group.id,
+          userId,
+          role: GroupMemberRole.MEMBER,
+        }),
+      );
+    }
+
+    const activeMembers = this.getActiveMembers(group).filter(
+      (m) => m.userId !== userId,
+    );
+    const allMembers = [...activeMembers, member];
     const response = this.toResponse(group, allMembers);
 
     await this.realtimeEmitter.joinUsersToConversation(
@@ -291,6 +348,76 @@ export class GroupsService {
     return response;
   }
 
+  async leave(groupId: string, userId: string): Promise<ResponseLeaveGroupDto> {
+    const group = await this.getGroupWithMembers(groupId);
+
+    const membership = (group.members ?? []).find(
+      (m) => m.userId === userId && m.leftAt == null,
+    );
+    if (!membership) {
+      throw new ForbiddenException('No eres miembro activo de este grupo');
+    }
+
+    if (membership.role === GroupMemberRole.ADMIN) {
+      const activeAdmins = this.getActiveMembers(group).filter(
+        (m) => m.role === GroupMemberRole.ADMIN,
+      );
+      if (activeAdmins.length <= 1) {
+        throw new ConflictException(
+          'Debes promover a otro administrador antes de salir',
+        );
+      }
+    }
+
+    const leftAt = new Date();
+    membership.leftAt = leftAt;
+    await this.groupMemberRepository.save(membership);
+
+    await this.conversationMemberRepository.delete({
+      conversationId: group.conversationId,
+      userId,
+    });
+
+    await this.realtimeEmitter.removeUserFromConversation(
+      userId,
+      group.conversationId,
+    );
+
+    const remainingAdmins = this.getActiveMembers(group)
+      .filter((m) => m.userId !== userId && m.role === GroupMemberRole.ADMIN)
+      .map((m) => m.userId);
+
+    for (const adminId of remainingAdmins) {
+      this.realtimeEmitter.emitGroupMemberLeft(adminId, {
+        groupId: group.id,
+        groupName: group.name,
+        conversationId: group.conversationId,
+        userId,
+      });
+    }
+
+    return { groupId: group.id, leftAt };
+  }
+
+  async getMembershipForHistory(
+    groupId: string,
+    userId: string,
+  ): Promise<GroupMember | null> {
+    return this.groupMemberRepository.findOne({
+      where: [
+        { groupId, userId, leftAt: IsNull() },
+        { groupId, userId, leftAt: Not(IsNull()) },
+      ],
+    });
+  }
+
+  async findGroupById(groupId: string): Promise<Group | null> {
+    return this.groupRepository.findOne({
+      where: { id: groupId },
+      relations: ['members'],
+    });
+  }
+
   async updateIcon(
     groupId: string,
     requesterId: string,
@@ -303,6 +430,10 @@ export class GroupsService {
     const saved = await this.groupRepository.save(group);
 
     return this.toResponse(saved, group.members ?? []);
+  }
+
+  private getActiveMembers(group: Group): GroupMember[] {
+    return (group.members ?? []).filter((m) => m.leftAt == null);
   }
 
   private async getGroupWithMembers(groupId: string): Promise<Group> {
@@ -319,7 +450,9 @@ export class GroupsService {
   }
 
   private assertAdmin(group: Group, userId: string): void {
-    const member = (group.members ?? []).find((m) => m.userId === userId);
+    const member = this.getActiveMembers(group).find(
+      (m) => m.userId === userId,
+    );
     if (!member || member.role !== GroupMemberRole.ADMIN) {
       throw new ForbiddenException(
         'Solo administradores pueden realizar esta acción',
@@ -328,7 +461,7 @@ export class GroupsService {
   }
 
   private assertMember(group: Group, userId: string): void {
-    const isMember = (group.members ?? []).some(
+    const isMember = this.getActiveMembers(group).some(
       (member) => member.userId === userId,
     );
     if (!isMember) {
@@ -365,6 +498,7 @@ export class GroupsService {
   }
 
   private toResponse(group: Group, members: GroupMember[]): ResponseGroupDto {
+    const activeMembers = members.filter((m) => m.leftAt == null);
     return plainToInstance(ResponseGroupDto, {
       id: group.id,
       name: group.name,
@@ -373,7 +507,7 @@ export class GroupsService {
       iconUrl: group.iconUrl,
       createdBy: group.createdBy,
       conversationId: group.conversationId,
-      members: members.map((member) =>
+      members: activeMembers.map((member) =>
         plainToInstance(ResponseGroupMemberDto, {
           userId: member.userId,
           role: member.role,
