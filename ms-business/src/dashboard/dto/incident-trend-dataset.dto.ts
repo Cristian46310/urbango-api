@@ -12,6 +12,13 @@ export class IncidentTrendDatasetDto {
   typeLabel!: string;
 
   @ApiProperty({
+    example: 'Mecanico',
+    description: 'Alias para librerias de graficos que esperan dataset.label',
+  })
+  @Expose()
+  label!: string;
+
+  @ApiProperty({
     example: [2, 1, 0],
     description: 'Cantidad de incidentes por mes, alineados con labels',
   })

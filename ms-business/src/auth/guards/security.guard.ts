@@ -7,6 +7,7 @@ import { AxiosError, AxiosResponse } from 'axios';
 import { firstValueFrom } from 'rxjs';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { IS_AUTHENTICATED_KEY } from '../decorators/authenticated.decorator';
+import { ROLES_KEY } from '../decorators/roles.decorator';
 import { JwtValidationService } from '../services/jwt-validation.service';
 import { JwtPayload } from '../types';
 
@@ -42,6 +43,12 @@ export class SecurityGuard implements CanActivate {
       IS_AUTHENTICATED_KEY,
       [context.getHandler(), context.getClass()],
     );
+
+    const rolesMetadata = this.reflector.getAllAndOverride<string[]>(
+      ROLES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    const requiredRoles = Array.isArray(rolesMetadata) ? rolesMetadata : [];
 
     if (isPublic) {
       return true;
@@ -85,6 +92,9 @@ export class SecurityGuard implements CanActivate {
     }
 
     if (isAuthenticatedOnly) {
+      if (requiredRoles.length > 0) {
+        this.assertHasRequiredRole(request.user, requiredRoles);
+      }
       return true;
     }
 
@@ -168,5 +178,31 @@ export class SecurityGuard implements CanActivate {
     const rawUrl = request.originalUrl ?? request.url ?? '/';
     const questionMarkIndex = rawUrl.indexOf('?');
     return questionMarkIndex >= 0 ? rawUrl.slice(0, questionMarkIndex) : rawUrl;
+  }
+
+  private assertHasRequiredRole(
+    user: JwtPayload | undefined,
+    requiredRoles: string[],
+  ): void {
+    const userRoles = new Set(
+      (user?.roles ?? []).map((role) => this.normalizeRole(role)),
+    );
+    const allowed = requiredRoles.some((role) =>
+      userRoles.has(this.normalizeRole(role)),
+    );
+
+    if (!allowed) {
+      throw new HttpException(
+        {
+          allowed: false,
+          reason: `Insufficient role. Required one of: ${requiredRoles.join(', ')}`,
+        },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+  }
+
+  private normalizeRole(role: string): string {
+    return role.trim().toUpperCase().replace(/^ROLE_/, '');
   }
 }

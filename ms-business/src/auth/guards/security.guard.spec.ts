@@ -40,11 +40,18 @@ describe('SecurityGuard', () => {
       jwtValidationService as unknown as JwtValidationService,
     );
     jest.clearAllMocks();
-    reflector.getAllAndOverride.mockReturnValue(false);
+    reflector.getAllAndOverride.mockImplementation((key: string) => {
+      if (key === 'roles') return [];
+      return false;
+    });
   });
 
   it('allows public routes without Authorization header', async () => {
-    reflector.getAllAndOverride.mockReturnValue(true);
+    reflector.getAllAndOverride.mockImplementation((key: string) => {
+      if (key === 'isPublic') return true;
+      if (key === 'roles') return [];
+      return false;
+    });
     await expect(guard.canActivate(buildContext())).resolves.toBe(true);
   });
 
@@ -68,5 +75,46 @@ describe('SecurityGuard', () => {
     await expect(
       guard.canActivate(buildContext({ authorization: `Bearer ${jwt}` })),
     ).resolves.toBe(true);
+  });
+
+  it('allows authenticated dashboard roles without calling remote authorize', async () => {
+    const jwt = 'header.payload.signature';
+    reflector.getAllAndOverride.mockImplementation((key: string) => {
+      if (key === 'isAuthenticated') return true;
+      if (key === 'roles') return ['ADMIN', 'ADMIN_BUS', 'SUPERVISER'];
+      return false;
+    });
+    jwtValidationService.validateToken.mockResolvedValue({
+      id: 'u1',
+      name: 'Test',
+      email: 'test@example.com',
+      roles: ['ROLE_ADMIN_BUS'],
+      createdAt: Date.now(),
+    });
+
+    await expect(
+      guard.canActivate(buildContext({ authorization: `Bearer ${jwt}` })),
+    ).resolves.toBe(true);
+    expect(httpService.post).not.toHaveBeenCalled();
+  });
+
+  it('rejects authenticated dashboard users without required role', async () => {
+    const jwt = 'header.payload.signature';
+    reflector.getAllAndOverride.mockImplementation((key: string) => {
+      if (key === 'isAuthenticated') return true;
+      if (key === 'roles') return ['ADMIN', 'ADMIN_BUS', 'SUPERVISER'];
+      return false;
+    });
+    jwtValidationService.validateToken.mockResolvedValue({
+      id: 'u1',
+      name: 'Test',
+      email: 'test@example.com',
+      roles: ['CITIZEN'],
+      createdAt: Date.now(),
+    });
+
+    await expect(
+      guard.canActivate(buildContext({ authorization: `Bearer ${jwt}` })),
+    ).rejects.toThrow(HttpException);
   });
 });

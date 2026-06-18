@@ -24,6 +24,8 @@ async function bootstrap() {
   // Habilitar CORS para que el frontend pueda consumir la API
   app.enableCors({
     origin: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Authorization', 'Content-Type', 'Accept'],
     credentials: true,
   });
 

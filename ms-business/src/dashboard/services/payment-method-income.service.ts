@@ -90,6 +90,7 @@ export class PaymentMethodIncomeService {
           {
             paymentMethodId: method.id,
             paymentMethodName: method.name,
+            label: method.name,
             data,
             totalIncome,
           },
