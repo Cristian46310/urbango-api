@@ -114,6 +114,7 @@ export class BusService {
       where: enterpriseId ? { enterprise: { id: enterpriseId } } : {},
       relations: [
         'gps',
+        'turns',
         'schedulers',
         'schedulers.route',
         'schedulers.route.nodes',
@@ -127,6 +128,7 @@ export class BusService {
       where: { id },
       relations: [
         'gps',
+        'turns',
         'schedulers',
         'schedulers.route',
         'schedulers.route.nodes',

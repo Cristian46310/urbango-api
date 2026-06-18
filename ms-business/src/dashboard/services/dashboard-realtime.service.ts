@@ -16,6 +16,7 @@ import {
   Scheduler,
   SchedulerStatus,
 } from '@/scheduler/entities/scheduler.entity';
+import { Turn, TurnStatus } from '@/turn/entities/turn.entity';
 import { NotificationSubscription } from '../entities/notification-subscription.entity';
 import { ResponseIncidentDto } from '@/incident/dto/response-incident.dto';
 
@@ -46,20 +47,20 @@ export class DashboardRealtimeService {
   ): Promise<ResponseRealtimeBusListDto> {
     const buses =
       await this.busService.findAllWithGpsAndSchedules(enterpriseId);
-    const filtered = routeId
-      ? buses.filter((bus) =>
-          (bus.schedulers ?? []).some(
-            (scheduler) => scheduler.route?.id === routeId,
-          ),
-        )
-      : buses;
 
     const fleet = await Promise.all(
-      filtered
-        .filter((bus) => bus.gps)
+      buses
+        .filter((bus) => bus.gps && this.hasActiveTurn(bus.turns ?? []))
         .map(async (bus) => this.buildRealtimeBus(bus)),
     );
-    return plainToInstance(ResponseRealtimeBusListDto, { items: fleet });
+
+    const filteredFleet = routeId
+      ? fleet.filter((bus) => bus.route?.id === routeId)
+      : fleet;
+
+    return plainToInstance(ResponseRealtimeBusListDto, {
+      items: filteredFleet,
+    });
   }
 
   async getBusRealtimeStatus(busId: string): Promise<ResponseRealtimeBusDto> {
@@ -249,7 +250,7 @@ export class DashboardRealtimeService {
 
   private findCurrentScheduler(schedulers: Scheduler[]): Scheduler | undefined {
     const now = new Date().getTime();
-    const today = new Date().toISOString().slice(0, 10);
+    const today = this.getLocalDateString(new Date());
 
     const candidates = schedulers.filter(
       (scheduler) =>
@@ -272,6 +273,17 @@ export class DashboardRealtimeService {
         new Date(right.startTime).getTime() -
         new Date(left.startTime).getTime(),
     )[0];
+  }
+
+  private hasActiveTurn(turns: Turn[]): boolean {
+    return turns.some((turn) => turn.status === TurnStatus.IN_PROGRESS);
+  }
+
+  private getLocalDateString(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   private toStopInfo(stop: any): RealtimeStopInfoDto {
