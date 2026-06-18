@@ -32,6 +32,9 @@ export class GroupMember {
   @CreateDateColumn({ type: 'timestamptz' })
   joinedAt!: Date;
 
+  @Column({ name: 'left_at', type: 'timestamptz', nullable: true })
+  leftAt?: Date | null;
+
   @ManyToOne(() => Group, (group) => group.members, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'group_id' })
   group?: Group;

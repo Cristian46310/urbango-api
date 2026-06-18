@@ -3,6 +3,8 @@ import {
   Controller,
   Get,
   Headers,
+  HttpCode,
+  HttpStatus,
   Param,
   Post,
   Query,
@@ -18,6 +20,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { GroupsService } from './groups.service';
+import type { ResponseLeaveGroupDto } from './groups.service';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { AddGroupMembersDto } from './dto/add-group-members.dto';
 import { UpdateGroupIconDto } from './dto/update-group-icon.dto';
@@ -154,5 +157,27 @@ export class GroupsController {
     @CurrentUser() user: JwtPayload,
   ): Promise<ResponseGroupDto> {
     return this.groupsService.updateIcon(id, user.id, dto);
+  }
+
+  @Post(':id/leave')
+  @Authenticated()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Abandonar un grupo al que pertenezco' })
+  @ApiParam({ name: 'id', description: 'ID del grupo' })
+  @ApiOkResponse({
+    description: 'Confirmación de salida',
+    schema: {
+      type: 'object',
+      properties: {
+        groupId: { type: 'string', format: 'uuid' },
+        leftAt: { type: 'string', format: 'date-time' },
+      },
+    },
+  })
+  async leave(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+  ): Promise<ResponseLeaveGroupDto> {
+    return this.groupsService.leave(id, user.id);
   }
 }

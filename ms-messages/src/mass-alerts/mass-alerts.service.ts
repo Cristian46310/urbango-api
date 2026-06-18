@@ -119,9 +119,7 @@ export class MassAlertsService {
       await this.massAlertRepository.save(savedAlert);
     }
 
-    return this.toAlertDto(
-      await this.findAlertWithScopeTargets(savedAlert.id),
-    );
+    return this.toAlertDto(await this.findAlertWithScopeTargets(savedAlert.id));
   }
 
   private async findAlertWithScopeTargets(alertId: string): Promise<MassAlert> {

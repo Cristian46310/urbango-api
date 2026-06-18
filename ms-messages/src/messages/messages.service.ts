@@ -5,7 +5,12 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
-import { IsNull, Repository, SelectQueryBuilder } from 'typeorm';
+import {
+  IsNull,
+  LessThanOrEqual,
+  Repository,
+  SelectQueryBuilder,
+} from 'typeorm';
 import { Message } from './entities/message.entity';
 import { MessageReadReceipt } from './entities/message-read-receipt.entity';
 import { CreateDirectMessageDto } from './dto/create-direct-message.dto';
@@ -123,15 +128,35 @@ export class MessagesService {
     pagination: PaginationQueryDto,
     token?: string,
   ): Promise<ResponseMessageListDto> {
-    const group = await this.groupsService.getGroupForMember(groupId, userId);
+    const membership = await this.groupsService.getMembershipForHistory(
+      groupId,
+      userId,
+    );
+
+    if (!membership) {
+      throw new ForbiddenException(
+        'No tienes acceso al historial de este grupo',
+      );
+    }
+
+    const group = await this.groupsService.findGroupById(groupId);
+    if (!group) {
+      throw new NotFoundException(`Group ${groupId} not found`);
+    }
+
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? 10;
     const skip = (page - 1) * limit;
+
+    const isFormerMember = membership.leftAt != null;
 
     const [messages, totalItems] = await this.messageRepository.findAndCount({
       where: {
         conversationId: group.conversationId,
         deletedAt: IsNull(),
+        ...(isFormerMember
+          ? { createdAt: LessThanOrEqual(membership.leftAt!) }
+          : {}),
       },
       order: { createdAt: 'DESC' },
       skip,
@@ -139,11 +164,13 @@ export class MessagesService {
       relations: ['readReceipts'],
     });
 
+    const activeMembers = (group.members ?? []).filter((m) => m.leftAt == null);
+
     const items = await this.enrichMessages(messages, userId, token, {
       messageType: MessageType.GROUP,
       groupId: group.id,
       groupName: group.name,
-      memberCount: group.members?.length ?? 0,
+      memberCount: activeMembers.length,
     });
 
     return this.toListDto(items, page, limit, totalItems);
@@ -212,10 +239,7 @@ export class MessagesService {
 
     this.applyInboxFilters(qb, userId, query);
 
-    qb
-      .orderBy('message.createdAt', 'DESC')
-      .skip(skip)
-      .take(limit);
+    qb.orderBy('message.createdAt', 'DESC').skip(skip).take(limit);
 
     const [messages, totalItems] = await qb.getManyAndCount();
     const items = await this.enrichMessages(messages, userId, token);
@@ -243,7 +267,10 @@ export class MessagesService {
   ): Promise<ResponseMessageDto> {
     const message = await this.getActiveMessage(messageId, ['readReceipts']);
 
-    await this.conversationsService.assertMember(message.conversationId, userId);
+    await this.conversationsService.assertMember(
+      message.conversationId,
+      userId,
+    );
 
     if (message.senderId !== userId) {
       const existing = await this.readReceiptRepository.findOne({
