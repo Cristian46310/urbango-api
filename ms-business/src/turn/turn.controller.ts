@@ -21,6 +21,8 @@ import { CreateTurnDto } from './dto/create-turn.dto';
 import { UpdateTurnDto } from './dto/update-turn.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { StartTurnRequestDto } from './dto/start-turn-request.dto';
+import { UpdateTurnGpsDto } from './dto/update-turn-gps.dto';
+import { ResponseGpsDto } from '@/gps/dto/response-gps.dto';
 import { StartTurnResponseDto } from './dto/start-turn-response.dto';
 import { Authenticated } from '@/auth/decorators/authenticated.decorator';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
@@ -53,6 +55,26 @@ export class TurnController {
     const driverId = await this.profileContext.requireDriverId(currentUser);
     const result = await this.turnService.startTurn(driverId, dto);
     return { success: true, message: 'Turno iniciado', ...result };
+  }
+
+  @Post('gps')
+  @Authenticated()
+  @ApiBearerAuth('bearer')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Actualizar posición GPS del bus durante turno activo',
+  })
+  @ApiOkResponse({ type: ResponseGpsDto })
+  async updateGps(
+    @Body() dto: UpdateTurnGpsDto,
+    @CurrentUser() currentUser: JwtPayload,
+  ): Promise<ResponseGpsDto> {
+    const driverId = await this.profileContext.requireDriverId(currentUser);
+    return this.turnService.updateGpsPosition(
+      driverId,
+      dto.latitude,
+      dto.longitude,
+    );
   }
 
   @Get()

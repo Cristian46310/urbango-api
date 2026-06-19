@@ -32,7 +32,11 @@ import { Driver } from '@/driver/entities/driver.entity';
     }),
     TypeOrmModule.forFeature([Person, Citizen, Driver]),
   ],
-  providers: [JwtValidationService, ProfileContextService, SecurityRoleClientService],
+  providers: [
+    JwtValidationService,
+    ProfileContextService,
+    SecurityRoleClientService,
+  ],
   exports: [
     HttpModule,
     JwtValidationService,

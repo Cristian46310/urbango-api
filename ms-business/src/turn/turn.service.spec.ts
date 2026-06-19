@@ -64,7 +64,7 @@ describe('TurnService', () => {
 
   it('starts the current scheduled turn', async () => {
     turnRepository.findOne.mockResolvedValue({ ...scheduledTurn });
-    turnRepository.save.mockImplementation(async (turn) => turn);
+    turnRepository.save.mockImplementation((turn: Turn) => Promise.resolve(turn));
 
     const result = await service.startTurn('driver-1', {
       busStatus: 'operativo',
@@ -109,5 +109,51 @@ describe('TurnService', () => {
     await expect(
       service.startTurn('driver-1', { busStatus: 'operativo' }),
     ).rejects.toThrow(ConflictException);
+  });
+
+  it('updates GPS for the active in-progress turn', async () => {
+    const gpsService = {
+      upsertBusPosition: jest.fn().mockResolvedValue({ busId: 'bus-1' }),
+    };
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        TurnService,
+        {
+          provide: getRepositoryToken(Turn),
+          useValue: turnRepository,
+        },
+        {
+          provide: getRepositoryToken(Bus),
+          useValue: {},
+        },
+        {
+          provide: getRepositoryToken(Driver),
+          useValue: {},
+        },
+        {
+          provide: GpsService,
+          useValue: gpsService,
+        },
+      ],
+    }).compile();
+
+    const turnService = module.get(TurnService);
+    turnRepository.findOne.mockResolvedValue({
+      ...scheduledTurn,
+      status: TurnStatus.IN_PROGRESS,
+    });
+
+    const result = await turnService.updateGpsPosition(
+      'driver-1',
+      5.07,
+      -75.51,
+    );
+
+    expect(gpsService.upsertBusPosition).toHaveBeenCalledWith(
+      'bus-1',
+      5.07,
+      -75.51,
+    );
+    expect(result).toEqual({ busId: 'bus-1' });
   });
 });

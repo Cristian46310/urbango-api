@@ -9,6 +9,7 @@ import { StopService } from '@/stop/stop.service';
 import { NotificationService } from '@/incident/services/notification.service';
 import { ResponseRealtimeBusDto } from '../dto/response-realtime-bus.dto';
 import { ResponseRealtimeBusListDto } from '../dto/response-realtime-bus-list.dto';
+import { ResponseRealtimeSummaryDto } from '../dto/response-realtime-summary.dto';
 import { RealtimeStopInfoDto } from '../dto/realtime-stop-info.dto';
 import { RealtimeBusRouteDto } from '../dto/realtime-bus-route.dto';
 import { CreateArrivalNotificationDto } from '../dto/create-arrival-notification.dto';
@@ -25,8 +26,14 @@ export type ArrivalNotificationDispatchResult = {
   sent: boolean;
   scheduled: boolean;
   etaMinutes?: number;
-  nextStopName?: string;
+  stopName?: string;
   status?: ResponseRealtimeBusDto;
+};
+
+export type FleetFilterOptions = {
+  enterpriseId?: string;
+  routeId?: string;
+  stopId?: string;
 };
 
 @Injectable()
@@ -44,38 +51,75 @@ export class DashboardRealtimeService {
   async getRealtimeFleet(
     enterpriseId?: string,
     routeId?: string,
+    stopId?: string,
   ): Promise<ResponseRealtimeBusListDto> {
-    const buses =
-      await this.busService.findAllWithGpsAndSchedules(enterpriseId);
-
-    const fleet = await Promise.all(
-      buses
-        .filter((bus) => bus.gps && this.hasActiveTurn(bus.turns ?? []))
-        .map(async (bus) => this.buildRealtimeBus(bus)),
-    );
-
-    const filteredFleet = routeId
-      ? fleet.filter((bus) => bus.route?.id === routeId)
-      : fleet;
+    const items = await this.getAllRealtimeFleetItems(enterpriseId, stopId);
+    const filtered = this.filterFleetItems(items, { enterpriseId, routeId });
 
     return plainToInstance(ResponseRealtimeBusListDto, {
-      items: filteredFleet,
+      items: filtered,
     });
   }
 
-  async getBusRealtimeStatus(busId: string): Promise<ResponseRealtimeBusDto> {
+  async getAllRealtimeFleetItems(
+    enterpriseId?: string,
+    waitingStopId?: string,
+  ): Promise<ResponseRealtimeBusDto[]> {
+    const buses =
+      await this.busService.findAllWithGpsAndSchedules(enterpriseId);
+
+    return Promise.all(
+      buses
+        .filter((bus) => this.isEligibleForRealtimeFleet(bus))
+        .map(async (bus) => this.buildRealtimeBus(bus, waitingStopId)),
+    );
+  }
+
+  filterFleetItems(
+    items: ResponseRealtimeBusDto[],
+    filters: FleetFilterOptions,
+  ): ResponseRealtimeBusDto[] {
+    if (filters.routeId) {
+      return items.filter((bus) => bus.route?.id === filters.routeId);
+    }
+    return items;
+  }
+
+  async getBusRealtimeStatus(
+    busId: string,
+    waitingStopId?: string,
+  ): Promise<ResponseRealtimeBusDto> {
     const bus = await this.busService.findOneWithGpsAndSchedules(busId);
-    return this.buildRealtimeBus(bus);
+    return this.buildRealtimeBus(bus, waitingStopId);
+  }
+
+  async getDashboardSummary(
+    enterpriseId?: string,
+  ): Promise<ResponseRealtimeSummaryDto> {
+    const fleet = await this.getRealtimeFleet(enterpriseId);
+    const incidents = await this.getActiveIncidents(enterpriseId);
+    const items = fleet.items;
+
+    return plainToInstance(ResponseRealtimeSummaryDto, {
+      fleet,
+      incidents,
+      updatedAt: new Date(),
+      totalPassengersInTransit: items.reduce(
+        (sum, bus) => sum + bus.activePassengers,
+        0,
+      ),
+      fullBusAlerts: items.filter((bus) => bus.isFull),
+    });
   }
 
   async sendArrivalNotification(
-    payload: CreateArrivalNotificationDto,
+    payload: CreateArrivalNotificationDto & { email: string },
   ): Promise<{
     subscribed: boolean;
     sent: boolean;
     scheduled: boolean;
     etaMinutes?: number;
-    nextStopName?: string;
+    stopName?: string;
   }> {
     const subscription = await this.createArrivalSubscription(payload);
     const result = await this.dispatchArrivalSubscription(subscription);
@@ -85,12 +129,12 @@ export class DashboardRealtimeService {
       sent: result.sent,
       scheduled: result.scheduled,
       etaMinutes: result.etaMinutes,
-      nextStopName: result.nextStopName,
+      stopName: result.stopName,
     };
   }
 
   async createArrivalSubscription(
-    payload: CreateArrivalNotificationDto,
+    payload: CreateArrivalNotificationDto & { email: string },
   ): Promise<NotificationSubscription> {
     const subscription = this.notificationSubscriptionRepository.create({
       email: payload.email,
@@ -120,7 +164,7 @@ export class DashboardRealtimeService {
       busId: subscription.busId,
       stopId: subscription.stopId,
       anticipationMinutes: subscription.anticipationMinutes,
-      message: subscription.message ?? '',
+      message: subscription.message,
     });
 
     if (!status) {
@@ -131,22 +175,32 @@ export class DashboardRealtimeService {
       };
     }
 
+    const etaMinutes = this.getEtaForStop(status, subscription.stopId);
+    const stopName = this.getStopNameForSubscription(
+      status,
+      subscription.stopId,
+    );
     const shouldSendNow =
-      status.estimatedMinutesToNextStop !== undefined &&
-      status.estimatedMinutesToNextStop <= subscription.anticipationMinutes;
+      etaMinutes !== undefined &&
+      etaMinutes <= subscription.anticipationMinutes;
 
     if (!shouldSendNow) {
       return {
         subscription,
         sent: false,
         scheduled: true,
-        etaMinutes: status.estimatedMinutesToNextStop,
-        nextStopName: status.nextStop?.name,
+        etaMinutes,
+        stopName,
         status,
       };
     }
 
-    const sent = await this.sendArrivalEmail(status, subscription);
+    const sent = await this.sendArrivalEmail(
+      status,
+      subscription,
+      etaMinutes,
+      stopName,
+    );
     if (sent) {
       await this.markArrivalSubscriptionAsNotified(subscription.id);
     }
@@ -155,8 +209,8 @@ export class DashboardRealtimeService {
       subscription,
       sent,
       scheduled: !sent,
-      etaMinutes: status.estimatedMinutesToNextStop,
-      nextStopName: status.nextStop?.name,
+      etaMinutes,
+      stopName,
       status,
     };
   }
@@ -174,13 +228,20 @@ export class DashboardRealtimeService {
     return results;
   }
 
-  private async buildRealtimeBus(bus: any): Promise<ResponseRealtimeBusDto> {
-    if (!bus.gps) {
+  private async buildRealtimeBus(
+    bus: any,
+    waitingStopId?: string,
+  ): Promise<ResponseRealtimeBusDto> {
+    const coordinates = this.resolveBusCoordinates(bus);
+    if (!coordinates) {
       throw new NotFoundException(`GPS no encontrado para el bus ${bus.id}`);
     }
 
-    const activeScheduler = this.findCurrentScheduler(bus.schedulers ?? []);
-    const route = activeScheduler?.route;
+    const routeScheduler = this.resolveRouteScheduler(
+      bus.schedulers ?? [],
+      this.hasActiveTurn(bus.turns ?? []),
+    );
+    const route = routeScheduler?.route;
     const routeStops = route?.nodes ?? [];
     const sortedNodes = routeStops
       .slice()
@@ -195,11 +256,14 @@ export class DashboardRealtimeService {
 
     const nearestStop =
       this.findNearestStop(
-        bus.gps.latitude,
-        bus.gps.longitude,
+        coordinates.latitude,
+        coordinates.longitude,
         routeDto?.stops ?? [],
       ) ??
-      (await this.findNearestPublicStop(bus.gps.latitude, bus.gps.longitude));
+      (await this.findNearestPublicStop(
+        coordinates.latitude,
+        coordinates.longitude,
+      ));
 
     const nextStop = nearestStop
       ? this.findNextStop(nearestStop.id, routeDto?.stops ?? [])
@@ -210,6 +274,10 @@ export class DashboardRealtimeService {
       nearestStop,
       nextStop,
     );
+
+    const estimatedMinutesToWaitingStop = waitingStopId
+      ? this.calculateEstimatedMinutesToStop(route, nearestStop, waitingStopId)
+      : undefined;
 
     const activePassengers = await this.ticketService.countActiveTicketsByBus(
       bus.id,
@@ -232,13 +300,18 @@ export class DashboardRealtimeService {
       busId: bus.id,
       plate: bus.plate,
       status: bus.status,
-      latitude: Number(bus.gps.latitude),
-      longitude: Number(bus.gps.longitude),
-      updatedAt: bus.gps.updatedAt,
+      lat: coordinates.latitude,
+      lng: coordinates.longitude,
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+      routeId: routeDto?.id,
+      routeName: routeDto?.name,
+      updatedAt: coordinates.updatedAt,
       route: routeDto,
       nearestStop,
       nextStop,
       estimatedMinutesToNextStop,
+      estimatedMinutesToWaitingStop,
       activePassengers,
       activeIncidents,
       occupancyPercent,
@@ -255,7 +328,7 @@ export class DashboardRealtimeService {
     const candidates = schedulers.filter(
       (scheduler) =>
         scheduler.status === SchedulerStatus.SCHEDULED &&
-        scheduler.date === today,
+        this.normalizeSchedulerDate(scheduler.date) === today,
     );
 
     const active = candidates.find((scheduler) => {
@@ -275,8 +348,92 @@ export class DashboardRealtimeService {
     )[0];
   }
 
+  private resolveRouteScheduler(
+    schedulers: Scheduler[],
+    includeHistoricalForActiveTurn = false,
+  ): Scheduler | undefined {
+    const current = this.findCurrentScheduler(schedulers);
+    if (current) {
+      return current;
+    }
+
+    if (!includeHistoricalForActiveTurn) {
+      return undefined;
+    }
+
+    return schedulers
+      .filter((scheduler) => scheduler.status === SchedulerStatus.SCHEDULED)
+      .sort(
+        (left, right) =>
+          new Date(right.startTime).getTime() -
+          new Date(left.startTime).getTime(),
+      )[0];
+  }
+
   private hasActiveTurn(turns: Turn[]): boolean {
     return turns.some((turn) => turn.status === TurnStatus.IN_PROGRESS);
+  }
+
+  private isEligibleForRealtimeFleet(bus: {
+    gps?: { latitude?: number | string; longitude?: number | string } | null;
+    turns?: Turn[];
+    schedulers?: Scheduler[];
+  }): boolean {
+    if (!this.resolveBusCoordinates(bus)) {
+      return false;
+    }
+
+    return (
+      this.hasActiveTurn(bus.turns ?? []) ||
+      this.findCurrentScheduler(bus.schedulers ?? []) !== undefined
+    );
+  }
+
+  private resolveBusCoordinates(bus: {
+    gps?: {
+      latitude?: number | string;
+      longitude?: number | string;
+      updatedAt?: Date;
+    } | null;
+    turns?: Turn[];
+    schedulers?: Scheduler[];
+  }):
+    | { latitude: number; longitude: number; updatedAt: Date }
+    | undefined {
+    if (bus.gps?.latitude !== undefined && bus.gps?.longitude !== undefined) {
+      return {
+        latitude: Number(bus.gps.latitude),
+        longitude: Number(bus.gps.longitude),
+        updatedAt: bus.gps.updatedAt ?? new Date(),
+      };
+    }
+
+    const scheduler =
+      this.resolveRouteScheduler(
+        bus.schedulers ?? [],
+        this.hasActiveTurn(bus.turns ?? []),
+      ) ?? this.findCurrentScheduler(bus.schedulers ?? []);
+    const firstStop = scheduler?.route?.nodes
+      ?.slice()
+      .sort((left, right) => left.order - right.order)[0]?.stop;
+
+    if (!firstStop) {
+      return undefined;
+    }
+
+    return {
+      latitude: Number(firstStop.latitude),
+      longitude: Number(firstStop.longitude),
+      updatedAt: new Date(),
+    };
+  }
+
+  private normalizeSchedulerDate(value: string | Date): string {
+    if (value instanceof Date) {
+      return this.getLocalDateString(value);
+    }
+
+    return String(value).slice(0, 10);
   }
 
   private getLocalDateString(date: Date): string {
@@ -378,8 +535,34 @@ export class DashboardRealtimeService {
 
     return Math.max(
       0,
-      // Se agregó validación en caso de que vengan como strings de la BD
       Number(nextNode.estimatedTimeMinutes) -
+        Number(currentNode.estimatedTimeMinutes),
+    );
+  }
+
+  private calculateEstimatedMinutesToStop(
+    route: any | undefined,
+    nearestStop: RealtimeStopInfoDto | undefined,
+    targetStopId: string,
+  ): number | undefined {
+    if (!route || !nearestStop) {
+      return undefined;
+    }
+
+    const currentNode = route.nodes?.find(
+      (node: any) => node.stop?.id === nearestStop.id,
+    );
+    const targetNode = route.nodes?.find(
+      (node: any) => node.stop?.id === targetStopId,
+    );
+
+    if (!currentNode || !targetNode) {
+      return undefined;
+    }
+
+    return Math.max(
+      0,
+      Number(targetNode.estimatedTimeMinutes) -
         Number(currentNode.estimatedTimeMinutes),
     );
   }
@@ -412,6 +595,31 @@ export class DashboardRealtimeService {
     return this.incidentService.findActiveIncidents(enterpriseId);
   }
 
+  getEtaForStop(
+    status: ResponseRealtimeBusDto,
+    stopId?: string,
+  ): number | undefined {
+    if (stopId) {
+      return status.estimatedMinutesToWaitingStop;
+    }
+    return status.estimatedMinutesToNextStop;
+  }
+
+  getStopNameForSubscription(
+    status: ResponseRealtimeBusDto,
+    stopId?: string,
+  ): string | undefined {
+    if (stopId) {
+      const waitingStop = status.route?.stops?.find(
+        (stop) => stop.id === stopId,
+      );
+      return (
+        waitingStop?.name ?? status.nextStop?.name ?? status.nearestStop?.name
+      );
+    }
+    return status.nextStop?.name ?? status.nearestStop?.name;
+  }
+
   private async markArrivalSubscriptionAsNotified(
     subscriptionId: string,
   ): Promise<void> {
@@ -424,28 +632,29 @@ export class DashboardRealtimeService {
     payload: CreateArrivalNotificationDto,
   ): Promise<ResponseRealtimeBusDto | undefined> {
     if (payload.busId) {
-      return this.getBusRealtimeStatus(payload.busId);
+      return this.getBusRealtimeStatus(payload.busId, payload.stopId);
     }
     if (payload.routeId) {
-      const fleet = await this.getRealtimeFleet(undefined, payload.routeId);
-      const candidates = fleet.items.filter((bus) =>
-        payload.stopId ? bus.nextStop?.id === payload.stopId : true,
+      const fleet = await this.getRealtimeFleet(
+        undefined,
+        payload.routeId,
+        payload.stopId,
       );
-      if (!candidates.length) {
-        return fleet.items[0];
+      if (!fleet.items.length) {
+        return undefined;
       }
-      return candidates.reduce((best, current) => {
-        if (!best) return current;
-        if (
-          current.estimatedMinutesToNextStop === undefined ||
-          (best.estimatedMinutesToNextStop !== undefined &&
-            current.estimatedMinutesToNextStop <
-              best.estimatedMinutesToNextStop)
-        ) {
+
+      return fleet.items.reduce((best, current) => {
+        const currentEta = this.getEtaForStop(current, payload.stopId);
+        const bestEta = this.getEtaForStop(best, payload.stopId);
+        if (currentEta === undefined) {
+          return best;
+        }
+        if (bestEta === undefined) {
           return current;
         }
-        return best;
-      }, candidates[0]);
+        return currentEta < bestEta ? current : best;
+      });
     }
     return undefined;
   }
@@ -453,14 +662,16 @@ export class DashboardRealtimeService {
   private async sendArrivalEmail(
     status: ResponseRealtimeBusDto,
     subscription: NotificationSubscription,
+    etaMinutes?: number,
+    stopName?: string,
   ): Promise<boolean> {
     const subject = `Alerta de llegada: bus ${status.plate}`;
     const bodyLines = [
       `Mensaje: ${subscription.message ?? ''}`,
       `Bus: ${status.plate}`,
       `Ruta: ${status.route?.name ?? 'No disponible'}`,
-      `Paradero objetivo: ${status.nextStop?.name ?? status.nearestStop?.name ?? 'No disponible'}`,
-      `Tiempo estimado de llegada: ${status.estimatedMinutesToNextStop ?? 'Desconocido'} minutos`,
+      `Paradero objetivo: ${stopName ?? 'No disponible'}`,
+      `Tiempo estimado de llegada: ${etaMinutes ?? 'Desconocido'} minutos`,
       `Ocupación: ${status.occupancyPercent ?? 'N/A'}%`,
       `URL de seguimiento: /dashboard/realtime/bus/${status.busId}`,
     ];

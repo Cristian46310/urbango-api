@@ -27,6 +27,8 @@ import { SecurityUserClientService } from '@/users/services/security-user-client
 import { RealtimeEmitterService } from '@/realtime/services/realtime-emitter.service';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { PaginationMetaDto } from '@/shared/dto/pagination-meta.dto';
+import { GroupMembershipService } from './services/group-membership.service';
+import { GroupMembershipAction } from './enums/group-membership-action.enum';
 
 export interface ResponseLeaveGroupDto {
   groupId: string;
@@ -46,6 +48,7 @@ export class GroupsService {
     private readonly conversationMemberRepository: Repository<ConversationMember>,
     private readonly securityUserClient: SecurityUserClientService,
     private readonly realtimeEmitter: RealtimeEmitterService,
+    private readonly groupMembershipService: GroupMembershipService,
   ) {}
 
   async create(
@@ -117,6 +120,15 @@ export class GroupsService {
     const response = this.toResponse(savedGroup, savedMembers);
     this.emitMemberAddedEvents(response, uniqueMemberIds);
 
+    for (const memberId of uniqueMemberIds) {
+      await this.groupMembershipService.logMembership(
+        savedGroup.id,
+        GroupMembershipAction.ADDED,
+        creatorId,
+        memberId,
+      );
+    }
+
     return response;
   }
 
@@ -129,18 +141,18 @@ export class GroupsService {
     const skip = (page - 1) * limit;
 
     const qb = this.groupRepository
-      .createQueryBuilder('group')
-      .leftJoinAndSelect('group.members', 'members', 'members.leftAt IS NULL')
+      .createQueryBuilder('grp')
+      .leftJoinAndSelect('grp.members', 'members', 'members.leftAt IS NULL')
       .where(
-        `(group.visibility = :public OR EXISTS (
+        `(grp.visibility = :public OR EXISTS (
           SELECT 1 FROM group_members gm
-          WHERE gm.group_id = group.id
+          WHERE gm.group_id = grp.id
             AND gm.user_id = :userId
             AND gm.left_at IS NULL
         ))`,
         { public: GroupVisibility.PUBLIC, userId },
       )
-      .orderBy('group.createdAt', 'DESC')
+      .orderBy('grp.createdAt', 'DESC')
       .skip(skip)
       .take(limit);
 
@@ -161,18 +173,18 @@ export class GroupsService {
     const skip = (page - 1) * limit;
 
     const qb = this.groupRepository
-      .createQueryBuilder('group')
-      .innerJoinAndSelect('group.members', 'members', 'members.leftAt IS NULL')
+      .createQueryBuilder('grp')
+      .innerJoinAndSelect('grp.members', 'members', 'members.leftAt IS NULL')
       .where(
         `EXISTS (
           SELECT 1 FROM group_members gm
-          WHERE gm.group_id = group.id
+          WHERE gm.group_id = grp.id
             AND gm.user_id = :userId
             AND gm.left_at IS NULL
         )`,
         { userId },
       )
-      .orderBy('group.createdAt', 'DESC')
+      .orderBy('grp.createdAt', 'DESC')
       .skip(skip)
       .take(limit);
 
@@ -276,6 +288,15 @@ export class GroupsService {
     const response = this.toResponse(group, allMembers);
     this.emitMemberAddedEvents(response, newIds);
 
+    for (const memberId of newIds) {
+      await this.groupMembershipService.logMembership(
+        group.id,
+        GroupMembershipAction.ADDED,
+        requesterId,
+        memberId,
+      );
+    }
+
     return response;
   }
 
@@ -287,6 +308,8 @@ export class GroupsService {
         'Solo puedes unirte a grupos públicos. Los privados requieren invitación.',
       );
     }
+
+    await this.groupMembershipService.assertNotBlocked(groupId, userId);
 
     const existingMember = (group.members ?? []).find(
       (member) => member.userId === userId,
@@ -343,7 +366,17 @@ export class GroupsService {
       groupName: group.name,
       conversationId: group.conversationId,
       role: GroupMemberRole.MEMBER,
+      welcomeMessage: this.groupMembershipService.buildWelcomeMessage(
+        group.name,
+      ),
     });
+
+    await this.groupMembershipService.logMembership(
+      group.id,
+      GroupMembershipAction.JOINED,
+      userId,
+      userId,
+    );
 
     return response;
   }
@@ -395,6 +428,13 @@ export class GroupsService {
         userId,
       });
     }
+
+    await this.groupMembershipService.logMembership(
+      group.id,
+      GroupMembershipAction.LEFT,
+      userId,
+      userId,
+    );
 
     return { groupId: group.id, leftAt };
   }
@@ -514,6 +554,7 @@ export class GroupsService {
           joinedAt: member.joinedAt,
         }),
       ),
+      memberCount: activeMembers.length,
       createdAt: group.createdAt,
     });
   }

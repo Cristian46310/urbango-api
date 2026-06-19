@@ -203,6 +203,9 @@ export class SecurityGuard implements CanActivate {
   }
 
   private normalizeRole(role: string): string {
-    return role.trim().toUpperCase().replace(/^ROLE_/, '');
+    return role
+      .trim()
+      .toUpperCase()
+      .replace(/^ROLE_/, '');
   }
 }

@@ -1,4 +1,4 @@
-             import { Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { DashboardPeriodMonths } from '../enums/dashboard-period-months.enum';
 
 export type DashboardDateRange = {

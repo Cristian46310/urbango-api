@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Logger, OnModuleDestroy } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -11,19 +11,37 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { DashboardRealtimeService } from './dashboard-realtime.service';
+import {
+  buildBusRoom,
+  buildDashboardRoom,
+  buildFleetRoom,
+  buildNotificationRoom,
+  parseBusRoom,
+  parseDashboardRoom,
+  parseFleetRoom,
+  type BusSubscribePayload,
+  type FleetSubscribePayload,
+} from './dashboard-realtime-room.util';
 
 @WebSocketGateway({
   namespace: '/dashboard/realtime',
+  // Engine path distinto de las rutas REST (/dashboard/realtime/fleet, ...).
+  path: '/dashboard/realtime/ws',
   cors: {
     origin: true,
     credentials: true,
   },
 })
 export class DashboardRealtimeGateway
-  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+  implements
+    OnGatewayInit,
+    OnGatewayConnection,
+    OnGatewayDisconnect,
+    OnModuleDestroy
 {
   private readonly logger = new Logger(DashboardRealtimeGateway.name);
   private fleetInterval?: NodeJS.Timeout;
+  private busInterval?: NodeJS.Timeout;
   private dashboardInterval?: NodeJS.Timeout;
   private notificationInterval?: NodeJS.Timeout;
 
@@ -36,12 +54,13 @@ export class DashboardRealtimeGateway
 
   afterInit(server: Server): void {
     this.server = server;
-    void this.broadcastFleetSnapshots();
-    void this.broadcastDashboardSnapshots();
-    void this.dispatchArrivalNotifications();
 
     this.fleetInterval = setInterval(() => {
       void this.broadcastFleetSnapshots();
+    }, 10_000);
+
+    this.busInterval = setInterval(() => {
+      void this.broadcastBusSnapshots();
     }, 10_000);
 
     this.dashboardInterval = setInterval(() => {
@@ -55,6 +74,32 @@ export class DashboardRealtimeGateway
 
   handleConnection(client: Socket): void {
     this.logger.debug(`Client connected: ${client.id}`);
+    void this.registerDefaultSubscriptions(client);
+  }
+
+  private extractEnterpriseId(client: Socket): string | undefined {
+    const raw = client.handshake.query.enterpriseId;
+    return typeof raw === 'string' && raw.length > 0 ? raw : undefined;
+  }
+
+  private async registerDefaultSubscriptions(client: Socket): Promise<void> {
+    const enterpriseId = this.extractEnterpriseId(client);
+    const dashboardRoom = this.buildDashboardRoom(enterpriseId);
+    const fleetRoom = this.buildFleetRoom(enterpriseId, undefined, undefined);
+
+    await client.join(dashboardRoom);
+    await client.join(fleetRoom);
+
+    try {
+      await this.emitDashboardSnapshot(dashboardRoom, enterpriseId);
+      const fleet =
+        await this.dashboardRealtimeService.getRealtimeFleet(enterpriseId);
+      client.emit('dashboard:realtime:fleet', fleet);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to push initial realtime snapshot to ${client.id}: ${String(error)}`,
+      );
+    }
   }
 
   handleDisconnect(client: Socket): void {
@@ -64,6 +109,9 @@ export class DashboardRealtimeGateway
   onModuleDestroy(): void {
     if (this.fleetInterval) {
       clearInterval(this.fleetInterval);
+    }
+    if (this.busInterval) {
+      clearInterval(this.busInterval);
     }
     if (this.dashboardInterval) {
       clearInterval(this.dashboardInterval);
@@ -76,13 +124,18 @@ export class DashboardRealtimeGateway
   @SubscribeMessage('dashboard:subscribe-fleet')
   async subscribeFleet(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { enterpriseId?: string; routeId?: string },
+    @MessageBody() payload: FleetSubscribePayload,
   ) {
-    const room = this.buildFleetRoom(payload.enterpriseId, payload.routeId);
-    client.join(room);
+    const room = this.buildFleetRoom(
+      payload.enterpriseId,
+      payload.routeId,
+      payload.stopId,
+    );
+    await client.join(room);
     const fleet = await this.dashboardRealtimeService.getRealtimeFleet(
       payload.enterpriseId,
       payload.routeId,
+      payload.stopId,
     );
     client.emit('dashboard:realtime:fleet', fleet);
     return { subscribed: true, room };
@@ -91,12 +144,13 @@ export class DashboardRealtimeGateway
   @SubscribeMessage('dashboard:subscribe-bus')
   async subscribeBus(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { busId: string },
+    @MessageBody() payload: BusSubscribePayload,
   ) {
-    const room = this.buildBusRoom(payload.busId);
-    client.join(room);
+    const room = this.buildBusRoom(payload.busId, payload.stopId);
+    await client.join(room);
     const bus = await this.dashboardRealtimeService.getBusRealtimeStatus(
       payload.busId,
+      payload.stopId,
     );
     client.emit('dashboard:realtime:bus', bus);
     return { subscribed: true, room };
@@ -108,7 +162,7 @@ export class DashboardRealtimeGateway
     @MessageBody() payload: { enterpriseId?: string },
   ) {
     const room = this.buildDashboardRoom(payload.enterpriseId);
-    client.join(room);
+    await client.join(room);
     await this.emitDashboardSnapshot(room, payload.enterpriseId);
     return { subscribed: true, room };
   }
@@ -116,61 +170,132 @@ export class DashboardRealtimeGateway
   @SubscribeMessage('dashboard:subscribe-notifications')
   async subscribeNotifications(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { email: string },
+    @MessageBody() payload: { email?: string },
   ) {
+    if (!payload?.email) {
+      return { subscribed: false, error: 'email is required' };
+    }
     const room = this.buildNotificationRoom(payload.email);
-    client.join(room);
+    await client.join(room);
     return { subscribed: true, room };
   }
 
-  private buildFleetRoom(enterpriseId?: string, routeId?: string): string {
-    return `fleet:${enterpriseId ?? 'all'}:${routeId ?? 'all'}`;
+  private buildFleetRoom(
+    enterpriseId?: string,
+    routeId?: string,
+    stopId?: string,
+  ): string {
+    return buildFleetRoom(enterpriseId, routeId, stopId);
   }
 
-  private buildBusRoom(busId: string): string {
-    return `bus:${busId}`;
+  private buildBusRoom(busId: string, stopId?: string): string {
+    return buildBusRoom(busId, stopId);
   }
 
   private buildDashboardRoom(enterpriseId?: string): string {
-    return `dashboard:${enterpriseId ?? 'all'}`;
+    return buildDashboardRoom(enterpriseId);
   }
 
   private buildNotificationRoom(email: string): string {
-    return `notification:${email.toLowerCase()}`;
+    return buildNotificationRoom(email);
+  }
+
+  private async getActiveRooms(prefix: string): Promise<string[]> {
+    const sockets = await this.server.fetchSockets();
+    const rooms = new Set<string>();
+
+    for (const socket of sockets) {
+      for (const room of socket.rooms) {
+        if (room.startsWith(prefix) && room !== socket.id) {
+          rooms.add(room);
+        }
+      }
+    }
+
+    return [...rooms];
+  }
+
+  private parseFleetRoom(room: string): FleetSubscribePayload {
+    return parseFleetRoom(room);
+  }
+
+  private parseBusRoom(room: string): BusSubscribePayload {
+    return parseBusRoom(room);
+  }
+
+  private parseDashboardRoom(room: string): { enterpriseId?: string } {
+    return parseDashboardRoom(room);
   }
 
   private async broadcastFleetSnapshots(): Promise<void> {
-    const fleet = await this.dashboardRealtimeService.getRealtimeFleet();
-    this.server.emit('dashboard:realtime:fleet', fleet);
+    const rooms = await this.getActiveRooms('fleet:');
+    if (!rooms.length) {
+      return;
+    }
+
+    for (const room of rooms) {
+      const filters = this.parseFleetRoom(room);
+      const allItems =
+        await this.dashboardRealtimeService.getAllRealtimeFleetItems(
+          filters.enterpriseId,
+          filters.stopId,
+        );
+      const filtered = this.dashboardRealtimeService.filterFleetItems(
+        allItems,
+        {
+          enterpriseId: filters.enterpriseId,
+          routeId: filters.routeId,
+        },
+      );
+
+      let items = filtered;
+      if (filters.stopId) {
+        items = await Promise.all(
+          filtered.map(async (bus) => {
+            const detailed =
+              await this.dashboardRealtimeService.getBusRealtimeStatus(
+                bus.busId,
+                filters.stopId,
+              );
+            return detailed;
+          }),
+        );
+      }
+
+      this.server.to(room).emit('dashboard:realtime:fleet', { items });
+    }
+  }
+
+  private async broadcastBusSnapshots(): Promise<void> {
+    const rooms = await this.getActiveRooms('bus:');
+    for (const room of rooms) {
+      const { busId, stopId } = this.parseBusRoom(room);
+      if (!busId) {
+        continue;
+      }
+      const bus = await this.dashboardRealtimeService.getBusRealtimeStatus(
+        busId,
+        stopId,
+      );
+      this.server.to(room).emit('dashboard:realtime:bus', bus);
+    }
   }
 
   private async broadcastDashboardSnapshots(): Promise<void> {
-    const [fleet, incidents] = await Promise.all([
-      this.dashboardRealtimeService.getRealtimeFleet(),
-      this.dashboardRealtimeService.getActiveIncidents(),
-    ]);
-
-    this.server.emit('dashboard:realtime:summary', {
-      fleet,
-      incidents,
-      updatedAt: new Date(),
-    });
+    const rooms = await this.getActiveRooms('dashboard:');
+    for (const room of rooms) {
+      const { enterpriseId } = this.parseDashboardRoom(room);
+      await this.emitDashboardSnapshot(room, enterpriseId);
+    }
   }
 
   private async emitDashboardSnapshot(
     room: string,
     enterpriseId?: string,
   ): Promise<void> {
-    const [fleet, incidents] = await Promise.all([
-      this.dashboardRealtimeService.getRealtimeFleet(enterpriseId),
-      this.dashboardRealtimeService.getActiveIncidents(enterpriseId),
-    ]);
-
-    this.server.to(room).emit('dashboard:realtime:summary', {
-      fleet,
-      incidents,
-      updatedAt: new Date(),
-    });
+    const summary =
+      await this.dashboardRealtimeService.getDashboardSummary(enterpriseId);
+    this.server.to(room).emit('dashboard:realtime:summary', summary);
   }
 
   private async dispatchArrivalNotifications(): Promise<void> {
@@ -190,8 +315,10 @@ export class DashboardRealtimeGateway
           routeName: dispatch.status.route?.name,
           plate: dispatch.status.plate,
           etaMinutes: dispatch.etaMinutes,
-          nextStopName: dispatch.nextStopName,
+          stopName: dispatch.stopName,
           status: dispatch.status,
+          trackingPath: `/dashboard/realtime/bus/${dispatch.status.busId}`,
+          paymentActionPath: '/payment-method-citizen',
         });
     }
   }

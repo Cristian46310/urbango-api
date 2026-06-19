@@ -10,6 +10,21 @@ export interface GroupMemberAddedPayload {
   groupName: string;
   conversationId: string;
   role: GroupMemberRole;
+  welcomeMessage?: string;
+}
+
+export interface GroupMemberRemovedPayload {
+  groupId: string;
+  groupName: string;
+  conversationId: string;
+  reason?: string;
+}
+
+export interface GroupMemberPromotedPayload {
+  groupId: string;
+  groupName: string;
+  conversationId: string;
+  role: GroupMemberRole;
 }
 
 export interface GroupMemberLeftPayload {
@@ -75,6 +90,20 @@ export class RealtimeEmitterService {
     payload: GroupMemberLeftPayload,
   ): void {
     this.gateway?.emitToUser(adminUserId, ChatEvent.GROUP_MEMBER_LEFT, payload);
+  }
+
+  emitGroupMemberRemoved(
+    userId: string,
+    payload: GroupMemberRemovedPayload,
+  ): void {
+    this.gateway?.emitToUser(userId, ChatEvent.GROUP_MEMBER_REMOVED, payload);
+  }
+
+  emitGroupMemberPromoted(
+    userId: string,
+    payload: GroupMemberPromotedPayload,
+  ): void {
+    this.gateway?.emitToUser(userId, ChatEvent.GROUP_MEMBER_PROMOTED, payload);
   }
 
   async removeUserFromConversation(

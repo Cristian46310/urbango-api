@@ -70,10 +70,12 @@ export class GpsService {
       existing.longitude = longitude;
       existing.updatedAt = new Date();
       const saved = await this.gpsRepository.save(existing);
+      await this.attachGpsToBus(busId, saved.id);
       return this.toResponse(saved);
     }
 
-    return this.create(busId, { latitude, longitude });
+    const created = await this.create(busId, { latitude, longitude });
+    return created;
   }
 
   async create(busId: string, dto: CreateGpsDto): Promise<ResponseGpsDto> {
@@ -99,7 +101,12 @@ export class GpsService {
     });
 
     const saved = await this.gpsRepository.save(gps);
+    await this.attachGpsToBus(busId, saved.id);
     return this.toResponse(saved);
+  }
+
+  private async attachGpsToBus(busId: string, gpsId: string): Promise<void> {
+    await this.busRepository.update(busId, { gps: { id: gpsId } });
   }
 
   async findAll(

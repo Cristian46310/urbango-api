@@ -3,21 +3,7 @@ import { Expose } from 'class-transformer';
 import { GroupVisibility } from '../enums/group-visibility.enum';
 import { GroupMemberRole } from '../enums/group-member-role.enum';
 
-export class ResponseGroupMemberDto {
-  @ApiProperty()
-  @Expose()
-  userId!: string;
-
-  @ApiProperty({ enum: GroupMemberRole })
-  @Expose()
-  role!: GroupMemberRole;
-
-  @ApiProperty()
-  @Expose()
-  joinedAt!: Date;
-}
-
-export class ResponseGroupDto {
+export class ResponseGroupDetailDto {
   @ApiProperty()
   @Expose()
   id!: string;
@@ -46,13 +32,17 @@ export class ResponseGroupDto {
   @Expose()
   conversationId!: string;
 
-  @ApiProperty({ type: [ResponseGroupMemberDto] })
+  @ApiProperty()
   @Expose()
-  members!: ResponseGroupMemberDto[];
+  memberCount!: number;
 
-  @ApiPropertyOptional()
+  @ApiProperty()
   @Expose()
-  memberCount?: number;
+  isMember!: boolean;
+
+  @ApiPropertyOptional({ enum: GroupMemberRole })
+  @Expose()
+  myRole?: GroupMemberRole;
 
   @ApiProperty()
   @Expose()

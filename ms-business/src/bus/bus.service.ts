@@ -10,6 +10,7 @@ import { UpdateBusDto } from './dto/update-bus.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Bus } from './entities/bus.entity';
+import { Gps } from '@/gps/entities/gps.entity';
 import { Enterprise } from '@/enterprise/entities/enterprise.entity';
 import { Driver } from '@/driver/entities/driver.entity';
 import { plainToInstance } from 'class-transformer';
@@ -110,31 +111,44 @@ export class BusService {
   }
 
   async findAllWithGpsAndSchedules(enterpriseId?: string) {
-    return this.busRepository.find({
-      where: enterpriseId ? { enterprise: { id: enterpriseId } } : {},
-      relations: [
+    const qb = this.busRepository
+      .createQueryBuilder('bus')
+      .leftJoinAndMapOne(
+        'bus.gps',
+        Gps,
         'gps',
-        'turns',
-        'schedulers',
-        'schedulers.route',
-        'schedulers.route.nodes',
-        'schedulers.route.nodes.stop',
-      ],
-    });
+        'gps.id = bus.gps_id OR gps."busId" = bus.id',
+      )
+      .leftJoinAndSelect('bus.turns', 'turns')
+      .leftJoinAndSelect('bus.schedulers', 'schedulers')
+      .leftJoinAndSelect('schedulers.route', 'route')
+      .leftJoinAndSelect('route.nodes', 'nodes')
+      .leftJoinAndSelect('nodes.stop', 'stop');
+
+    if (enterpriseId) {
+      qb.andWhere('bus.enterprise_id = :enterpriseId', { enterpriseId });
+    }
+
+    return qb.getMany();
   }
 
   async findOneWithGpsAndSchedules(id: string) {
-    const bus = await this.busRepository.findOne({
-      where: { id },
-      relations: [
+    const bus = await this.busRepository
+      .createQueryBuilder('bus')
+      .leftJoinAndMapOne(
+        'bus.gps',
+        Gps,
         'gps',
-        'turns',
-        'schedulers',
-        'schedulers.route',
-        'schedulers.route.nodes',
-        'schedulers.route.nodes.stop',
-      ],
-    });
+        'gps.id = bus.gps_id OR gps."busId" = bus.id',
+      )
+      .leftJoinAndSelect('bus.turns', 'turns')
+      .leftJoinAndSelect('bus.schedulers', 'schedulers')
+      .leftJoinAndSelect('schedulers.route', 'route')
+      .leftJoinAndSelect('route.nodes', 'nodes')
+      .leftJoinAndSelect('nodes.stop', 'stop')
+      .where('bus.id = :id', { id })
+      .getOne();
+
     if (!bus) throw new NotFoundException(`Bus ${id} not found`);
     return bus;
   }
