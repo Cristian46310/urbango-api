@@ -8,7 +8,12 @@ import {
   Post,
   Body,
   Param,
+  BadRequestException,
 } from '@nestjs/common';
+import { Authenticated } from '@/auth/decorators/authenticated.decorator';
+import { Roles } from '@/auth/decorators/roles.decorator';
+import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import type { JwtPayload } from '@/auth/types';
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -29,9 +34,20 @@ import { ResponseIncidentTrendByTypeDto } from './dto/response-incident-trend-by
 import { AgeDistributionResponseDto } from './dto/age-distribution-response.dto';
 import { ResponseRealtimeBusListDto } from './dto/response-realtime-bus-list.dto';
 import { ResponseRealtimeBusDto } from './dto/response-realtime-bus.dto';
+import { ResponseRealtimeSummaryDto } from './dto/response-realtime-summary.dto';
 import { ResponseIncidentDto } from '@/incident/dto/response-incident.dto';
 import { CreateArrivalNotificationDto } from './dto/create-arrival-notification.dto';
 import { DashboardPeriodMonths } from './enums/dashboard-period-months.enum';
+
+const SUPERVISOR_ROLES = [
+  'ADMIN',
+  'ADMIN_BUS',
+  'BUSINESS_ADMIN',
+  'SUPERVISER',
+  'SUPERVISOR',
+] as const;
+
+const REALTIME_ROLES = ['CITIZEN', ...SUPERVISOR_ROLES] as const;
 
 @ApiTags('dashboard')
 @ApiBearerAuth()
@@ -44,7 +60,24 @@ export class DashboardController {
     private readonly dashboardRealtimeService: DashboardRealtimeService,
   ) {}
 
+  @Get('realtime/summary')
+  @Authenticated()
+  @Roles(...SUPERVISOR_ROLES)
+  @ApiOperation({
+    summary: 'Resumen del panel en tiempo real',
+    description:
+      'Agrega flota, incidentes activos, total de pasajeros en tránsito y alertas de buses con ocupación máxima.',
+  })
+  @ApiOkResponse({ type: ResponseRealtimeSummaryDto })
+  getRealtimeSummary(
+    @Query('enterpriseId') enterpriseId?: string,
+  ): Promise<ResponseRealtimeSummaryDto> {
+    return this.dashboardRealtimeService.getDashboardSummary(enterpriseId);
+  }
+
   @Get('realtime/fleet')
+  @Authenticated()
+  @Roles(...REALTIME_ROLES)
   @ApiOperation({
     summary: 'Estado de la flota en tiempo real',
     description:
@@ -54,14 +87,18 @@ export class DashboardController {
   getRealtimeFleet(
     @Query('enterpriseId') enterpriseId?: string,
     @Query('routeId') routeId?: string,
+    @Query('stopId') stopId?: string,
   ): Promise<ResponseRealtimeBusListDto> {
     return this.dashboardRealtimeService.getRealtimeFleet(
       enterpriseId,
       routeId,
+      stopId,
     );
   }
 
   @Get('realtime/incidents')
+  @Authenticated()
+  @Roles(...SUPERVISOR_ROLES)
   @ApiOperation({
     summary: 'Lista de incidentes activos',
     description:
@@ -73,6 +110,8 @@ export class DashboardController {
   }
 
   @Get('realtime/bus/:id')
+  @Authenticated()
+  @Roles(...REALTIME_ROLES)
   @ApiOperation({
     summary: 'Estado en tiempo real de un bus específico',
     description:
@@ -81,22 +120,40 @@ export class DashboardController {
   @ApiOkResponse({ type: ResponseRealtimeBusDto })
   getBusRealtimeStatus(
     @Param('id') id: string,
+    @Query('stopId') stopId?: string,
   ): Promise<ResponseRealtimeBusDto> {
-    return this.dashboardRealtimeService.getBusRealtimeStatus(id);
+    return this.dashboardRealtimeService.getBusRealtimeStatus(id, stopId);
   }
 
   @Post('realtime/arrival-notification')
+  @Authenticated()
+  @Roles(...REALTIME_ROLES)
   @ApiOperation({
     summary: 'Crear notificación de llegada para un bus o ruta',
     description:
       'Registra una suscripción y envía la alerta cuando el bus está dentro de los minutos de anticipación configurados.',
   })
   @ApiOkResponse({ type: Object })
-  sendArrivalNotification(@Body() payload: CreateArrivalNotificationDto) {
-    return this.dashboardRealtimeService.sendArrivalNotification(payload);
+  sendArrivalNotification(
+    @Body() payload: CreateArrivalNotificationDto,
+    @CurrentUser() currentUser: JwtPayload,
+  ) {
+    const email = payload.email ?? currentUser.email;
+    if (!email) {
+      throw new BadRequestException(
+        'Se requiere email en el cuerpo o en el token JWT',
+      );
+    }
+
+    return this.dashboardRealtimeService.sendArrivalNotification({
+      ...payload,
+      email,
+    });
   }
 
   @Get('payment-method-income')
+  @Authenticated()
+  @Roles(...SUPERVISOR_ROLES)
   @ApiOperation({
     summary: 'Ingresos por método de pago (evolución mensual)',
     description:
@@ -113,6 +170,8 @@ export class DashboardController {
   }
 
   @Get('payment-method-income/export')
+  @Authenticated()
+  @Roles(...SUPERVISOR_ROLES)
   @ApiOperation({
     summary: 'Exportar ingresos por método de pago (CSV)',
   })
@@ -135,6 +194,8 @@ export class DashboardController {
   }
 
   @Get('incident-trend-by-type')
+  @Authenticated()
+  @Roles(...SUPERVISOR_ROLES)
   @ApiOperation({
     summary: 'Evolución mensual de incidentes por tipo',
     description:
@@ -152,6 +213,8 @@ export class DashboardController {
   }
 
   @Get('incident-trend-by-type/export')
+  @Authenticated()
+  @Roles(...SUPERVISOR_ROLES)
   @ApiOperation({
     summary: 'Exportar evolución de incidentes por tipo (CSV)',
   })
@@ -178,6 +241,8 @@ export class DashboardController {
   }
 
   @Get('passengers/age-distribution')
+  @Authenticated()
+  @Roles(...SUPERVISOR_ROLES)
   @ApiOperation({
     summary: 'Distribución porcentual de pasajeros por rango etario',
     description:
@@ -192,6 +257,8 @@ export class DashboardController {
   }
 
   @Get('passengers/age-distribution/export/excel')
+  @Authenticated()
+  @Roles(...SUPERVISOR_ROLES)
   @ApiOperation({
     summary: 'Exportar distribución etaria (Excel)',
   })

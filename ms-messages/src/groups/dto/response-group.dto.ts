@@ -50,6 +50,10 @@ export class ResponseGroupDto {
   @Expose()
   members!: ResponseGroupMemberDto[];
 
+  @ApiPropertyOptional()
+  @Expose()
+  memberCount?: number;
+
   @ApiProperty()
   @Expose()
   createdAt!: Date;

@@ -15,6 +15,7 @@ import { TicketModule } from '@/ticket/ticket.module';
 import { IncidentModule } from '@/incident/incident.module';
 import { StopModule } from '@/stop/stop.module';
 import { NotificationSubscription } from './entities/notification-subscription.entity';
+import { DashboardRealtimeGateway } from './services/dashboard-realtime.gateway';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { NotificationSubscription } from './entities/notification-subscription.e
     IncidentTrendByTypeService,
     PassengerAgeDistributionService,
     DashboardRealtimeService,
+    DashboardRealtimeGateway,
   ],
 })
 export class DashboardModule {}

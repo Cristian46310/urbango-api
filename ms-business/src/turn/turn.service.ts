@@ -194,6 +194,37 @@ export class TurnService {
     };
   }
 
+  async updateGpsPosition(
+    driverId: string,
+    latitude: number,
+    longitude: number,
+  ) {
+    const activeTurn = await this.turnRepository.findOne({
+      where: {
+        driver: { id: driverId },
+        status: TurnStatus.IN_PROGRESS,
+      },
+      relations: ['bus'],
+      order: { actualStartTime: 'DESC', startTime: 'DESC' },
+    });
+
+    if (!activeTurn) {
+      throw new NotFoundException(
+        'No hay turno en progreso para actualizar la posición GPS',
+      );
+    }
+
+    if (!activeTurn.bus) {
+      throw new BadRequestException('El turno activo no tiene bus asignado');
+    }
+
+    return this.gpsService.upsertBusPosition(
+      activeTurn.bus.id,
+      latitude,
+      longitude,
+    );
+  }
+
   async update(id: string, updateTurnDto: UpdateTurnDto) {
     if (updateTurnDto.busId) {
       const bus = await this.busRepository.findOne({

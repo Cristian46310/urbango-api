@@ -1,24 +1,45 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsEmail,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 
 export class CreateArrivalNotificationDto {
-  @ApiProperty({ example: 'usuario@example.com' })
-  email!: string;
+  @ApiPropertyOptional({ example: 'usuario@example.com' })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
 
   @ApiPropertyOptional({ example: 'route-uuid' })
+  @IsOptional()
+  @IsUUID()
   routeId?: string;
 
   @ApiPropertyOptional({ example: 'bus-uuid' })
+  @IsOptional()
+  @IsUUID()
   busId?: string;
 
-  @ApiProperty({ example: 'stop-uuid', required: false })
+  @ApiPropertyOptional({ example: 'stop-uuid' })
+  @IsOptional()
+  @IsUUID()
   stopId?: string;
 
-  @ApiPropertyOptional({ example: 10 })
+  @ApiPropertyOptional({ example: 10, enum: [5, 10, 15] })
+  @IsOptional()
+  @IsInt()
+  @IsIn([5, 10, 15])
   anticipationMinutes?: number;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example:
       'Quiero recibir una alerta cuando el bus esté próximo al paradero.',
   })
-  message!: string;
+  @IsOptional()
+  @IsString()
+  message?: string;
 }

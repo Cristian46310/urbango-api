@@ -12,11 +12,23 @@ export class ResponseRealtimeBusDto {
   @ApiProperty({ example: 'operativo' })
   status!: string;
 
+  @ApiProperty({ example: 4.749, description: 'Alias de latitude para el frontend' })
+  lat!: number;
+
+  @ApiProperty({ example: -74.0695, description: 'Alias de longitude para el frontend' })
+  lng!: number;
+
   @ApiProperty({ example: 4.749 })
   latitude!: number;
 
   @ApiProperty({ example: -74.0695 })
   longitude!: number;
+
+  @ApiProperty({ example: 'route-uuid', required: false })
+  routeId?: string;
+
+  @ApiProperty({ example: 'Ruta 12', required: false })
+  routeName?: string;
 
   @ApiProperty({ example: '2026-06-02T12:34:56.789Z' })
   updatedAt!: Date;
@@ -44,6 +56,14 @@ export class ResponseRealtimeBusDto {
 
   @ApiProperty({ example: 8, required: false })
   estimatedMinutesToNextStop?: number;
+
+  @ApiProperty({
+    example: 12,
+    required: false,
+    description:
+      'ETA al paradero de espera del ciudadano (cuando se envía stopId)',
+  })
+  estimatedMinutesToWaitingStop?: number;
 
   @ApiProperty({ example: 23 })
   activePassengers!: number;

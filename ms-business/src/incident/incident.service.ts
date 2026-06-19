@@ -264,7 +264,7 @@ export class IncidentService {
       .innerJoin('incident.incidentBuses', 'ib', 'ib.bus_id = :busId', {
         busId,
       })
-      .andWhere('incident.status != :closed', { closed: 'CLOSED' })
+      .andWhere('incident.status != :closed', { closed: IncidentStatus.CLOSED })
       .getCount();
   }
 
@@ -276,7 +276,7 @@ export class IncidentService {
       .leftJoinAndSelect('incident.incidentBuses', 'incidentBuses')
       .leftJoinAndSelect('incidentBuses.bus', 'bus')
       .leftJoinAndSelect('incidentBuses.photos', 'photos')
-      .where('incident.status != :closed', { closed: 'CLOSED' });
+      .where('incident.status != :closed', { closed: IncidentStatus.CLOSED });
 
     if (enterpriseId) {
       query.innerJoin('bus.enterprise', 'enterprise');

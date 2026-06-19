@@ -8,6 +8,8 @@ Microservicio NestJS de mensajería (UCaldas). Puerto **3001**.
 - **HU-ENTR-3-006**: creación de grupos de interés, miembros, unirse a grupos públicos, ícono. Solo **ciudadanos con perfil registrado** en PostgreSQL (`persons`, `type=citizen`).
 - **HU-ENTR-3-005**: envío de mensajes a uno o varios grupos, historial grupal, lecturas, eliminación por admin. Solo **conductores registrados** (`persons`, `type=driver`) pueden enviar a grupos.
 - **HU-ENTR-3-008**: alertas masivas (admin): alcance todos/ruta/zona, urgente con push WebSocket, envío programado, contador de destinatarios, estadísticas de lectura. Comunicación unidireccional (`canReply: false`).
+- **HU-ENTR-3-009**: directorio de grupos públicos, búsqueda, detalle, unirse con notificación de bienvenida vía WebSocket.
+- **HU-ENTR-3-010**: administración de miembros (listar, buscar, promover, remover, bloquear, log de auditoría).
 
 ## Requisitos
 
@@ -67,8 +69,18 @@ socket.on('message:deleted', ({ messageId, conversationId }) => {
   removeFromChat(messageId);
 });
 
-socket.on('group:member_added', ({ conversationId }) => {
+socket.on('group:member_added', ({ conversationId, welcomeMessage }) => {
+  if (welcomeMessage) showToast(welcomeMessage);
   socket.emit('conversation:join', { conversationId });
+});
+
+socket.on('group:member_removed', ({ groupId, groupName, reason }) => {
+  showToast(`Fuiste removido de ${groupName}`);
+  removeGroupFromUI(groupId);
+});
+
+socket.on('group:member_promoted', ({ groupId, role }) => {
+  if (role === 'admin') showToast('Fuiste promovido a administrador');
 });
 ```
 
@@ -87,7 +99,10 @@ socket.emit('conversation:join', { conversationId: '<uuid>' });
 | `message:new` | Mensaje directo o grupal (todos los miembros de la conversación) |
 | `message:read` | Alguien marca leído |
 | `message:deleted` | Admin elimina mensaje grupal |
-| `group:member_added` | Te agregan a un grupo |
+| `group:member_added` | Te agregan o te unes a un grupo (`welcomeMessage?` opcional) |
+| `group:member_left` | Un admin recibe aviso de que alguien salió o fue removido |
+| `group:member_removed` | Fuiste removido (y opcionalmente bloqueado) de un grupo |
+| `group:member_promoted` | Tu rol en el grupo cambió (p. ej. promovido a admin) |
 | `alert:new` | Alerta masiva no urgente (bandeja del usuario) |
 | `alert:push` | Alerta masiva **urgente** — push inmediato al usuario conectado |
 
@@ -113,6 +128,45 @@ socket.emit('conversation:join', { conversationId: '<uuid>' });
 | POST | `/groups/:id/icon` | Actualizar ícono (admin) | Ciudadano registrado |
 
 **Ciudadano registrado** = fila en `persons` con `type=citizen` y `user_id` = id del JWT (misma BD que ms-business). Conductores u otros perfiles reciben **403**.
+
+## Endpoints grupos públicos (HU-009)
+
+| Método | Ruta | Descripción | Restricción |
+|--------|------|-------------|-------------|
+| GET | `/groups/public?q=&page=&limit=` | Directorio de grupos **solo públicos** con búsqueda por nombre/descripción y `memberCount` | JWT |
+| GET | `/groups/:id` | Detalle del grupo (descripción completa, `isMember`, `myRole`, `memberCount`) | JWT; privados solo si eres miembro |
+| POST | `/groups/:id/join` | Unirse a grupo público (existente HU-006; ahora valida bloqueos y emite `welcomeMessage`) | Ciudadano registrado |
+
+Respuesta resumen pública (`GET /groups/public`):
+
+```json
+{
+  "items": [
+    {
+      "id": "uuid",
+      "name": "Transporte zona norte",
+      "description": "...",
+      "memberCount": 12,
+      "iconUrl": null,
+      "isMember": false
+    }
+  ],
+  "meta": { "page": 1, "limit": 10, "totalItems": 1, "totalPages": 1, "hasNextPage": false, "hasPreviousPage": false }
+}
+```
+
+## Endpoints administración de miembros (HU-010)
+
+Solo **administradores del grupo** (`role=admin` en `group_members`).
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/groups/:id/members?q=&page=&limit=` | Lista miembros con nombre, email, rol y fecha de unión |
+| PATCH | `/groups/:id/members/:userId/role` | Promover/degradar (`{ "role": "admin" \| "member" }`) |
+| DELETE | `/groups/:id/members/:userId?block=true&reason=` | Remover miembro; `block=true` impide reingreso |
+| GET | `/groups/:id/membership-log?page=&limit=` | Log de auditoría (joined, left, added, removed, promoted, demoted, blocked) |
+
+Acciones registradas en `group_membership_logs`. Usuarios bloqueados en `group_blocked_users` no pueden usar `POST /groups/:id/join`.
 
 ## Endpoints mensajes grupales (HU-005)
 
@@ -151,4 +205,4 @@ Ejecutar migraciones:
 pnpm run migration:run
 ```
 
-Incluye `1749571200000-InitDirectMessages`, `1749571300000-InitGroups`, `1749571400000-AddMessageSoftDelete`, `1749571500000-InitMassAlerts` y `1749571600000-NormalizeMassAlertScope`.
+Incluye `1749571200000-InitDirectMessages`, `1749571300000-InitGroups`, `1749571400000-AddMessageSoftDelete`, `1749571500000-InitMassAlerts`, `1749571600000-NormalizeMassAlertScope` y `1749571700000-GroupMembershipAdmin` (bloqueos + log de membresía).

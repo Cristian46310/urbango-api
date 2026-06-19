@@ -88,6 +88,7 @@ export class IncidentTrendByTypeService {
           {
             type,
             typeLabel: INCIDENT_TYPE_LABELS[type],
+            label: INCIDENT_TYPE_LABELS[type],
             data,
             total,
           },

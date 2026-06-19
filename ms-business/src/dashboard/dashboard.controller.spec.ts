@@ -27,7 +27,9 @@ describe('DashboardController', () => {
         {
           provide: DashboardRealtimeService,
           useValue: {
+            getDashboardSummary: jest.fn(),
             getRealtimeFleet: jest.fn(),
+            getActiveIncidents: jest.fn(),
             getBusRealtimeStatus: jest.fn(),
             sendArrivalNotification: jest.fn(),
           },
@@ -40,5 +42,16 @@ describe('DashboardController', () => {
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  it('delegates realtime summary to DashboardRealtimeService', async () => {
+    const summary = { totalPassengersInTransit: 5 };
+    const service = controller['dashboardRealtimeService'] as {
+      getDashboardSummary: jest.Mock;
+    };
+    service.getDashboardSummary.mockResolvedValue(summary);
+
+    await expect(controller.getRealtimeSummary('ent-1')).resolves.toBe(summary);
+    expect(service.getDashboardSummary).toHaveBeenCalledWith('ent-1');
   });
 });

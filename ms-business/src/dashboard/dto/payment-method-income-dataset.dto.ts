@@ -11,6 +11,13 @@ export class PaymentMethodIncomeDatasetDto {
   paymentMethodName!: string;
 
   @ApiProperty({
+    example: 'Tarjeta debito',
+    description: 'Alias para librerias de graficos que esperan dataset.label',
+  })
+  @Expose()
+  label!: string;
+
+  @ApiProperty({
     example: [120000, 98000, 0],
     description: 'Ingresos por mes, alineados con labels',
   })
