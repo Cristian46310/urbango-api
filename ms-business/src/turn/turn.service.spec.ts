@@ -64,7 +64,9 @@ describe('TurnService', () => {
 
   it('starts the current scheduled turn', async () => {
     turnRepository.findOne.mockResolvedValue({ ...scheduledTurn });
-    turnRepository.save.mockImplementation((turn: Turn) => Promise.resolve(turn));
+    turnRepository.save.mockImplementation((turn: Turn) =>
+      Promise.resolve(turn),
+    );
 
     const result = await service.startTurn('driver-1', {
       busStatus: 'operativo',

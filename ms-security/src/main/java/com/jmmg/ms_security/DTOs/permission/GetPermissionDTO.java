@@ -11,6 +11,6 @@ public record GetPermissionDTO(
         if (permission == null) {
             return null;
         }
-        return new GetPermissionDTO(permission.getId(), permission.getUrl(), permission.getMethod());
+        return new GetPermissionDTO(permission.getIdAsString(), permission.getUrl(), permission.getMethod());
     }
 }

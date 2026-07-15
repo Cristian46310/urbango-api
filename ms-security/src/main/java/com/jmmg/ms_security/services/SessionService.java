@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class SessionService {
@@ -22,7 +23,7 @@ public class SessionService {
     }
 
     public GetSessionDTO findById(String id) {
-        Session session = this.sessionRepository.findById(id).orElse(null);
+        Session session = this.sessionRepository.findById(UUID.fromString(id)).orElse(null);
         return GetSessionDTO.fromModel(session);
     }
 
@@ -33,7 +34,7 @@ public class SessionService {
     }
 
     public GetSessionDTO update(String id, PostSessionDTO postSessionDTO) {
-        Session actualSession = this.sessionRepository.findById(id).orElse(null);
+        Session actualSession = this.sessionRepository.findById(UUID.fromString(id)).orElse(null);
 
         if (actualSession != null) {
             actualSession.updateFromDTO(postSessionDTO);
@@ -45,7 +46,7 @@ public class SessionService {
     }
 
     public void delete(String id) {
-        Session theSession = this.sessionRepository.findById(id).orElse(null);
+        Session theSession = this.sessionRepository.findById(UUID.fromString(id)).orElse(null);
         if (theSession != null) {
             this.sessionRepository.delete(theSession);
         }

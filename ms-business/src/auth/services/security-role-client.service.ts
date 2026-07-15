@@ -2,7 +2,7 @@ import { BadGatewayException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 
-/** Claves de perfil → rol en ms-security (MongoDB ObjectId vía env). */
+/** Claves de perfil → nombre de rol en ms-security. */
 export const SecurityProfileRole = {
   CITIZEN: 'citizen',
   DRIVER: 'driver',
@@ -11,59 +11,60 @@ export const SecurityProfileRole = {
 export type SecurityProfileRole =
   (typeof SecurityProfileRole)[keyof typeof SecurityProfileRole];
 
+const ROLE_NAME_BY_PROFILE: Record<SecurityProfileRole, string> = {
+  [SecurityProfileRole.CITIZEN]: 'CITIZEN',
+  [SecurityProfileRole.DRIVER]: 'DRIVER',
+};
+
 @Injectable()
 export class SecurityRoleClientService {
   private readonly logger = new Logger(SecurityRoleClientService.name);
   private readonly securityServiceUrl: string;
+  private readonly internalKey: string;
 
   constructor(private readonly configService: ConfigService) {
     this.securityServiceUrl =
       this.configService.get<string>('MS_SECURITY_URL') ??
       'http://localhost:8080';
+    this.internalKey =
+      this.configService.get<string>('MS_SECURITY_INTERNAL_KEY')?.trim() ?? '';
   }
 
   /**
-   * Agrega un rol al usuario por ID (ms-security addUserRole), sin quitar los existentes.
+   * Agrega un rol al usuario por nombre (endpoint interno ms-security).
+   * Idempotente: si el user ya nació con CITIZEN, no falla.
    */
   async assignProfileRole(
     userId: string,
     profileRole: SecurityProfileRole,
   ): Promise<void> {
-    const roleId = this.resolveRoleId(profileRole);
-    await this.assignRoleById(userId, roleId, profileRole);
+    const roleName = ROLE_NAME_BY_PROFILE[profileRole];
+    await this.assignRoleByName(userId, roleName, profileRole);
   }
 
-  private resolveRoleId(profileRole: SecurityProfileRole): string {
-    const envKey =
-      profileRole === SecurityProfileRole.CITIZEN
-        ? 'MS_SECURITY_ROLE_CITIZEN_ID'
-        : 'MS_SECURITY_ROLE_DRIVER_ID';
-
-    const roleId = this.configService.get<string>(envKey)?.trim();
-
-    if (!roleId) {
+  private async assignRoleByName(
+    userId: string,
+    roleName: string,
+    profileRole: SecurityProfileRole,
+  ): Promise<void> {
+    if (!this.internalKey) {
       throw new BadGatewayException(
-        `Falta configurar ${envKey} en el entorno de ms-business.`,
+        'Falta configurar MS_SECURITY_INTERNAL_KEY en el entorno de ms-business.',
       );
     }
 
-    return roleId;
-  }
-
-  private async assignRoleById(
-    userId: string,
-    roleId: string,
-    profileRole: SecurityProfileRole,
-  ): Promise<void> {
     try {
       await axios.post(
-        `${this.securityServiceUrl}/api/public/user-role/user/${userId}/role/${roleId}`,
+        `${this.securityServiceUrl}/api/internal/user-role/user/${userId}/role-name/${roleName}`,
         null,
-        { timeout: 30000 },
+        {
+          timeout: 30000,
+          headers: { 'X-Internal-Key': this.internalKey },
+        },
       );
     } catch (error) {
       this.logger.error(
-        `Failed to assign role ${roleId} (${profileRole}) to user ${userId}: ${String(error)}`,
+        `Failed to assign role ${roleName} (${profileRole}) to user ${userId}: ${String(error)}`,
       );
       throw new BadGatewayException(
         `No se pudo asignar el rol del perfil (${profileRole}). El perfil se creó; vuelve a intentar o contacta al administrador.`,

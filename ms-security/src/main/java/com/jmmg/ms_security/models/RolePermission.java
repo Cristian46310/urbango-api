@@ -1,26 +1,31 @@
 package com.jmmg.ms_security.models;
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.index.CompoundIndexes;
-import org.springframework.data.mongodb.core.mapping.DBRef;
-import org.springframework.data.mongodb.core.mapping.Document;
+import java.util.UUID;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import lombok.Data;
 
 @Data
-@Document
-@CompoundIndexes({
-    @CompoundIndex(name = "role_permission_unique_idx", def = "{'permission.$id': 1, 'role.$id': 1}", unique = true),
-    @CompoundIndex(name = "permission_idx", def = "{'permission.$id': 1}"),
-    @CompoundIndex(name = "role_idx", def = "{'role.$id': 1}")
-}) // indexes para mejorar el rendimiento de las consultas y garantizar la unicidad de la relación
+@Entity
+@Table(name = "role_permissions", schema = "security")
 public class RolePermission {
     @Id
-    private String id;
-    @DBRef
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "role_id", nullable = false)
     private Role role;
-    @DBRef
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "permission_id", nullable = false)
     private Permission permission;
 
     public RolePermission() {
@@ -29,5 +34,13 @@ public class RolePermission {
     public RolePermission(Role role, Permission permission) {
         this.role = role;
         this.permission = permission;
+    }
+
+    public String getIdAsString() {
+        return id == null ? null : id.toString();
+    }
+
+    public void setIdFromString(String id) {
+        this.id = id == null || id.isBlank() ? null : UUID.fromString(id);
     }
 }

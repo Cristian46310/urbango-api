@@ -1,17 +1,23 @@
 package com.jmmg.ms_security.repositories;
 
+import java.util.UUID;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.jmmg.ms_security.models.User;
 
-public interface IUserRepository extends MongoRepository<User, String> {
+public interface IUserRepository extends JpaRepository<User, UUID> {
 
-    @Query("{'email': ?0}")
     User findByEmail(String email);
 
-    @Query("{ $or: [ { 'name': { $regex: ?0, $options: 'i' } }, { 'email': { $regex: ?0, $options: 'i' } } ] }")
-    Page<User> searchByNameOrEmail(String query, Pageable pageable);
+    @Query("""
+            SELECT u FROM User u
+            WHERE LOWER(u.name) LIKE LOWER(CONCAT('%', :query, '%'))
+               OR LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%'))
+            """)
+    Page<User> searchByNameOrEmail(@Param("query") String query, Pageable pageable);
 }

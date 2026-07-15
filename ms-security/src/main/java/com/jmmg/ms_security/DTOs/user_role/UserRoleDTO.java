@@ -12,9 +12,9 @@ public record UserRoleDTO(
 			return null;
 		}
 		return new UserRoleDTO(
-			userRole.getId(),
-			userRole.getUser() != null ? userRole.getUser().getId() : null,
-			userRole.getRole() != null ? userRole.getRole().getId() : null
+			userRole.getIdAsString(),
+			userRole.getUser() != null ? userRole.getUser().getIdAsString() : null,
+			userRole.getRole() != null ? userRole.getRole().getIdAsString() : null
 		);
 	}
 

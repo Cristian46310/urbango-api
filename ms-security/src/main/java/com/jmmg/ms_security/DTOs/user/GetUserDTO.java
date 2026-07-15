@@ -15,7 +15,7 @@ public record GetUserDTO(
         if (user == null) {
             return null;
         }
-        return new GetUserDTO(user.getId(), user.getName(), user.getEmail(), null);
+        return new GetUserDTO(user.getIdAsString(), user.getName(), user.getEmail(), null);
     }
 
     public static GetUserDTO fromModelWithRoles(User user, List<RoleSummaryDTO> roles) {
@@ -23,7 +23,7 @@ public record GetUserDTO(
             return null;
         }
         return new GetUserDTO(
-                user.getId(),
+                user.getIdAsString(),
                 user.getName(),
                 user.getEmail(),
                 roles);

@@ -11,6 +11,6 @@ public record GetUserListDTO(
         if (user == null) {
             return null;
         }
-        return new GetUserListDTO(user.getId(), user.getName(), user.getEmail());
+        return new GetUserListDTO(user.getIdAsString(), user.getName(), user.getEmail());
     }
 }

@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class RoleService {
@@ -33,7 +34,7 @@ public class RoleService {
     }
 
     public GetRoleDTO findById(String id) {
-        Role role = this.roleRepository.findById(id).orElse(null);
+        Role role = this.roleRepository.findById(UUID.fromString(id)).orElse(null);
         return this.toGetRoleDTO(role);
     }
 
@@ -44,7 +45,7 @@ public class RoleService {
     }
 
     public GetRoleDTO update(String id, PostRoleDTO postRoleDTO) {
-        Role actualRole = this.roleRepository.findById(id).orElse(null);
+        Role actualRole = this.roleRepository.findById(UUID.fromString(id)).orElse(null);
 
         if (actualRole != null) {
             actualRole.updateFromDTO(postRoleDTO);
@@ -56,7 +57,7 @@ public class RoleService {
     }
 
     public void delete(String id) {
-        Role theRole = this.roleRepository.findById(id).orElse(null);
+        Role theRole = this.roleRepository.findById(UUID.fromString(id)).orElse(null);
         boolean hasUserRoles = this.userRoleRepository.existsByRoleId(id);
         if (theRole != null && !hasUserRoles) {
             this.roleRepository.delete(theRole);

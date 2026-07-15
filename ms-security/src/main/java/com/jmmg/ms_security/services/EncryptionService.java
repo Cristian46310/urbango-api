@@ -1,26 +1,30 @@
 package com.jmmg.ms_security.services;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 
 @Service
 public class EncryptionService {
-    public String convertSHA256(String password) {
-        MessageDigest md = null;
-        try {
-            md = MessageDigest.getInstance("SHA-256");
-        }
-        catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
+
+    private final PasswordEncoder passwordEncoder;
+
+    public EncryptionService(PasswordEncoder passwordEncoder) {
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    /** Hash a raw password with BCrypt. */
+    public String encode(String rawPassword) {
+        if (rawPassword == null) {
             return null;
         }
-        byte[] hash = md.digest(password.getBytes());
-        StringBuffer sb = new StringBuffer();
-        for(byte b : hash) {
-            sb.append(String.format("%02x", b));
+        return this.passwordEncoder.encode(rawPassword);
+    }
+
+    /** Verify raw password against stored BCrypt hash. */
+    public boolean matches(String rawPassword, String encodedPassword) {
+        if (rawPassword == null || encodedPassword == null || encodedPassword.isBlank()) {
+            return false;
         }
-        return sb.toString();
+        return this.passwordEncoder.matches(rawPassword, encodedPassword);
     }
 }

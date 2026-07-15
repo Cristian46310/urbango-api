@@ -1,24 +1,47 @@
 package com.jmmg.ms_security.repositories;
 
 import java.util.List;
-import org.bson.types.ObjectId;
+import java.util.UUID;
 
-import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.jmmg.ms_security.models.RolePermission;
 
-public interface IRolePermissionRepository extends MongoRepository<RolePermission, String> {
+public interface IRolePermissionRepository extends JpaRepository<RolePermission, UUID> {
 
-    @Query("{'role.$id': ObjectId(?0), 'permission.$id': ObjectId(?1)}")
-    RolePermission getRolePermission(String roleId, String permissionId);
+    @Query("""
+            SELECT rp FROM RolePermission rp
+            WHERE rp.role.id = :roleId AND rp.permission.id = :permissionId
+            """)
+    RolePermission getRolePermission(@Param("roleId") UUID roleId, @Param("permissionId") UUID permissionId);
 
-    @Query("{'role.$id': ObjectId(?0)}")
-    List<RolePermission> findByRoleId(String roleId);
+    List<RolePermission> findByRole_Id(UUID roleId);
 
-    @Query("{'role.$id': {'$in': ?0}}")
-    List<RolePermission> findByRoleIdIn(List<ObjectId> roleIds);
+    default List<RolePermission> findByRoleId(UUID roleId) {
+        return findByRole_Id(roleId);
+    }
 
-    @Query(value = "{'role.$id': {'$in': ?0}, 'permission.$id': ObjectId(?1)}", exists = true)
-    boolean existsByRoleIdsAndPermissionId(List<ObjectId> roleIds, String permissionId);
+    default List<RolePermission> findByRoleId(String roleId) {
+        return findByRole_Id(UUID.fromString(roleId));
+    }
+
+    List<RolePermission> findByRole_IdIn(List<UUID> roleIds);
+
+    default List<RolePermission> findByRoleIdIn(List<UUID> roleIds) {
+        return findByRole_IdIn(roleIds);
+    }
+
+    @Query("""
+            SELECT CASE WHEN COUNT(rp) > 0 THEN true ELSE false END
+            FROM RolePermission rp
+            WHERE rp.role.id IN :roleIds AND rp.permission.id = :permissionId
+            """)
+    boolean existsByRoleIdsAndPermissionId(
+            @Param("roleIds") List<UUID> roleIds, @Param("permissionId") UUID permissionId);
+
+    default RolePermission getRolePermission(String roleId, String permissionId) {
+        return getRolePermission(UUID.fromString(roleId), UUID.fromString(permissionId));
+    }
 }

@@ -4,6 +4,15 @@ export class Business1779566461133 implements MigrationInterface {
     name = 'Business1779566461133'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
+        await queryRunner.query(`CREATE TYPE "public"."turn_status_enum" AS ENUM('scheduled', 'in_progress', 'completed', 'cancelled')`);
+        await queryRunner.query(`CREATE TYPE "public"."stops_type_enum" AS ENUM('terminal', 'intermediate', 'regular')`);
+        await queryRunner.query(`CREATE TYPE "public"."schedulers_status_enum" AS ENUM('programado', 'cancelado', 'completado')`);
+        await queryRunner.query(`CREATE TYPE "public"."scheduler_recurrence_enum" AS ENUM('none', 'weekdays', 'weekends', 'daily')`);
+        await queryRunner.query(`CREATE TYPE "public"."incidents_type_enum" AS ENUM('mechanical', 'accident', 'delay', 'passenger', 'other')`);
+        await queryRunner.query(`CREATE TYPE "public"."incidents_severity_enum" AS ENUM('low', 'medium', 'high', 'critical')`);
+        await queryRunner.query(`CREATE TYPE "public"."incidents_status_enum" AS ENUM('reported', 'in_review', 'closed')`);
+        await queryRunner.query(`CREATE TYPE "public"."tickets_status_enum" AS ENUM('active', 'completed')`);
         await queryRunner.query(`CREATE TABLE "addresses" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "address" character varying(512) NOT NULL, "city" character varying(128) NOT NULL, "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_745d8f43d3af10ab8247465e450" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "persons" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying NOT NULL, "document" character varying NOT NULL, "email" character varying NOT NULL, "phone" character varying NOT NULL, "birthDate" TIMESTAMP, "user_id" character varying NOT NULL, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "licenseNumber" character varying, "licenseExpiry" date, "type" character varying NOT NULL, "enterpriseId" uuid, "address_id" uuid, CONSTRAINT "PK_74278d8812a049233ce41440ac7" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE UNIQUE INDEX "IDX_80dd8eee42ebb1b3e5c6b2348e" ON "persons" ("document", "type") `);
@@ -11,7 +20,6 @@ export class Business1779566461133 implements MigrationInterface {
         await queryRunner.query(`CREATE INDEX "IDX_5ea861ffbae6a10496304bff37" ON "persons" ("type") `);
         await queryRunner.query(`CREATE TABLE "enterprises" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying NOT NULL, "nit" character varying NOT NULL, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_700c1b4abe98de93b7c5a7ce135" UNIQUE ("nit"), CONSTRAINT "PK_a019e9afe6517b4f2a4588f2cce" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "turns" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "startTime" TIMESTAMP WITH TIME ZONE NOT NULL, "endTime" TIMESTAMP WITH TIME ZONE, "status" "public"."turn_status_enum" NOT NULL DEFAULT 'scheduled', "busStatus" character varying(64), "busObservations" text, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "busId" uuid, "driverId" uuid, CONSTRAINT "PK_66edaea493f45e3c39d7c3553ed" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TYPE "public"."stops_type_enum" AS ENUM('terminal', 'intermediate', 'regular')`);
         await queryRunner.query(`CREATE TABLE "stops" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "code" character varying NOT NULL, "name" character varying NOT NULL, "location" character varying NOT NULL, "latitude" numeric(10,7) NOT NULL, "longitude" numeric(10,7) NOT NULL, "type" "public"."stops_type_enum" NOT NULL DEFAULT 'regular', "createdAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_a053494c02aedcaf74555b7b3ba" UNIQUE ("code"), CONSTRAINT "PK_ed1be877403ad3c921b07f62ca5" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "nodes" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "order" integer NOT NULL, "estimated_time_minutes" integer NOT NULL DEFAULT '0', "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "stopId" uuid, "routeId" uuid, CONSTRAINT "UQ_2f85b1ccc5d6152477fd99f8177" UNIQUE ("routeId", "order"), CONSTRAINT "PK_682d6427523a0fa43d062ea03ee" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "routes" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "code" character varying NOT NULL, "name" character varying NOT NULL, "description" character varying NOT NULL, "price" integer NOT NULL, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_bd22d1af9090f36374e21e42208" UNIQUE ("code"), CONSTRAINT "PK_76100511cdfa1d013c859f01d8b" PRIMARY KEY ("id"))`);
@@ -19,17 +27,13 @@ export class Business1779566461133 implements MigrationInterface {
         await queryRunner.query(`CREATE TABLE "gps" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "latitude" numeric(10,7) NOT NULL, "longitude" numeric(10,7) NOT NULL, "updatedAt" TIMESTAMP WITH TIME ZONE, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "busId" uuid, CONSTRAINT "REL_3ee73b40fa14ab3a700b131318" UNIQUE ("busId"), CONSTRAINT "PK_bc6dca5ce3daead418e202bd4d3" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "bus_photos" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "photoUrl" character varying NOT NULL, "bus_id" uuid, CONSTRAINT "PK_cb9139d458363dddbae917f9a5f" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "incident_comments" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "text" text NOT NULL, "authorUserId" character varying NOT NULL, "authorName" character varying NOT NULL, "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "incident_id" uuid, CONSTRAINT "PK_a17275da5243738996bbba7327d" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TYPE "public"."incidents_type_enum" AS ENUM('mechanical', 'accident', 'delay', 'passenger', 'other')`);
-        await queryRunner.query(`CREATE TYPE "public"."incidents_severity_enum" AS ENUM('low', 'medium', 'high', 'critical')`);
-        await queryRunner.query(`CREATE TYPE "public"."incidents_status_enum" AS ENUM('reported', 'in_review', 'closed')`);
         await queryRunner.query(`CREATE TABLE "incidents" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "type" "public"."incidents_type_enum" NOT NULL, "severity" "public"."incidents_severity_enum" NOT NULL, "description" text NOT NULL, "latitude" numeric(10,7) NOT NULL, "longitude" numeric(10,7) NOT NULL, "status" "public"."incidents_status_enum" NOT NULL DEFAULT 'reported', "createdAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_ccb34c01719889017e2246469f9" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "incident_photos" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "photoUrl" character varying NOT NULL, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "incident_bus_id" uuid, CONSTRAINT "PK_e8a2eb0e1bdb4d7e4a5701412cf" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "incident_buses" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "incident_id" uuid, "bus_id" uuid, CONSTRAINT "PK_a8c73a31e7218635a8916a21ac9" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "buses" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "color" character varying NOT NULL, "model" character varying NOT NULL, "plate" character varying NOT NULL, "year" integer NOT NULL, "seatedCapacity" integer NOT NULL, "standingCapacity" integer NOT NULL, "status" character varying NOT NULL DEFAULT 'operativo', "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "enterprise_id" uuid, "gps_id" uuid, CONSTRAINT "UQ_1da765de924476580123f727ae3" UNIQUE ("plate"), CONSTRAINT "REL_82ab7d96ba98fcc0520d96f9e7" UNIQUE ("gps_id"), CONSTRAINT "PK_ddebc0eeba64a019ae072975947" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "histories" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "node_id" uuid, "ticket_id" uuid, CONSTRAINT "PK_36b0e707452a8b674f9d95da743" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE UNIQUE INDEX "IDX_862e3797c983b48648079f2bfc" ON "histories" ("ticket_id", "node_id") `);
-        await queryRunner.query(`CREATE TABLE "tickets" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "status" "public"."tickets_status_enum" NOT NULL DEFAULT 'active', "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "citizen_id" uuid, "payment_method_citizen_id" uuid, "scheduler_id" uuid, CONSTRAINT "PK_343bc942ae261cf7a1377f48fd0" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "payment_methods" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying(128) NOT NULL, "isRechargeable" boolean NOT NULL DEFAULT false, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_34f9b8c6dfb4ac3559f7e2820d1" PRIMARY KEY ("id"))`);
+        await queryRunner.query(`CREATE TABLE "tickets" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "status" "public"."tickets_status_enum" NOT NULL DEFAULT 'active', "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "citizen_id" uuid, "payment_method_citizen_id" uuid, "scheduler_id" uuid, CONSTRAINT "PK_343bc942ae261cf7a1377f48fd0" PRIMARY KEY ("id"))`);        await queryRunner.query(`CREATE TABLE "payment_methods" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying(128) NOT NULL, "isRechargeable" boolean NOT NULL DEFAULT false, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_34f9b8c6dfb4ac3559f7e2820d1" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "payment_method_citizens" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "balance" numeric(12,2) NOT NULL DEFAULT '0', "cardNumber" character varying(32), "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "citizen_id" uuid NOT NULL, "payment_method_id" uuid NOT NULL, CONSTRAINT "UQ_42a0faeb8c86f5e792c5a90f044" UNIQUE ("cardNumber"), CONSTRAINT "PK_e505c46036f39dc1c64cade7280" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "card_recharge_transactions" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "amount" integer NOT NULL, "epaycoTransactionId" character varying(128), "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "paymentMethodCitizenId" uuid, CONSTRAINT "PK_c46494be8b4fd85ba2a23abf57c" PRIMARY KEY ("id"))`);
         await queryRunner.query(`ALTER TABLE "persons" ADD CONSTRAINT "FK_9bd3fb124cfcefa3c4336dbc058" FOREIGN KEY ("enterpriseId") REFERENCES "enterprises"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
@@ -87,6 +91,7 @@ export class Business1779566461133 implements MigrationInterface {
         await queryRunner.query(`DROP TABLE "payment_method_citizens"`);
         await queryRunner.query(`DROP TABLE "payment_methods"`);
         await queryRunner.query(`DROP TABLE "tickets"`);
+        await queryRunner.query(`DROP TYPE "public"."tickets_status_enum"`);
         await queryRunner.query(`DROP INDEX "public"."IDX_862e3797c983b48648079f2bfc"`);
         await queryRunner.query(`DROP TABLE "histories"`);
         await queryRunner.query(`DROP TABLE "buses"`);
@@ -100,11 +105,14 @@ export class Business1779566461133 implements MigrationInterface {
         await queryRunner.query(`DROP TABLE "bus_photos"`);
         await queryRunner.query(`DROP TABLE "gps"`);
         await queryRunner.query(`DROP TABLE "schedulers"`);
+        await queryRunner.query(`DROP TYPE "public"."scheduler_recurrence_enum"`);
+        await queryRunner.query(`DROP TYPE "public"."schedulers_status_enum"`);
         await queryRunner.query(`DROP TABLE "routes"`);
         await queryRunner.query(`DROP TABLE "nodes"`);
         await queryRunner.query(`DROP TABLE "stops"`);
         await queryRunner.query(`DROP TYPE "public"."stops_type_enum"`);
         await queryRunner.query(`DROP TABLE "turns"`);
+        await queryRunner.query(`DROP TYPE "public"."turn_status_enum"`);
         await queryRunner.query(`DROP TABLE "enterprises"`);
         await queryRunner.query(`DROP INDEX "public"."IDX_5ea861ffbae6a10496304bff37"`);
         await queryRunner.query(`DROP INDEX "public"."IDX_8daea7cd5ea70efed680753df3"`);

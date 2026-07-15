@@ -5,9 +5,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.bson.types.ObjectId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -43,7 +43,7 @@ public class PermissionService {
     }
 
     public GetPermissionDTO findById(String id) {
-        Permission permission = this.permissionRepository.findById(id).orElse(null);
+        Permission permission = this.permissionRepository.findById(UUID.fromString(id)).orElse(null);
         return GetPermissionDTO.fromModel(permission);
     }
 
@@ -54,7 +54,7 @@ public class PermissionService {
     }
 
     public GetPermissionDTO update(String id, PostPermissionDTO postPermissionDTO) {
-        Permission actualPermission = this.permissionRepository.findById(id).orElse(null);
+        Permission actualPermission = this.permissionRepository.findById(UUID.fromString(id)).orElse(null);
 
         if (actualPermission != null) {
             actualPermission.updateFromDTO(postPermissionDTO);
@@ -66,7 +66,7 @@ public class PermissionService {
     }
 
     public void delete(String id) {
-        Permission permission = this.permissionRepository.findById(id).orElse(null);
+        Permission permission = this.permissionRepository.findById(UUID.fromString(id)).orElse(null);
         if (permission != null) {
             this.permissionRepository.delete(permission);
         }
@@ -100,11 +100,9 @@ public class PermissionService {
             return false;
         }
 
-        List<ObjectId> roleIds = matchingRoles.stream()
+        List<UUID> roleIds = matchingRoles.stream()
             .map(Role::getId)
             .filter(Objects::nonNull)
-            .filter(ObjectId::isValid)
-            .map(ObjectId::new)
             .toList();
 
         if (roleIds.isEmpty()) {

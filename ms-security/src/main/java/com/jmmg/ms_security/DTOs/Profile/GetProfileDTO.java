@@ -17,7 +17,7 @@ public record GetProfileDTO(
             }
 
             return new UserSummaryDTO(
-                    profile.getUser().getId(),
+                    profile.getUser().getIdAsString(),
                     profile.getUser().getName()
             );
         }
@@ -30,10 +30,10 @@ public record GetProfileDTO(
 
         UserSummaryDTO user = UserSummaryDTO.fromModel(profile);
         return new GetProfileDTO(
-                profile.getId(),
+                profile.getIdAsString(),
                 profile.getPhone(),
                 profile.getPhoto(),
-                profile.getUser() != null ? profile.getUser().getId() : null,
+                profile.getUser() != null ? profile.getUser().getIdAsString() : null,
                 user
         );
     }

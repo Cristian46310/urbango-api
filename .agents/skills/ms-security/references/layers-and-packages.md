@@ -38,7 +38,7 @@ src/main/java/com/jmmg/ms_security/
 | `UserService` | CRUD usuario, detalle con roles |
 | `UserRoleService` | Asignación roles |
 | `RolePermissionService` | Permisos por rol |
-| `GitHubOAuthService` / `MicrosoftOAuthService` | OAuth flows |
+| `GitHubOAuthService` | OAuth GitHub (Microsoft retirado del API) |
 | `AuthFactorService` | 2FA |
 | `ValidatorService` | Validaciones compartidas |
 | `AuthenticatedUserService` | Contexto usuario en request |

@@ -8,6 +8,7 @@ from email.mime.audio import MIMEAudio
 from email.mime.base import MIMEBase
 from email.mime.image import MIMEImage
 from email.mime.text import MIMEText
+from pathlib import Path
 
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -18,25 +19,51 @@ from dotenv import load_dotenv
 
 from app.DTOs import EmailDTO
 
-load_dotenv()
+# Cargar .env desde la raíz de ms-notifications (no depende del cwd)
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(_PROJECT_ROOT / ".env", override=True)
 
 
 class EmailService:
     def __init__(self) -> None:
         self.creds = None
-        self.SCOPES = str(os.getenv("SCOPES")).split(";")
-        self.secrets_location = str(os.getenv("SECRETS_LOCATION"))
-        self.email = str(os.getenv("EMAIL"))
-        self.client_secret = str(os.getenv("CLIENT_SECRET"))
+        self.SCOPES = str(os.getenv("SCOPES") or "").split(";")
+        self.secrets_location = str(os.getenv("SECRETS_LOCATION") or "./secrets")
+        self.email = str(os.getenv("EMAIL") or "")
+        self.client_secret = str(os.getenv("CLIENT_SECRET") or "")
         self._load_credentials()
+
+    def _resolve_secrets_file(self) -> Path:
+        """SECRETS_LOCATION + CLIENT_SECRET (solo nombre de archivo, o ruta absoluta)."""
+        secrets_dir = Path(self.secrets_location)
+        if not secrets_dir.is_absolute():
+            secrets_dir = (_PROJECT_ROOT / secrets_dir).resolve()
+
+        client = Path(self.client_secret)
+        # Si CLIENT_SECRET ya trae carpeta (error común), usar solo el nombre
+        if len(client.parts) > 1:
+            client = Path(client.name)
+
+        secrets_file = (secrets_dir / client).resolve()
+        if not secrets_file.is_file():
+            raise FileNotFoundError(
+                f"No se encontró el client_secret en: {secrets_file}\n"
+                f"SECRETS_LOCATION={self.secrets_location!r} CLIENT_SECRET={self.client_secret!r}\n"
+                "En .env usa solo el nombre del archivo, p.ej. "
+                "CLIENT_SECRET=client_secret_....json"
+            )
+        return secrets_file
 
     def _load_credentials(self) -> None:
         """Cargar credenciales OAuth de Google."""
         creds = None
-        token_path = f"{self.secrets_location}/token.pickle"
+        secrets_dir = Path(self.secrets_location)
+        if not secrets_dir.is_absolute():
+            secrets_dir = (_PROJECT_ROOT / secrets_dir).resolve()
+        token_path = secrets_dir / "token.pickle"
 
         # Cargar credenciales si ya existen
-        if os.path.exists(token_path):
+        if token_path.exists():
             with open(token_path, "rb") as token:
                 creds = pickle.load(token)
 
@@ -45,13 +72,14 @@ class EmailService:
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             else:
-                secrets_file = f"{self.secrets_location}/{self.client_secret}"
+                secrets_file = self._resolve_secrets_file()
                 flow = InstalledAppFlow.from_client_secrets_file(
-                    secrets_file,
+                    str(secrets_file),
                     self.SCOPES,
                 )
                 creds = flow.run_local_server(port=0)
 
+            secrets_dir.mkdir(parents=True, exist_ok=True)
             with open(token_path, "wb") as token:
                 pickle.dump(creds, token)
 

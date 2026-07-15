@@ -3,9 +3,9 @@ package com.jmmg.ms_security.services;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.bson.types.ObjectId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,12 +46,16 @@ public class UserService {
     private IRolePermissionRepository rolePermissionRepository;
     @Autowired
     private EncryptionService encryptionService;
+    @Autowired
+    private UserRoleService userRoleService;
 
     public GetUserDTO create(PostUserDTO postUserDTO) {
         // buscar si ya no existe ese usuario en la base de datos
         User newUser = new User(postUserDTO);
-        newUser.setPassword(encryptionService.convertSHA256(postUserDTO.password()));
-        return GetUserDTO.fromModel(userRepository.save(newUser));
+        newUser.setPassword(encryptionService.encode(postUserDTO.password()));
+        User savedUser = userRepository.save(newUser);
+        this.userRoleService.assignDefaultCitizenRole(savedUser);
+        return GetUserDTO.fromModel(savedUser);
     }
 
     public Page<GetUserListDTO> getAll(Pageable pageable) {
@@ -69,13 +73,13 @@ public class UserService {
     }
 
     public GetUserDTO getById(String id) {
-        User user = userRepository.findById(id).orElse(null);
+        User user = userRepository.findById(UUID.fromString(id)).orElse(null);
         List<RoleSummaryDTO> roles = user != null ? this.getRoleSummariesByUserId(user.getId()) : null;
         return GetUserDTO.fromModelWithRoles(user, roles);
     }
 
     public GetUserDetailDTO getDetailById(String id) {
-        User user = this.userRepository.findById(id).orElse(null);
+        User user = this.userRepository.findById(UUID.fromString(id)).orElse(null);
         if (user == null) {
             return null;
         }
@@ -96,7 +100,7 @@ public class UserService {
                         .toList());
 
         return new GetUserDetailDTO(
-                user.getId(),
+                user.getIdAsString(),
                 user.getName(),
                 user.getEmail(),
                 GetProfileDTO.fromModel(profile),
@@ -105,10 +109,13 @@ public class UserService {
     }
 
     public GetUserDTO update(String id, PostUserDTO newUser) {
-        User user = userRepository.findById(id).orElse(null);
+        User user = userRepository.findById(UUID.fromString(id)).orElse(null);
         if (user != null) {
-            user.updateFromDTO(newUser);
-            user.setPassword(encryptionService.convertSHA256(newUser.password()));
+            user.setName(newUser.name());
+            user.setEmail(newUser.email());
+            if (newUser.password() != null && !newUser.password().isBlank()) {
+                user.setPassword(encryptionService.encode(newUser.password()));
+            }
             User savedUser = userRepository.save(user);
             List<RoleSummaryDTO> roles = this.getRoleSummariesByUserId(savedUser.getId());
             return GetUserDTO.fromModelWithRoles(savedUser, roles);
@@ -129,7 +136,7 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
-    private List<RoleSummaryDTO> getRoleSummariesByUserId(String userId) {
+    private List<RoleSummaryDTO> getRoleSummariesByUserId(UUID userId) {
         List<UserRole> userRoles = this.userRoleRepository.findByUserId(userId);
         return userRoles.stream()
                 .map(UserRole::getRole)
@@ -139,11 +146,9 @@ public class UserService {
     }
 
     private List<GetPermissionDTO> getPermissionsForRoles(List<Role> roles) {
-        List<ObjectId> roleIds = roles.stream()
+        List<UUID> roleIds = roles.stream()
                 .map(Role::getId)
                 .filter(Objects::nonNull)
-                .filter(ObjectId::isValid)
-                .map(ObjectId::new)
                 .distinct()
                 .toList();
 
@@ -165,22 +170,22 @@ public class UserService {
     }
 
     public void delete(String id) {
-        userRepository.deleteById(id);
+        userRepository.deleteById(UUID.fromString(id));
     }
 
     public boolean updatePassword(String userId, String newPlainPassword) {
-        User user = userRepository.findById(userId).orElse(null);
+        User user = userRepository.findById(UUID.fromString(userId)).orElse(null);
         if (user == null) {
             return false;
         }
-        user.setPassword(encryptionService.convertSHA256(newPlainPassword));
+        user.setPassword(encryptionService.encode(newPlainPassword));
         userRepository.save(user);
         return true;
     }
 
     public boolean addProfile(String userId, String profileId) {
-        User user = this.userRepository.findById(userId).orElse(null);
-        Profile profile = this.profileRepository.findById(profileId).orElse(null);
+        User user = this.userRepository.findById(UUID.fromString(userId)).orElse(null);
+        Profile profile = this.profileRepository.findById(UUID.fromString(profileId)).orElse(null);
         if (user != null && profile != null) {
             profile.setUser(user);
             this.profileRepository.save(profile);
@@ -191,8 +196,8 @@ public class UserService {
     }
 
     public boolean removeProfile(String userId, String profileId) {
-        User user = this.userRepository.findById(userId).orElse(null);
-        Profile profile = this.profileRepository.findById(profileId).orElse(null);
+        User user = this.userRepository.findById(UUID.fromString(userId)).orElse(null);
+        Profile profile = this.profileRepository.findById(UUID.fromString(profileId)).orElse(null);
         if (user != null && profile != null) {
             profile.setUser(null);
             this.profileRepository.save(profile);
@@ -203,8 +208,8 @@ public class UserService {
     }
 
     public boolean addSession(String userId, String sessionId) {
-        User theUser = this.userRepository.findById(userId).orElse(null);
-        Session session = this.sessionRepository.findById(sessionId).orElse(null);
+        User theUser = this.userRepository.findById(UUID.fromString(userId)).orElse(null);
+        Session session = this.sessionRepository.findById(UUID.fromString(sessionId)).orElse(null);
         if (theUser != null && session != null) {
             session.setUser(theUser);
             this.sessionRepository.save(session);
@@ -215,8 +220,8 @@ public class UserService {
     }
 
     public boolean removeSession(String userId, String sessionId) {
-        User user = this.userRepository.findById(userId).orElse(null);
-        Session session = this.sessionRepository.findById(sessionId).orElse(null);
+        User user = this.userRepository.findById(UUID.fromString(userId)).orElse(null);
+        Session session = this.sessionRepository.findById(UUID.fromString(sessionId)).orElse(null);
         if (user != null && session != null) {
             session.setUser(null);
             this.sessionRepository.save(session);

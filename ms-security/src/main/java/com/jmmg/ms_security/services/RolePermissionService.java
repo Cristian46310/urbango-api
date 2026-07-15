@@ -4,6 +4,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -31,8 +32,8 @@ public class RolePermissionService {
     private IRolePermissionRepository rolePermissionRepository;
 
     public boolean addRolePermission(String roleId, String permissionId) {
-        Role role = this.roleRepository.findById(roleId).orElse(null);
-        Permission permission = this.permissionRepository.findById(permissionId).orElse(null);
+        Role role = this.roleRepository.findById(UUID.fromString(roleId)).orElse(null);
+        Permission permission = this.permissionRepository.findById(UUID.fromString(permissionId)).orElse(null);
 
         if (role != null && permission != null) {
             RolePermission existingRolePermission = this.rolePermissionRepository.getRolePermission(roleId, permissionId);
@@ -49,7 +50,7 @@ public class RolePermissionService {
     }
 
     public boolean assignMultiplePermissions(AssignPermissionsDTO assignPermissionsDTO) {
-        Role role = this.roleRepository.findById(assignPermissionsDTO.roleId()).orElse(null);
+        Role role = this.roleRepository.findById(UUID.fromString(assignPermissionsDTO.roleId())).orElse(null);
         if (role == null) {
             return false;
         }
@@ -61,24 +62,25 @@ public class RolePermissionService {
             return false;
         }
 
-        List<Permission> requestedPermissions = this.permissionRepository.findAllById(requestedPermissionIds);
+        List<UUID> requestedPermissionUuids = requestedPermissionIds.stream().map(UUID::fromString).toList();
+        List<Permission> requestedPermissions = this.permissionRepository.findAllById(requestedPermissionUuids);
         if (requestedPermissions.size() != requestedPermissionIds.size()) {
             return false;
         }
 
         Map<String, Permission> requestedPermissionsById = requestedPermissions.stream()
-                .collect(Collectors.toMap(Permission::getId, Function.identity()));
+                .collect(Collectors.toMap(Permission::getIdAsString, Function.identity()));
 
         List<RolePermission> existingPermissions = this.rolePermissionRepository.findByRoleId(assignPermissionsDTO.roleId());
         Set<String> existingPermissionIds = existingPermissions.stream()
                 .map(RolePermission::getPermission)
                 .filter(java.util.Objects::nonNull)
-                .map(Permission::getId)
+                .map(Permission::getIdAsString)
                 .collect(Collectors.toSet());
 
         List<RolePermission> permissionsToRemove = existingPermissions.stream()
                 .filter(rolePermission -> rolePermission.getPermission() == null
-                        || !requestedPermissionIds.contains(rolePermission.getPermission().getId()))
+                        || !requestedPermissionIds.contains(rolePermission.getPermission().getIdAsString()))
                 .collect(Collectors.toList());
         if (!permissionsToRemove.isEmpty()) {
             this.rolePermissionRepository.deleteAll(permissionsToRemove);
@@ -95,7 +97,7 @@ public class RolePermissionService {
     }
 
     public boolean removeRolePermission(String rolePermissionId) {
-        RolePermission rolePermission = this.rolePermissionRepository.findById(rolePermissionId).orElse(null);
+        RolePermission rolePermission = this.rolePermissionRepository.findById(UUID.fromString(rolePermissionId)).orElse(null);
         if (rolePermission != null) {
             this.rolePermissionRepository.delete(rolePermission);
             return true;

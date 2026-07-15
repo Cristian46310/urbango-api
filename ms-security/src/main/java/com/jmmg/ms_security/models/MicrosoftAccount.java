@@ -1,25 +1,62 @@
 package com.jmmg.ms_security.models;
 
 import java.util.Date;
+import java.util.UUID;
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.mapping.Document;
-
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Temporal;
+import jakarta.persistence.TemporalType;
 import lombok.Data;
 
 @Data
-@Document
-@CompoundIndex(name = "microsoft_provider_user_id_unique_idx", def = "{'providerUserId': 1}", unique = true)
-@CompoundIndex(name = "microsoft_user_id_unique_idx", def = "{'userId': 1}", unique = true)
+@Entity
+@Table(name = "microsoft_accounts", schema = "security")
 public class MicrosoftAccount {
     @Id
-    private String id;
-    private String userId;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+
+    @Column(name = "user_id", nullable = false, unique = true)
+    private UUID userId;
+
+    @Column(name = "provider_user_id", nullable = false, unique = true)
     private String providerUserId;
+
+    @Column(name = "display_name")
     private String displayName;
+
     private String email;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "linked_at")
     private Date linkedAt;
-    private Date createdAt;
-    private Date updatedAt;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "created_at", nullable = false)
+    private Date createdAt = new Date();
+
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "updated_at", nullable = false)
+    private Date updatedAt = new Date();
+
+    public String getIdAsString() {
+        return id == null ? null : id.toString();
+    }
+
+    public void setIdFromString(String id) {
+        this.id = id == null || id.isBlank() ? null : UUID.fromString(id);
+    }
+
+    public String getUserIdAsString() {
+        return userId == null ? null : userId.toString();
+    }
+
+    public void setUserIdFromString(String userId) {
+        this.userId = userId == null || userId.isBlank() ? null : UUID.fromString(userId);
+    }
 }

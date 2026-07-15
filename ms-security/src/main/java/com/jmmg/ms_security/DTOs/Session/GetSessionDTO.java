@@ -17,20 +17,20 @@ public record GetSessionDTO(
 			return null;
 		}
 		return new GetSessionDTO(
-			session.getId(),
+			session.getIdAsString(),
 			session.getToken(),
 			session.getExpiration(),
 			session.getCode2FA(),
-			session.getUser() != null ? session.getUser().getId() : null
+			session.getUser() != null ? session.getUser().getIdAsString() : null
 		);
 	}
 
 	public Session toModel() {
 		Session session = new Session(token, expiration, code2FA);
-		session.setId(id);
+		session.setIdFromString(id);
 		if (userId != null) {
 			User user = new User();
-			user.setId(userId);
+			user.setIdFromString(userId);
 			session.setUser(user);
 		}
 		return session;

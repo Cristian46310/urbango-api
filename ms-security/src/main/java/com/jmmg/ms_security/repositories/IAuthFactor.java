@@ -1,22 +1,39 @@
 package com.jmmg.ms_security.repositories;
 
 import java.util.List;
+import java.util.UUID;
 
-import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
+import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.jmmg.ms_security.models.AuthFactor;
 import com.jmmg.ms_security.models.AuthFactorStatus;
+import com.jmmg.ms_security.models.AuthFactorType;
 
-public interface IAuthFactor extends MongoRepository<AuthFactor, String> {
+public interface IAuthFactor extends JpaRepository<AuthFactor, UUID> {
 
-    @Query("{'user.$id': ?0, 'status': ?1}")
-    List<AuthFactor> findByUserIdAndStatus(String userId, AuthFactorStatus status);
+    List<AuthFactor> findByUser_IdAndStatus(UUID userId, AuthFactorStatus status);
 
-    @Query("{'user.$id': ?0, 'status': ?1, 'type': ?2}")
-    List<AuthFactor> findByUserIdAndStatusAndType(String userId, AuthFactorStatus status, com.jmmg.ms_security.models.AuthFactorType type);
+    List<AuthFactor> findByUser_IdAndStatusAndType(UUID userId, AuthFactorStatus status, AuthFactorType type);
+
+    default List<AuthFactor> findByUserIdAndStatus(UUID userId, AuthFactorStatus status) {
+        return findByUser_IdAndStatus(userId, status);
+    }
+
+    default List<AuthFactor> findByUserIdAndStatus(String userId, AuthFactorStatus status) {
+        return findByUser_IdAndStatus(UUID.fromString(userId), status);
+    }
+
+    default List<AuthFactor> findByUserIdAndStatusAndType(
+            UUID userId, AuthFactorStatus status, AuthFactorType type) {
+        return findByUser_IdAndStatusAndType(userId, status, type);
+    }
+
+    default List<AuthFactor> findByUserIdAndStatusAndType(
+            String userId, AuthFactorStatus status, AuthFactorType type) {
+        return findByUser_IdAndStatusAndType(UUID.fromString(userId), status, type);
+    }
 
     AuthFactor findByTokenAndStatus(String token, AuthFactorStatus status);
 
-    AuthFactor findByTokenAndStatusAndType(String token, AuthFactorStatus status, com.jmmg.ms_security.models.AuthFactorType type);
+    AuthFactor findByTokenAndStatusAndType(String token, AuthFactorStatus status, AuthFactorType type);
 }

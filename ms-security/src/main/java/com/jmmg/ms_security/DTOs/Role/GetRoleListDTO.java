@@ -11,6 +11,6 @@ public record GetRoleListDTO(
         if (role == null) {
             return null;
         }
-        return new GetRoleListDTO(role.getId(), role.getName(), role.getDescription());
+        return new GetRoleListDTO(role.getIdAsString(), role.getName(), role.getDescription());
     }
 }

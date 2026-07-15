@@ -11,18 +11,18 @@ paths:
 
 # ms-security
 
-**Spring Boot 4** + **Java 17** + **Spring Data MongoDB**. Puerto **8080**.
+**Spring Boot 4** + **Java 17** + **Spring Data JPA / PostgreSQL** (schema `security` en Supabase). Puerto **8080**.
 
 ## Frameworks y dependencias clave
 
 | Componente | Detalle |
 |------------|---------|
 | Spring Boot | 4.0.x (`spring-boot-starter-parent`) |
-| Persistencia | MongoDB (`@Document`, repositories) |
-| API docs | springdoc-openapi 3 → Swagger UI |
+| Persistencia | PostgreSQL (`@Entity`, JpaRepository), schema `security` |
+| API docs | springdoc-openapi → Swagger UI |
 | Build | Maven Wrapper (`./mvnw`) |
 | Utilidades | Lombok |
-| Tests (CI) | `spring-boot-starter-*-test`, `mvn verify` |
+| Tests (CI) | H2 in-memory + `mvn verify` |
 
 ## Arquitectura
 

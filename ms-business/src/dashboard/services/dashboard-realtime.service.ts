@@ -397,9 +397,7 @@ export class DashboardRealtimeService {
     } | null;
     turns?: Turn[];
     schedulers?: Scheduler[];
-  }):
-    | { latitude: number; longitude: number; updatedAt: Date }
-    | undefined {
+  }): { latitude: number; longitude: number; updatedAt: Date } | undefined {
     if (bus.gps?.latitude !== undefined && bus.gps?.longitude !== undefined) {
       return {
         latitude: Number(bus.gps.latitude),

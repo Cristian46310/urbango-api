@@ -19,12 +19,12 @@ public record GetRoleDTO(
 		if (role == null) {
 			return null;
 		}
-		return new GetRoleDTO(role.getId(), role.getName(), role.getDescription(), permissions);
+		return new GetRoleDTO(role.getIdAsString(), role.getName(), role.getDescription(), permissions);
 	}
 
 	public Role toModel() {
 		Role role = new Role(name, description);
-		role.setId(id);
+		role.setIdFromString(id);
 		return role;
 	}
 }

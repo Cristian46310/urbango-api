@@ -21,7 +21,7 @@ import com.jmmg.ms_security.services.UserRoleService;
 
 @CrossOrigin
 @RestController
-@RequestMapping("/api/public/user-role")
+@RequestMapping("/api/user-role")
 public class UserRoleController {
     @Autowired
     private UserRoleService userRoleService;
@@ -32,6 +32,19 @@ public class UserRoleController {
             @PathVariable String roleId) {
 
         boolean response = this.userRoleService.addUserRole(userId, roleId);
+        if (response) {
+            return ResponseEntity.ok(new ResponseMessage("Success"));
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PostMapping("user/{userId}/role-name/{roleName}")
+    public ResponseEntity<ResponseMessage> addUserRoleByName(
+            @PathVariable String userId,
+            @PathVariable String roleName) {
+
+        boolean response = this.userRoleService.addUserRoleByName(userId, roleName);
         if (response) {
             return ResponseEntity.ok(new ResponseMessage("Success"));
         } else {

@@ -12,10 +12,16 @@ export class ResponseRealtimeBusDto {
   @ApiProperty({ example: 'operativo' })
   status!: string;
 
-  @ApiProperty({ example: 4.749, description: 'Alias de latitude para el frontend' })
+  @ApiProperty({
+    example: 4.749,
+    description: 'Alias de latitude para el frontend',
+  })
   lat!: number;
 
-  @ApiProperty({ example: -74.0695, description: 'Alias de longitude para el frontend' })
+  @ApiProperty({
+    example: -74.0695,
+    description: 'Alias de longitude para el frontend',
+  })
   lng!: number;
 
   @ApiProperty({ example: 4.749 })

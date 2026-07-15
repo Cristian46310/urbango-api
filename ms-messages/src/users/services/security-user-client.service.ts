@@ -21,18 +21,31 @@ interface SecurityUserPage {
 export class SecurityUserClientService {
   private readonly logger = new Logger(SecurityUserClientService.name);
   private readonly securityServiceUrl: string;
+  private readonly internalKey: string;
 
   constructor(private readonly configService: ConfigService) {
     this.securityServiceUrl =
       this.configService.get<string>('MS_SECURITY_URL') ??
       'http://localhost:8080';
+    this.internalKey =
+      this.configService.get<string>('MS_SECURITY_INTERNAL_KEY')?.trim() ?? '';
+  }
+
+  private internalHeaders(): Record<string, string> {
+    if (!this.internalKey) {
+      throw new HttpException(
+        'MS_SECURITY_INTERNAL_KEY is not configured',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+    return { 'X-Internal-Key': this.internalKey };
   }
 
   async searchUsers(
     query: string,
     page: number,
     limit: number,
-    token: string,
+    _token: string,
   ): Promise<{
     items: ResponseUserSummaryDto[];
     totalItems: number;
@@ -40,10 +53,10 @@ export class SecurityUserClientService {
   }> {
     try {
       const response = await axios.get<SecurityUserPage>(
-        `${this.securityServiceUrl}/api/public/users`,
+        `${this.securityServiceUrl}/api/internal/users`,
         {
           params: { q: query, page: page - 1, size: limit },
-          headers: { Authorization: `Bearer ${token}` },
+          headers: this.internalHeaders(),
           timeout: 30000,
         },
       );
@@ -69,15 +82,15 @@ export class SecurityUserClientService {
 
   async getUserById(
     userId: string,
-    token: string,
+    _token: string,
   ): Promise<ResponseUserSummaryDto> {
     try {
       const response = await axios.get<{
         id: string;
         name: string;
         email: string;
-      }>(`${this.securityServiceUrl}/api/public/users/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      }>(`${this.securityServiceUrl}/api/internal/users/${userId}`, {
+        headers: this.internalHeaders(),
         timeout: 30000,
       });
 
@@ -91,7 +104,7 @@ export class SecurityUserClientService {
     }
   }
 
-  async getAllUserIds(token: string): Promise<string[]> {
+  async getAllUserIds(_token: string): Promise<string[]> {
     const userIds: string[] = [];
     let page = 0;
     const size = 200;
@@ -99,10 +112,10 @@ export class SecurityUserClientService {
     while (true) {
       try {
         const response = await axios.get<SecurityUserPage>(
-          `${this.securityServiceUrl}/api/public/users`,
+          `${this.securityServiceUrl}/api/internal/users`,
           {
             params: { page, size },
-            headers: { Authorization: `Bearer ${token}` },
+            headers: this.internalHeaders(),
             timeout: 30000,
           },
         );

@@ -110,7 +110,7 @@ public class AuthFactorService {
         }
     }
 
-    private void cancelPendingFactorsByType(String userId, AuthFactorType type) {
+    private void cancelPendingFactorsByType(UUID userId, AuthFactorType type) {
         List<AuthFactor> pendingFactors = this.authFactorRepository.findByUserIdAndStatusAndType(userId, AuthFactorStatus.PENDING, type);
         if (pendingFactors.isEmpty()) {
             return;

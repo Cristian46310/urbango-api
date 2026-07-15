@@ -1,19 +1,24 @@
 package com.jmmg.ms_security.repositories;
 
 import java.util.List;
+import java.util.UUID;
 
-import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
+import org.springframework.data.jpa.repository.JpaRepository;
 
+import com.jmmg.ms_security.models.Method;
 import com.jmmg.ms_security.models.Permission;
 
-public interface IPermissionRepository extends MongoRepository<Permission, String> {
+public interface IPermissionRepository extends JpaRepository<Permission, UUID> {
 
-    @Query("{'url': ?0, 'method': ?1}")
-    Permission getPermission(String url, String method);
+    Permission findByUrlAndMethod(String url, Method method);
 
-    @Query("{'role': { $in: ?0 }, 'method': ?1}")
-    List<Permission> findByRolesAndMethod(List<String> roles, String method);
+    default Permission getPermission(String url, String method) {
+        try {
+            return findByUrlAndMethod(url, Method.valueOf(method));
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
 
-    List<Permission> findByMethod(com.jmmg.ms_security.models.Method method);
+    List<Permission> findByMethod(Method method);
 }

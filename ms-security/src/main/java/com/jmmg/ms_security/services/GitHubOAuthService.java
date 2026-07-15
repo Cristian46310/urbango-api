@@ -59,9 +59,12 @@ public class GitHubOAuthService {
     private JwtService jwtService;
 
     @Autowired
+    private UserRoleService userRoleService;
+
+    @Autowired
     private RestTemplate restTemplate;
 
-    public GitHubAuthorizeDTO createAuthorization(GitHubAuthMode mode, String userId) {
+    public GitHubAuthorizeDTO createAuthorization(GitHubAuthMode mode, UUID userId) {
         Date now = new Date();
         GitHubAuthRequest authRequest = new GitHubAuthRequest();
         authRequest.setState(UUID.randomUUID().toString());
@@ -165,7 +168,7 @@ public class GitHubOAuthService {
         return result;
     }
 
-    public void unlink(String userId) {
+    public void unlink(UUID userId) {
         GitHubAccount account = this.gitHubAccountRepository.findByUserId(userId)
                 .orElseThrow(() -> new DataNotFound("GitHub account is not linked to this user."));
 
@@ -189,6 +192,7 @@ public class GitHubOAuthService {
             user.setEmail(email);
             user.setPassword(null);
             user = this.userRepository.save(user);
+            this.userRoleService.assignDefaultCitizenRole(user);
             created = true;
         }
 
@@ -206,7 +210,7 @@ public class GitHubOAuthService {
     }
 
     private GitHubAuthResultDTO linkExistingUser(GitHubAuthRequest authRequest) {
-        if (authRequest.getUserId() == null || authRequest.getUserId().isBlank()) {
+        if (authRequest.getUserId() == null) {
             throw new MissingData("Authenticated user is required to link a GitHub account.");
         }
 
@@ -251,7 +255,7 @@ public class GitHubOAuthService {
         return GetUserDTO.fromModelWithRoles(user, null);
     }
 
-    private void upsertGitHubAccount(String userId, GitHubAuthRequest authRequest) {
+    private void upsertGitHubAccount(UUID userId, GitHubAuthRequest authRequest) {
         GitHubAccount account = this.gitHubAccountRepository.findByProviderUserId(authRequest.getGithubUserId())
                 .orElseGet(GitHubAccount::new);
 

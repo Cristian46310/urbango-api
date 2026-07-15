@@ -1,252 +1,222 @@
-# Sistema de Autenticación y Autorización - ms-security
+# Roles y autorización (UCaldas)
 
-## Índice
+Documento vivo alineado con **ms-security** (PostgreSQL schema `security`), **ms-business** (`:3000`) y **ms-messages** (`:3001`).
 
-1. [Descripción General](#descripción-general)
-2. [Modelos de Datos](#modelos-de-datos)
-3. [Flujo de Autenticación](#flujo-de-autenticación)
-4. [Flujo de Autorización](#flujo-de-autorización)
-5. [Componentes Principales](#componentes-principales)
+## Capas de acceso
 
----
+No todo pasa por la tabla `security.permissions`:
 
-## Descripción General
+| Capa | Dónde | Qué valida |
+|------|--------|------------|
+| JWT + `@Authenticated()` | business + messages | Token válido vía `POST /api/public/security/validate-token`. **No** consulta permisos. |
+| JWT + `@Roles(...)` | business dashboard; messages mass-alerts | Nombres en claim `roles` del JWT (`ADMIN`, `CITIZEN`, …). |
+| `/authorize` + `permissions` | Rutas de ms-business **sin** `@Authenticated` / `@Public` | `POST /api/public/security/authorize` con `{ method, url }`. |
+| Perfil dominio (`persons`) | ms-messages | `type=citizen` / `type=driver`. **No** es el rol JWT. |
+| Membresía local | ms-messages grupos | `group_members.role = admin` (solo en esa BD). |
 
-Este microservicio maneja la autenticación y autorización para el sistema UCaldas. El flujo es:
-
-1. **Autenticación**: Validar que el usuario es quien dice ser (login con email/password)
-2. **Generación de Token JWT**: Crear un token seguro que contiene la identidad del usuario
-3. **Autorización**: Validar que el usuario tiene los roles necesarios para acceder a los recursos
-
----
-
-## Modelos de Datos
-
-### 1. **User** (Usuario)
-
-```
-- id: String (MongoDB ID)
-- name: String (nombre del usuario)
-- email: String (identificador único, con índice)
-- password: String (contraseña encriptada en SHA256)
+```mermaid
+flowchart TD
+  jwt[JWT validate-token] --> business[ms-business]
+  jwt --> messages[ms-messages]
+  business -->|Authenticated Roles| dash[Dashboard]
+  business -->|sin decorator| authz["/authorize"]
+  authz --> permTable[permissions + role_permissions]
+  messages -->|Authenticated| chat[Chat inbox]
+  messages -->|Roles ADMIN| mass[Mass alerts]
+  messages -->|RequiresCitizen| groupsWrite[Grupos write]
+  messages -->|RequiresDriver| groupMsg[POST messages/group]
+  persons[(persons)] --> groupsWrite
+  persons --> groupMsg
 ```
 
-**Propósito**: Almacena la información básica del usuario.
+### Distinción crítica
 
-### 2. **Role** (Rol)
+| JWT (ms-security) | Perfil negocio (`persons`) |
+|-------------------|----------------------------|
+| Rol `CITIZEN` | Fila con `type=citizen` (tras `POST /citizen`) |
+| Rol `DRIVER` | Fila con `type=driver` (tras `POST /driver`) |
 
-```
-- id: String (MongoDB ID)
-- name: String (nombre único: "ADMIN", "USER", "MODERATOR", etc.)
-- description: String (descripción del rol)
-```
+El rol se asigna al **crear el usuario** (`CITIZEN` por defecto) o al promover. El perfil se crea en ms-business. En ms-messages:
 
-**Propósito**: Define qué permisos o responsabilidades tiene un grupo de usuarios.
+- Chat DM / inbox: basta JWT.
+- Crear / unirse a grupos: hace falta **perfil** citizen.
+- Enviar a grupos: hace falta **perfil** driver.
+- Mass-alerts: hace falta rol JWT **`ADMIN`**.
 
-### 3. **UserRole** (Relación Usuario-Rol)
+Flujo coherente: register → rol `CITIZEN` → `POST /citizen` → grupos en messages. Promote → rol `DRIVER` (sin quitar `CITIZEN`) + `POST /driver` → mensajes a grupos.
 
-```
-- id: String (MongoDB ID)
-- userId: Reference a User (mediante @DBRef)
-- roleId: Reference a Role (mediante @DBRef)
-```
+## Roles JWT
 
-**Propósito**: Establece una relación muchos-a-muchos entre usuarios y roles.
-Un usuario puede tener múltiples roles, y un rol puede ser asignado a múltiples usuarios.
+| Rol | Quién | ms-business | ms-messages |
+|-----|--------|-------------|-------------|
+| **CITIZEN** | Pasajero (default al registrarse) | Lectura catálogo vía authorize; realtime dashboard (`@Roles`); abordaje/tickets `@Authenticated` | Chat OK; write grupos solo con perfil citizen |
+| **DRIVER** | Conductor (mantener también `CITIZEN`) | `POST /incident-reports/driver` + lectura; turn `@Authenticated` | `POST /messages/group` solo con perfil driver |
+| **SUPERVISOR** | Ops | Dashboard + incidentes (authorize / `@Roles`) | Chat autenticado; **no** mass-alerts |
+| **BUSINESS_ADMIN** | Admin empresa | Flota + ops incidentes | Chat; **no** mass-alerts (salvo que también tenga `ADMIN`) |
+| **ADMIN** | Plataforma | Todo business + admin RBAC en ms-security | Mass-alerts (`@Roles('ADMIN')`) + chat |
+| **USER** | Legado | Sin permisos de negocio sembrados | No usar en usuarios nuevos |
 
-**Índices para optimización**:
+## Matriz sembrada (`V2__seed_permissions.sql`)
 
-- `user_role_unique_idx`: Garantiza que un usuario no tenga el mismo rol asignado dos veces
-- `user_idx`: Permite búsquedas rápidas por usuario
-- `role_idx`: Permite búsquedas rápidas por rol
+Paths Nest de ms-business (sin prefijo `/api`). Patrones `/*` como en `PermissionService`.
 
----
+### CITIZEN
 
-## Flujo de Autenticación
+- `GET /route`, `GET /route/*`
+- `GET /stop`, `GET /stop/*`
+- `GET /bus`, `GET /bus/*`
+- `GET /scheduler`, `GET /scheduler/*`
+- `GET /node`, `GET /node/*`
+- `GET /history`, `GET /history/*`
 
-### Paso 1: Login (POST /security/login)
+No en seed (ya `@Authenticated` / `@Roles`): boarding, tickets, card-recharge, `/citizen/me`, dashboard realtime.
 
-```
-Entrada: LoginDTO { email, password }
-           ↓
-SecurityController.login()
-           ↓
-SecurityService.login(User)
-           ↓
-1. Buscar usuario por email en la BD
-           ↓
-2. Comparar passwords:
-   - Password ingresado → Convertir a SHA256
-   - Password en BD → Ya está en SHA256
-   - ¿Son iguales?
-           ↓ Sí
-3. Generar JWT con JwtService.generateToken()
-           ↓
-Salida: TokenDTO { token }
-```
+### DRIVER
 
-### Paso 2: Generación de JWT
+Asume multi-rol **CITIZEN + DRIVER**. Extra:
 
-El token contiene:
+- `POST /incident-reports/driver`
+- `POST /gps/bus/*`
+- `GET /gps`, `GET /gps/*`
 
-- **Payload (claims)**:
-  - `id`: ID del usuario
-  - `name`: Nombre del usuario
-  - `email`: Email del usuario
-  - `sub` (subject): ID del usuario
-  - `iat` (issued at): Fecha/hora de generación
-  - `exp` (expiration): Fecha/hora de expiración
+### SUPERVISOR
 
-- **Firma**: Se usa una clave secreta (SHA-512) para firmar el token
+Lectura catálogo (= CITIZEN) +
 
-**Ventaja**: El token es autoverificable y seguro. No necesita consultar BD cada vez.
+- `GET /incident-reports`, `GET /incident-reports/*`
+- `PUT /incident-reports/*/status`
+- `GET /incident-reports/*/comments`, `POST /incident-reports/*/comments`
+- GPS lectura/escritura ops: mismos GPS que DRIVER + `PUT|DELETE /gps/*`
 
----
+Dashboard: **no** en seed (`@Roles` en código).
 
-## Flujo de Autorización
+### BUSINESS_ADMIN
 
-### Paso 1: Validación del Token en cada Solicitud
+Todo SUPERVISOR + flota:
 
-```
-Cliente envía: GET /users/123
-Header: Authorization: Bearer eyJhbGciOiJIUzUxMiJ9...
-           ↓
-SecurityFilter.doFilterInternal()
-           ↓
-1. Extraer token del header "Authorization"
-2. Validar firma y expiración del token
-3. Extraer información del usuario del token
-4. Cargar detalles completos del usuario (email)
-5. Obtener los ROLES del usuario
-           ↓
-SecurityContext.setAuthentication()
-           ↓
-Solicitud procede con contexto de seguridad
-```
+- `POST /bus`
+- `GET /bus/fleet` (cubierto también por `GET /bus/*`)
+- `PUT /bus/*`, `DELETE /bus/*`
+- `POST /bus/*/photo`
+- `POST /bus-photo/bus/*`, `GET /bus-photo/*`, `DELETE /bus-photo/*`
 
-### Paso 2: Carga de Roles del Usuario
+Mutaciones de red (route/stop/scheduler/node) y enterprise: **solo ADMIN**.
 
-En `CustomUserDetailsService.loadUserByUsername(email)`:
+### ADMIN
 
-```
-1. Buscar usuario por email
-           ↓
-2. Obtener lista de UserRole del usuario
-           ↓
-3. Extraer IDs de los roles asociados
-           ↓
-4. Obtener detalles completos de los roles
-           ↓
-5. Convertir nombres de roles a GrantedAuthority
-   Ejemplo: "ADMIN" → "ROLE_ADMIN"
-           ↓
-6. Crear UserDetails con los roles como autoridades
-```
+Unión de CITIZEN + DRIVER + SUPERVISOR + BUSINESS_ADMIN +
 
-### Paso 3: Control de Acceso
+- `POST|PUT|DELETE /route`, `/route/*`
+- `POST|PUT|DELETE /stop`, `/stop/*`
+- `POST|PUT|DELETE /scheduler`, `/scheduler/*`
+- `POST|PUT|DELETE /node`, `/node/*`
+- `POST /node/route/*/stop/*` (creación de nodos)
+- `POST|PUT|DELETE /enterprise`, `/enterprise/*`
+- `POST|PUT|DELETE /history`, `/history/*`
+- Admin ms-security (interceptor, URLs tras quitar `/api`):  
+  `GET|POST /roles`, `GET|PUT|DELETE /roles/?`,  
+  `GET|POST /permissions`, `GET|PUT|DELETE /permissions/?`,  
+  `POST /role-permission/assign-multiple`, `POST /role-permission/role/?/permission/?`, `DELETE /role-permission/?`,  
+  `GET|POST /profiles`, `GET|PUT|DELETE /profiles/?`
 
-```
-@PreAuthorize("hasRole('ADMIN')")
-public void deleteUser(String id) { ... }
-           ↓
-Spring Security comprueba si
-SecurityContext.getAuthentication().getAuthorities()
-contiene "ROLE_ADMIN"
-           ↓
-¿Tiene permiso? Sí → Ejecuta el método
-                No → Lanza AccessDeniedException
+### USER
+
+Sin filas en `role_permissions`.
+
+### ms-messages (solo documentación; no SQL)
+
+| Capacidad | Mecanismo |
+|-----------|-----------|
+| DM, inbox, leer grupos, alertas personales | JWT |
+| Crear / unirse / icon grupos | Perfil `persons` citizen |
+| `POST /messages/group` | Perfil `persons` driver |
+| `/mass-alerts/*` | Rol JWT `ADMIN` |
+| Admin de un grupo | `group_members.role = admin` |
+
+## Aplicar seed
+
+Desde `ms-business/` (usa `DB_URL` del `.env`):
+
+```bash
+node ../ms-security/db/apply-v1.cjs   # schema + roles (si aún no)
+node ../ms-security/db/apply-v2.cjs   # permissions + role_permissions
 ```
 
----
+Promover un usuario a ADMIN (después de existir en `security.users`):
 
-## Componentes Principales
-
-### 1. **EncryptionService**
-
-- Convierte passwords a SHA256
-- Usado en `UserService.save()` para encriptar password
-- `SecurityService.login()` usa esto para validar
-
-### 2. **JwtService**
-
-- Genera tokens JWT con información del usuario
-- Valida la firma y expiración del token
-- Extrae información del usuario del token
-
-### 3. **CustomUserDetailsService**
-
-- Implementa `UserDetailsService` de Spring Security
-- Carga los detalles del usuario y sus roles
-- **PROBLEMA CRÍTICO**: Está obteniendo IDs incorrectos
-
-### 4. **SecurityConfiguration**
-
-- Configura las reglas de seguridad HTTP
-- Define qué endpoints son públicos (`/security/login`)
-- Configura CORS y CSRF
-- Usa sesiones STATELESS (sin cookies)
-
-### 5. **SecurityFilter**
-
-- Filtra cada solicitud HTTP
-- Valida el JWT y establece el contexto de seguridad
-- Ejecuta antes que otros filtros
-
----
-
-## Flujo Completo de un Login
-
-```
-1. Usuario hace POST /security/login
-   { "email": "juan@example.com", "password": "123456" }
-
-2. SecurityController.login() recibe la solicitud
-
-3. SecurityService.login() ejecuta:
-   ✓ Busca usuario por email
-   ✓ Encripta password ingresado a SHA256
-   ✓ Compara con password en BD
-   ✓ Si es correcto, genera JWT
-
-4. JwtService.generateToken():
-   ✓ Crea claims con id, name, email
-   ✓ Firma con secret key (HS512)
-   ✓ Retorna token: "eyJhbGciOiJIUzUxMiJ9..."
-
-5. Cliente guarda el JWT
-
-6. Cliente hace GET /users/123
-   Header: Authorization: Bearer eyJhbGciOiJIUzUxMiJ9...
-
-7. SecurityFilter.doFilterInternal() ejecuta:
-   ✓ Extrae token del header
-   ✓ Valida firma y expiración
-   ✓ Extrae datos del usuario del token
-   ✓ Carga usuario de la BD
-   ✓ Carga roles del usuario (⚠️ AQUÍ EL BUG)
-   ✓ Crea UserDetails con GrantedAuthority
-   ✓ Establece contexto de seguridad
-
-8. El controlador puede usar:
-   @PreAuthorize("hasRole('ADMIN')") ← ⚠️ NO FUNCIONA
-   SecurityContextHolder.getContext().getAuthentication()
-
-9. Si todo es correcto, procede con la solicitud
+```sql
+INSERT INTO security.user_roles (id, user_id, role_id)
+SELECT uuid_generate_v4(), u.id, r.id
+FROM security.users u
+CROSS JOIN security.roles r
+WHERE u.email = 'admin@ejemplo.com' AND r.name = 'ADMIN'
+ON CONFLICT (user_id, role_id) DO NOTHING;
 ```
 
----
+## Checklist smoke
 
-## Configuración Requerida (application.properties)
+### ms-business
 
-```properties
-jwt.secret=tu-clave-secreta-super-segura-minimo-256-bits
-jwt.expiration=86400000
+| Caso | Esperado |
+|------|----------|
+| JWT solo `CITIZEN` → `GET /route` | 200 |
+| JWT solo `CITIZEN` → `POST /bus` | 403 |
+| `CITIZEN`+`DRIVER` + perfil/turno → `POST /incident-reports/driver` | 200 (o error de negocio, no 403 RBAC) |
+| `BUSINESS_ADMIN` → `POST /bus` / `GET /bus/fleet` | 200 |
+| `ADMIN` → `POST /route` | 200 |
+| Dashboard supervisor con rol en `@Roles` | 200 **sin** depender del seed V2 |
+
+### ms-messages
+
+| Caso | Esperado |
+|------|----------|
+| JWT sin perfil citizen → chat DM | 200 |
+| JWT sin perfil citizen → `POST /groups` | 403 |
+| Perfil citizen → crear/unirse grupos | 200 |
+| Perfil driver → `POST /messages/group` | 200 |
+| Rol JWT `ADMIN` → `/mass-alerts` | 200 |
+| Solo `BUSINESS_ADMIN` → `/mass-alerts` | 403 |
+
+## Modelos en `security` (resumen)
+
+- **User**: identidad (UUID, email, password SHA-256).
+- **Role**: `ADMIN`, `USER`, `CITIZEN`, `DRIVER`, `BUSINESS_ADMIN`, `SUPERVISOR`.
+- **Permission**: `(url, method)` único.
+- **UserRole** / **RolePermission**: N:M.
+
+Login / register son públicos (`/api/public/**`): **no** requieren rol. Tras crear usuario se asigna `CITIZEN`.
+
+## Autenticación entre microservicios (Internal Key)
+
+Rutas sensibles de directorio/roles **ya no** están en `/api/public`.
+
+| Consumidor | Endpoint | Header |
+|------------|----------|--------|
+| ms-business | `POST /api/internal/user-role/user/{id}/role-name/{ROLE}` | `X-Internal-Key` |
+| ms-messages | `GET /api/internal/users` · `GET /api/internal/users/{id}` | `X-Internal-Key` |
+| Admin humano | ` /api/users`, `/api/user-role` | JWT Bearer + permisos ADMIN |
+
+Configura el **mismo** valor en ms-security, ms-business y ms-messages:
+
+```env
+MS_SECURITY_INTERNAL_KEY=<secreto_largo_aleatorio>
 ```
 
----
+Sin el header (o con key incorrecta) → **401**. Sin key configurada en security → **503** en `/api/internal/**`.
 
-## Referencias Útiles
+Admin CRUD: `/api/users`, `/api/user-role` requieren JWT; Spring Security exige autenticación y el interceptor RBAC exige permisos (seed V4).
 
-- **JWT**: JSON Web Tokens - tokens autoverificables
-- **Spring Security**: Framework para autenticación y autorización
-- **MongoDB @DBRef**: Referencias entre documentos
+## Passwords (BCrypt)
+
+Hash con BCrypt (`PasswordEncoder`). Cuentas OAuth pueden tener `password` NULL; login email/password responde error claro si no hay password local.
+
+## JWT y roles frescos
+
+- El JWT guarda un snapshot de roles al emitirse.
+- `POST /api/public/security/validate-token` **releé** roles desde BD (lo usan ms-business / ms-messages).
+- `POST /api/public/security/refresh-token` (Bearer válido) emite un **nuevo** JWT con roles actuales (útil tras promover a DRIVER/ADMIN).
+- La UI no debe confiar solo en claims viejos del access token para gates críticos.
+
+## Profile (ms-security)
+
+`POST /api/profiles` exige `userId` + phone + photo y asocia el perfil al usuario en un solo paso.

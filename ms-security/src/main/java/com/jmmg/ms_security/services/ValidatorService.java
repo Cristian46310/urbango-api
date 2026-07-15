@@ -1,8 +1,6 @@
 package com.jmmg.ms_security.services;
 
 import java.util.List;
-import org.bson.types.ObjectId;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -152,19 +150,20 @@ public class ValidatorService {
      */
     private boolean validatePermissions(User user, String url, String method) {
         url = url.replaceFirst("^/api/public", "").replaceFirst("^/api", "");
-        url = url.replaceAll("[0-9a-fA-F]{24}|\\d+", "?");
+        url = url.replaceAll(
+                "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[0-9a-fA-F]{24}|\\d+",
+                "?");
         
         Permission permission = this.permissionRepository.getPermission(url, method);
         if (permission == null) {
             return false; // URL/método no configurado, denegar acceso
         }
         
-        List<ObjectId> roleIds = this.userRoleRepository.findByUserId(user.getId()).stream()
+        List<java.util.UUID> roleIds = this.userRoleRepository.findByUserId(user.getId()).stream()
                 .map(UserRole::getRole)
                 .filter(java.util.Objects::nonNull)
                 .map(role -> role.getId())
-                .filter(ObjectId::isValid)
-                .map(ObjectId::new)
+                .filter(java.util.Objects::nonNull)
                 .toList();
 
         if (roleIds.isEmpty()) {

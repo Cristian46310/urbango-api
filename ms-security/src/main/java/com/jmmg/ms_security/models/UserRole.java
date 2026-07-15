@@ -1,37 +1,46 @@
 package com.jmmg.ms_security.models;
 
+import java.util.UUID;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import lombok.Data;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.index.CompoundIndexes;
-import org.springframework.data.mongodb.core.mapping.DBRef;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 @Data
-@Document
-@CompoundIndexes({
-    @CompoundIndex(name = "user_role_unique_idx", def = "{'userId': 1, 'roleId': 1}", unique = true),
-    @CompoundIndex(name = "user_idx", def = "{'userId': 1}"),
-    @CompoundIndex(name = "role_idx", def = "{'roleId': 1}")
-}) // indexes para mejorar el rendimiento de las consultas y garantizar la unicidad de la relación
+@Entity
+@Table(name = "user_roles", schema = "security")
 public class UserRole {
     @Id
-    private String id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
-    @DBRef
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
-    @DBRef
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "role_id", nullable = false)
     private Role role;
 
-    public UserRole(){
+    public UserRole() {
     }
 
-    public UserRole(User user, Role role){
-        this.user=user;
-        this.role=role;
+    public UserRole(User user, Role role) {
+        this.user = user;
+        this.role = role;
+    }
+
+    public String getIdAsString() {
+        return id == null ? null : id.toString();
+    }
+
+    public void setIdFromString(String id) {
+        this.id = id == null || id.isBlank() ? null : UUID.fromString(id);
     }
 }
-
-
-
-

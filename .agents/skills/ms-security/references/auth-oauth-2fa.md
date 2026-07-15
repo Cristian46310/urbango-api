@@ -33,7 +33,7 @@ Redirect URI por defecto: `http://localhost:5173/auth/github/callback` (`github.
 
 ## Microsoft
 
-Misma estructura bajo `/api/public/security/microsoft` con tenant configurable (`microsoft.oauth.tenant-id`).
+Login Microsoft **retirado** del API. Las tablas JPA `microsoft_*` pueden existir en DB pero no hay endpoints.
 
 ## 2FA
 

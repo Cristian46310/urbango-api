@@ -6,7 +6,7 @@ Backend del proyecto UCaldas (semestre 2026-1). Monorepo con tres microservicios
 
 | Servicio | Stack | Puerto | Carpeta | Skill |
 |----------|-------|--------|---------|-------|
-| **ms-security** | Spring Boot 4, Java 17, MongoDB | 8080 | `ms-security/` | `/ms-security` o skill `ms-security` |
+| **ms-security** | Spring Boot 4, Java 17, PostgreSQL (Supabase schema `security`) | 8080 | `ms-security/` | `/ms-security` o skill `ms-security` |
 | **ms-business** | NestJS 11, TypeORM, PostgreSQL | 3000 | `ms-business/` | `/ms-business` o skill `ms-business` |
 | **ms-notifications** | FastAPI, Python 3.12, uv, Gmail API | 8000 | `ms-notifications/` | `/ms-notifications` o skill `ms-notifications` |
 
@@ -32,7 +32,7 @@ Skill transversal del monorepo: `/monorepo-overview` o `.agents/skills/monorepo-
 
 1. El frontend hace login en **ms-security** → recibe JWT.
 2. **ms-business** recibe `Authorization: Bearer <token>` y valida contra `POST /api/public/security/validate-token`.
-3. Los IDs de usuario en MongoDB (security) pueden mapearse a UUID en PostgreSQL (business) vía `user_id_mapping`.
+3. Los IDs de usuario en ms-security son UUID (string en JWT); en ms-business se guardan en `persons.user_id`.
 
 ## Reglas globales
 
