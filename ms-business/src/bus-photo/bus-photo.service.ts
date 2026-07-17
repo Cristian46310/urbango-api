@@ -45,24 +45,38 @@ export class BusPhotoService {
       throw new NotFoundException(`Bus with id ${busId} not found`);
     }
 
-    const stored = await this.busPhotoStorageService.upload(file);
-
-    let photo = await this.busPhotoRepository.findOne({
+    const previous = await this.busPhotoRepository.findOne({
       where: { bus: { id: busId } },
       relations: ['bus'],
     });
+    const previousPath = previous
+      ? this.busPhotoStorageService.pathFromPublicUrl(previous.photoUrl)
+      : undefined;
 
-    if (photo) {
-      photo.photoUrl = stored.publicUrl;
-    } else {
-      photo = this.busPhotoRepository.create({
-        bus,
-        photoUrl: stored.publicUrl,
-      });
+    const stored = await this.busPhotoStorageService.upload(file);
+
+    try {
+      let photo = previous;
+      if (photo) {
+        photo.photoUrl = stored.publicUrl;
+      } else {
+        photo = this.busPhotoRepository.create({
+          bus,
+          photoUrl: stored.publicUrl,
+        });
+      }
+
+      const saved = await this.busPhotoRepository.save(photo);
+
+      if (previousPath && previousPath !== stored.path) {
+        await this.busPhotoStorageService.delete(previousPath);
+      }
+
+      return this.toResponse(saved);
+    } catch (error) {
+      await this.busPhotoStorageService.delete(stored.path);
+      throw error;
     }
-
-    const saved = await this.busPhotoRepository.save(photo);
-    return this.toResponse(saved);
   }
 
   async createForBus(
@@ -117,6 +131,10 @@ export class BusPhotoService {
       throw new NotFoundException(`Bus photo with id ${id} not found`);
     }
 
+    const path = this.busPhotoStorageService.pathFromPublicUrl(photo.photoUrl);
     await this.busPhotoRepository.delete(id);
+    if (path) {
+      await this.busPhotoStorageService.delete(path);
+    }
   }
 }

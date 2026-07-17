@@ -8,9 +8,10 @@ import {
   Delete,
   Query,
   UseGuards,
-  UseInterceptors,
-  UploadedFile,
   BadRequestException,
+  ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { BusService } from './bus.service';
 import { CreateBusDto } from './dto/create-bus.dto';
@@ -23,6 +24,7 @@ import {
   ApiOkResponse,
   ApiCreatedResponse,
   ApiBearerAuth,
+  ApiNoContentResponse,
   ApiQuery,
 } from '@nestjs/swagger';
 import { ResponseBusDto } from './dto/response-bus.dto';
@@ -30,18 +32,11 @@ import { ResponseBusListDto } from './dto/response-bus-list.dto';
 import { SecurityGuard } from '@/auth/guards/security.guard';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import type { JwtPayload } from '@/auth/types';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { BusPhotoService } from '@/bus-photo/bus-photo.service';
-import { BusPhotoStorageFile } from '@/bus-photo/bus-photo-storage.service';
-import { ResponseBusPhotoDto } from '@/bus-photo/dto/response-bus-photo.dto';
 
 @ApiTags('Buses')
 @Controller('bus')
 export class BusController {
-  constructor(
-    private readonly busService: BusService,
-    private readonly busPhotoService: BusPhotoService,
-  ) {}
+  constructor(private readonly busService: BusService) {}
 
   private async resolveEnterpriseId(user: JwtPayload): Promise<string> {
     if (!user?.id) {
@@ -83,12 +78,8 @@ export class BusController {
 
   @Get()
   @ApiOperation({ summary: 'Listar buses' })
-  @ApiQuery({
-    name: 'enterpriseId',
-    required: false,
-    description: 'Filtrar por empresa',
-  })
   @ApiOkResponse({ type: ResponseBusListDto })
+  @ApiQuery({ name: 'enterpriseId', required: false })
   findAll(
     @Query() paginationQuery: PaginationQueryDto,
     @Query('enterpriseId') enterpriseId?: string,
@@ -100,7 +91,7 @@ export class BusController {
   @ApiOperation({ summary: 'Obtener un bus por id' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ type: ResponseBusDto })
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.busService.findOne(id);
   }
 
@@ -113,7 +104,7 @@ export class BusController {
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ type: ResponseBusDto })
   async update(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() updateBusDto: UpdateBusDto,
     @CurrentUser() user: JwtPayload,
   ) {
@@ -123,56 +114,18 @@ export class BusController {
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(SecurityGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Eliminar un bus por id (requiere autenticación)' })
   @ApiParam({ name: 'id', format: 'uuid' })
-  async remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    const enterpriseId = await this.resolveEnterpriseId(user);
-    await this.busService.assertBusBelongsToEnterprise(id, enterpriseId);
-    return this.busService.remove(id);
-  }
-
-  @Post(':id/photo')
-  @UseGuards(SecurityGuard)
-  @UseInterceptors(FileInterceptor('photo'))
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Subir foto del bus (requiere autenticación)' })
-  @ApiParam({ name: 'id', format: 'uuid' })
-  @ApiCreatedResponse({ type: ResponseBusPhotoDto })
-  async uploadPhoto(
-    @Param('id') id: string,
-    @UploadedFile() file: Express.Multer.File,
+  @ApiNoContentResponse({ description: 'Bus eliminado' })
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: JwtPayload,
-  ): Promise<ResponseBusPhotoDto> {
+  ): Promise<void> {
     const enterpriseId = await this.resolveEnterpriseId(user);
     await this.busService.assertBusBelongsToEnterprise(id, enterpriseId);
-
-    if (!file) {
-      throw new BadRequestException('No file was uploaded');
-    }
-
-    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!allowedMimes.includes(file.mimetype)) {
-      throw new BadRequestException(
-        `Only JPEG, PNG, and WebP images are allowed. Received: ${file.mimetype}`,
-      );
-    }
-
-    const maxSize = 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      throw new BadRequestException(
-        `File size must not exceed 10 MB. Received: ${file.size} bytes`,
-      );
-    }
-
-    const storageFile: BusPhotoStorageFile = {
-      buffer: file.buffer,
-      originalname: file.originalname,
-      mimetype: file.mimetype,
-      size: file.size,
-    };
-
-    return this.busPhotoService.upsertForBus(id, storageFile);
+    await this.busService.remove(id);
   }
 }

@@ -9,7 +9,7 @@ import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { AlightTicketDto } from './dto/alight-ticket.dto';
 import { AlightResponseDto } from './dto/alight-response.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Ticket, TicketStatus } from './entities/ticket.entity';
 import { Citizen } from '@/citizen/entities/citizen.entity';
 import { PaymentMethodCitizen } from '@/payment-method-citizen/entities/payment-method-citizen.entity';
@@ -34,10 +34,9 @@ export class TicketService {
     private readonly pmcRepository: Repository<PaymentMethodCitizen>,
     @InjectRepository(Scheduler)
     private readonly schedulerRepository: Repository<Scheduler>,
-    @InjectRepository(History)
-    private readonly historyRepository: Repository<History>,
     @InjectRepository(Node)
     private readonly nodeRepository: Repository<Node>,
+    private readonly dataSource: DataSource,
   ) {}
 
   private toResponse(ticket: Ticket): ResponseTicketDto {
@@ -200,6 +199,34 @@ export class TicketService {
       .getCount();
   }
 
+  async countActiveTicketsByBusIds(
+    busIds: string[],
+  ): Promise<Map<string, number>> {
+    const counts = new Map<string, number>();
+    if (!busIds.length) {
+      return counts;
+    }
+
+    const rows = await this.ticketRepository
+      .createQueryBuilder('ticket')
+      .innerJoin('ticket.scheduler', 'scheduler')
+      .innerJoin('scheduler.bus', 'bus')
+      .select('bus.id', 'busId')
+      .addSelect('COUNT(ticket.id)', 'count')
+      .where('ticket.status = :active', { active: TicketStatus.ACTIVE })
+      .andWhere('bus.id IN (:...busIds)', { busIds })
+      .groupBy('bus.id')
+      .getRawMany<{ busId: string; count: string }>();
+
+    for (const busId of busIds) {
+      counts.set(busId, 0);
+    }
+    for (const row of rows) {
+      counts.set(row.busId, Number.parseInt(row.count, 10) || 0);
+    }
+    return counts;
+  }
+
   async update(id: string, updateTicketDto: UpdateTicketDto) {
     if (updateTicketDto.citizenId) {
       const cit = await this.citizenRepository.findOne({
@@ -257,39 +284,6 @@ export class TicketService {
     alightTicketDto: AlightTicketDto,
     citizenId: string,
   ): Promise<AlightResponseDto> {
-    const ticket = await this.ticketRepository.findOne({
-      where: { id: ticketId },
-      relations: [
-        'citizen',
-        'scheduler',
-        'scheduler.bus',
-        'scheduler.route',
-        'histories',
-        'histories.node',
-        'histories.node.stop',
-      ],
-    });
-
-    if (!ticket) {
-      throw new NotFoundException(`Ticket ${ticketId} not found`);
-    }
-
-    if (ticket.citizen?.id !== citizenId) {
-      throw new ForbiddenException(
-        'Este boleto no pertenece al ciudadano autenticado',
-      );
-    }
-
-    if (ticket.status !== TicketStatus.ACTIVE) {
-      throw new BadRequestException(
-        `Ticket is not active. Current status: ${ticket.status}`,
-      );
-    }
-
-    if (ticket.scheduler?.bus?.id !== alightTicketDto.busId) {
-      throw new BadRequestException('Bus ID does not match the ticket bus');
-    }
-
     const alightNode = await this.nodeRepository.findOne({
       where: { id: alightTicketDto.nodeId },
       relations: ['stop', 'route'],
@@ -301,44 +295,81 @@ export class TicketService {
       );
     }
 
-    if (alightNode.route?.id !== ticket.scheduler?.route?.id) {
-      throw new BadRequestException('Node does not belong to the ticket route');
-    }
+    return this.dataSource.transaction(async (manager) => {
+      const ticket = await manager.findOne(Ticket, {
+        where: { id: ticketId },
+        relations: [
+          'citizen',
+          'scheduler',
+          'scheduler.bus',
+          'scheduler.route',
+          'histories',
+          'histories.node',
+          'histories.node.stop',
+        ],
+        lock: { mode: 'pessimistic_write' },
+      });
 
-    const alightHistory = this.historyRepository.create({
-      ticket,
-      node: alightNode,
-      eventType: HistoryEventType.ALIGHTING,
+      if (!ticket) {
+        throw new NotFoundException(`Ticket ${ticketId} not found`);
+      }
+
+      if (ticket.citizen?.id !== citizenId) {
+        throw new ForbiddenException(
+          'Este boleto no pertenece al ciudadano autenticado',
+        );
+      }
+
+      if (ticket.status !== TicketStatus.ACTIVE) {
+        throw new BadRequestException(
+          `Ticket is not active. Current status: ${ticket.status}`,
+        );
+      }
+
+      if (ticket.scheduler?.bus?.id !== alightTicketDto.busId) {
+        throw new BadRequestException('Bus ID does not match the ticket bus');
+      }
+
+      if (alightNode.route?.id !== ticket.scheduler?.route?.id) {
+        throw new BadRequestException(
+          'Node does not belong to the ticket route',
+        );
+      }
+
+      const now = new Date();
+      const alightHistory = manager.create(History, {
+        ticket,
+        node: alightNode,
+        eventType: HistoryEventType.ALIGHTING,
+      });
+
+      await manager.save(alightHistory);
+
+      ticket.status = TicketStatus.COMPLETED;
+      ticket.completedAt = now;
+      await manager.save(ticket);
+
+      let totalTravelTime = 0;
+      const allHistories = [
+        ...(ticket.histories ?? []),
+        { ...alightHistory, createdAt: now },
+      ];
+      if (allHistories.length > 0) {
+        const times = allHistories.map((h) =>
+          ('createdAt' in h && h.createdAt ? h.createdAt : now).getTime(),
+        );
+        const firstTime = Math.min(...times);
+        const lastTime = Math.max(...times);
+        totalTravelTime = Math.round((lastTime - firstTime) / 60000);
+      }
+
+      const response = new AlightResponseDto();
+      response.message = 'Viaje completado - Gracias por usar nuestro servicio';
+      response.ticketId = ticket.id;
+      response.completedAt = now;
+      response.stopName = alightNode.stop?.name ?? 'Unknown Stop';
+      response.totalTravelTime = totalTravelTime;
+      return response;
     });
-
-    await this.historyRepository.save(alightHistory);
-
-    const now = new Date();
-    ticket.status = TicketStatus.COMPLETED;
-    ticket.completedAt = now;
-
-    await this.ticketRepository.save(ticket);
-
-    let totalTravelTime = 0;
-    const allHistories = [
-      ...(ticket.histories ?? []),
-      { ...alightHistory, createdAt: now },
-    ];
-    if (allHistories.length > 0) {
-      const times = allHistories.map((h) =>
-        ('createdAt' in h && h.createdAt ? h.createdAt : now).getTime(),
-      );
-      const firstTime = Math.min(...times);
-      const lastTime = Math.max(...times);
-      totalTravelTime = Math.round((lastTime - firstTime) / 60000);
-    }
-
-    const response = new AlightResponseDto();
-    response.message = 'Viaje completado - Gracias por usar nuestro servicio';
-    response.ticketId = ticket.id;
-    response.completedAt = now;
-    response.stopName = alightNode.stop?.name ?? 'Unknown Stop';
-    response.totalTravelTime = totalTravelTime;
-    return response;
   }
 }

@@ -16,6 +16,7 @@ import { UpdateSupervisorDto } from './dto/update-supervisor.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { Authenticated } from '@/auth/decorators/authenticated.decorator';
+import { Roles } from '@/auth/decorators/roles.decorator';
 import type { JwtPayload } from '@/auth/types';
 
 @ApiTags('Supervisors')
@@ -26,9 +27,10 @@ export class SupervisorController {
 
   @Post()
   @Authenticated()
+  @Roles('SUPERVISOR', 'ADMIN', 'BUSINESS_ADMIN')
   @ApiOperation({
     summary:
-      'Registrar perfil de supervisor (userId desde token, enterpriseId en body)',
+      'Registrar perfil de supervisor (requiere SUPERVISOR/ADMIN/BUSINESS_ADMIN; enterpriseId en body)',
   })
   create(
     @Body() createSupervisorDto: CreateSupervisorDto,

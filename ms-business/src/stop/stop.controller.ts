@@ -7,6 +7,9 @@ import {
   Param,
   Delete,
   Query,
+  ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
@@ -67,7 +70,9 @@ export class StopController {
   @ApiOperation({ summary: 'Obtener una parada por id' })
   @ApiParam({ name: 'id', description: 'Id de la parada', format: 'uuid' })
   @ApiOkResponse({ type: ResponseStopDto })
-  async findOne(@Param('id') id: string): Promise<ResponseStopDto> {
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ResponseStopDto> {
     return await this.stopService.findOne(id);
   }
 
@@ -76,17 +81,18 @@ export class StopController {
   @ApiParam({ name: 'id', description: 'Id de la parada', format: 'uuid' })
   @ApiOkResponse({ type: ResponseStopDto })
   async update(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() updateStopDto: UpdateStopDto,
   ): Promise<ResponseStopDto> {
     return await this.stopService.update(id, updateStopDto);
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Eliminar una parada por id' })
   @ApiParam({ name: 'id', description: 'Id de la parada', format: 'uuid' })
   @ApiNoContentResponse({ description: 'Parada eliminada' })
-  async remove(@Param('id') id: string): Promise<void> {
-    return await this.stopService.remove(id);
+  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    await this.stopService.remove(id);
   }
 }

@@ -72,11 +72,24 @@ export class BoardingService {
         );
       }
 
+      // Lock scheduler row after selection to serialize capacity checks
+      const lockedScheduler = await queryRunner.manager
+        .createQueryBuilder(Scheduler, 'scheduler')
+        .setLock('pessimistic_write')
+        .where('scheduler.id = :id', { id: scheduler.id })
+        .getOne();
+
+      if (!lockedScheduler) {
+        throw new NotFoundException(
+          'No hay programación activa para este bus en la fecha y hora actual. Verifique fecha del scheduler, ventana startTime–endTime y toleranceMinutes.',
+        );
+      }
+
       const capacity = this.getBusCapacity(scheduler.bus);
       if (capacity !== undefined && capacity > 0) {
         const activeTickets = await queryRunner.manager.count(Ticket, {
           where: {
-            scheduler: { id: scheduler.id },
+            scheduler: { id: lockedScheduler.id },
             status: TicketStatus.ACTIVE,
           },
         });

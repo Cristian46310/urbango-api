@@ -71,6 +71,47 @@ services:
     networks:
       - backend-network
 
+  # Microservicio de Mensajería (comparte Postgres con ms-business)
+  ms-messages:
+    build:
+      context: ./ms-messages
+      dockerfile: Dockerfile
+    container_name: ms-messages-app
+    ports:
+      - "3001:3001"
+    env_file:
+      - ./ms-messages/.env
+    environment:
+      PORT: 3001
+      NODE_ENV: production
+      DB_URL: ${DB_URL}
+      MS_SECURITY_URL: ${MS_SECURITY_URL:-http://ms-security:8080}
+      MS_SECURITY_INTERNAL_KEY: ${MS_SECURITY_INTERNAL_KEY}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+    restart: unless-stopped
+    depends_on:
+      ms-security:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - backend-network
+
   # MongoDB local para desarrollo (opcional)
   # Descomenta si quieres usar MongoDB local en lugar de Atlas
   # mongodb:

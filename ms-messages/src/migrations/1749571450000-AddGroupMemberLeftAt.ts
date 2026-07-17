@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddGroupMemberLeftAt1749571500000 implements MigrationInterface {
-  name = 'AddGroupMemberLeftAt1749571500000';
+export class AddGroupMemberLeftAt1749571450000 implements MigrationInterface {
+  name = 'AddGroupMemberLeftAt1749571450000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(

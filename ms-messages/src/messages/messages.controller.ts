@@ -4,6 +4,8 @@ import {
   Delete,
   Get,
   Headers,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -47,10 +49,8 @@ export class MessagesController {
   async sendDirect(
     @Body() dto: CreateDirectMessageDto,
     @CurrentUser() user: JwtPayload,
-    @Headers('authorization') authorization: string,
   ): Promise<ResponseMessageDto> {
-    const token = authorization.replace(/^Bearer\s+/i, '');
-    return this.messagesService.sendDirectMessage(user.id, dto, token);
+    return this.messagesService.sendDirectMessage(user.id, dto);
   }
 
   @Post('group')
@@ -128,6 +128,7 @@ export class MessagesController {
 
   @Delete(':id')
   @Authenticated()
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Eliminar mensaje grupal inapropiado (solo admin del grupo)',
   })

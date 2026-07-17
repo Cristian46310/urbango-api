@@ -7,16 +7,14 @@ import {
 import { CreateCitizenDto } from './dto/create-citizen.dto';
 import { UpdateCitizenDto } from './dto/update-citizen.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Citizen } from './entities/citizen.entity';
 import { Address } from '@/address/entities/address.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponseCitizenDto } from './dto/response-citizen.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
-import {
-  SecurityProfileRole,
-  SecurityRoleClientService,
-} from '@/auth/services/security-role-client.service';
+import { SecurityProfileRole } from '@/auth/services/security-role-client.service';
+import { ProfileRoleOutboxService } from '@/auth/services/profile-role-outbox.service';
 
 export type CreateCitizenInput = CreateCitizenDto & { userId: string };
 
@@ -27,7 +25,8 @@ export class CitizenService {
     private readonly citizenRepository: Repository<Citizen>,
     @InjectRepository(Address)
     private readonly addressRepository: Repository<Address>,
-    private readonly securityRoleClient: SecurityRoleClientService,
+    private readonly profileRoleOutbox: ProfileRoleOutboxService,
+    private readonly dataSource: DataSource,
   ) {}
 
   private async assertUniqueCitizenFields(
@@ -94,11 +93,19 @@ export class CitizenService {
         : undefined,
     };
     const cit = this.citizenRepository.create(citData);
-    const saved = await this.citizenRepository.save(cit);
-    await this.securityRoleClient.assignProfileRole(
-      input.userId,
-      SecurityProfileRole.CITIZEN,
+    const { saved, outboxId } = await this.dataSource.transaction(
+      async (manager) => {
+        const savedCitizen = await manager.getRepository(Citizen).save(cit);
+        const outbox = await this.profileRoleOutbox.enqueue(manager, {
+          userId: input.userId,
+          profileId: savedCitizen.id,
+          profileType: 'citizen',
+          role: SecurityProfileRole.CITIZEN,
+        });
+        return { saved: savedCitizen, outboxId: outbox.id };
+      },
     );
+    await this.profileRoleOutbox.tryProcessSoon(outboxId);
     return plainToInstance(ResponseCitizenDto, saved);
   }
 

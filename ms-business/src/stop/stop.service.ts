@@ -44,13 +44,16 @@ export class StopService {
     );
   }
   private async generateStopCode(): Promise<string> {
-    const [lastStop] = await this.stopRepository.find({
-      order: { code: 'DESC' },
-      take: 1,
-    });
-    const lastNumber = lastStop
-      ? Number.parseInt(lastStop.code.split('-')[1] ?? '', 10) || 0
-      : 0;
+    const result = await this.stopRepository
+      .createQueryBuilder('stop')
+      .select(
+        `MAX(CAST(NULLIF(split_part(stop.code, '-', 2), '') AS INTEGER))`,
+        'max',
+      )
+      .where(`stop.code LIKE 'PAR-%'`)
+      .getRawOne<{ max: string | null }>();
+
+    const lastNumber = Number.parseInt(result?.max ?? '0', 10) || 0;
     return `PAR-${lastNumber + 1}`;
   }
 
@@ -113,7 +116,7 @@ export class StopService {
     if (!stop) {
       throw new NotFoundException(`Stop with id ${id} not found`);
     }
-    await this.stopRepository.delete(id);
+    await this.stopRepository.softDelete(id);
     return;
   }
 

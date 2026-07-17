@@ -4,8 +4,8 @@ import { BaseMessageDto } from './base-message.dto';
 
 export class CreateDirectMessageDto extends BaseMessageDto {
   @ApiProperty({
-    example: '665f1c2e9a1b2c3d4e5f6789',
-    description: 'ID del destinatario en ms-security (MongoDB ObjectId)',
+    example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    description: 'ID del destinatario en ms-security (UUID)',
   })
   @IsString()
   @IsNotEmpty()

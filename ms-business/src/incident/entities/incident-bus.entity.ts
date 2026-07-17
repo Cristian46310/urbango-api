@@ -22,7 +22,6 @@ export class IncidentBus {
 
   @ManyToOne(() => Bus, (bus) => bus.incidentBuses, {
     onDelete: 'CASCADE',
-    eager: true,
   })
   @JoinColumn({ name: 'bus_id' })
   bus!: Bus;

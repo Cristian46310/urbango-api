@@ -12,7 +12,6 @@ export class UsersService {
 
   async search(
     query: SearchUsersQueryDto,
-    token: string,
     currentUserId: string,
   ): Promise<ResponseUserSummaryListDto> {
     const page = query.page ?? 1;
@@ -22,7 +21,6 @@ export class UsersService {
       query.q,
       page,
       limit,
-      token,
     );
 
     const items = result.items

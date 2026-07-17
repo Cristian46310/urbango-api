@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Conversation } from './entities/conversation.entity';
 import { ConversationMember } from './entities/conversation-member.entity';
 import { ConversationType } from './enums/conversation-type.enum';
@@ -22,12 +22,16 @@ export class ConversationsService {
     @InjectRepository(ConversationMember)
     private readonly conversationMemberRepository: Repository<ConversationMember>,
     private readonly securityUserClient: SecurityUserClientService,
+    private readonly dataSource: DataSource,
   ) {}
+
+  static buildDirectPairKey(userA: string, userB: string): string {
+    return userA < userB ? `${userA}:${userB}` : `${userB}:${userA}`;
+  }
 
   async findOrCreateDirectConversation(
     senderId: string,
     dto: CreateDirectConversationDto,
-    token: string,
   ): Promise<ResponseConversationDto> {
     if (senderId === dto.recipientId) {
       throw new BadRequestException(
@@ -35,7 +39,12 @@ export class ConversationsService {
       );
     }
 
-    await this.securityUserClient.getUserById(dto.recipientId, token);
+    await this.securityUserClient.getUserById(dto.recipientId);
+
+    const pairKey = ConversationsService.buildDirectPairKey(
+      senderId,
+      dto.recipientId,
+    );
 
     const existing = await this.findDirectConversationBetween(
       senderId,
@@ -46,28 +55,42 @@ export class ConversationsService {
       return this.toResponse(existing);
     }
 
-    const conversation = this.conversationRepository.create({
-      type: ConversationType.DIRECT,
-    });
-    const savedConversation =
-      await this.conversationRepository.save(conversation);
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        const conversation = manager.create(Conversation, {
+          type: ConversationType.DIRECT,
+          directPairKey: pairKey,
+        });
+        const savedConversation = await manager.save(conversation);
 
-    const members = [
-      this.conversationMemberRepository.create({
-        conversationId: savedConversation.id,
-        userId: senderId,
-      }),
-      this.conversationMemberRepository.create({
-        conversationId: savedConversation.id,
-        userId: dto.recipientId,
-      }),
-    ];
-    await this.conversationMemberRepository.save(members);
+        const members = [
+          manager.create(ConversationMember, {
+            conversationId: savedConversation.id,
+            userId: senderId,
+          }),
+          manager.create(ConversationMember, {
+            conversationId: savedConversation.id,
+            userId: dto.recipientId,
+          }),
+        ];
+        await manager.save(members);
 
-    return this.toResponse({
-      ...savedConversation,
-      members,
-    });
+        return this.toResponse({
+          ...savedConversation,
+          members,
+        });
+      });
+    } catch (error) {
+      // Concurrent create: unique on direct_pair_key — return the winner
+      const raced = await this.findDirectConversationBetween(
+        senderId,
+        dto.recipientId,
+      );
+      if (raced) {
+        return this.toResponse(raced);
+      }
+      throw error;
+    }
   }
 
   async getConversationIdsForUser(userId: string): Promise<string[]> {
@@ -109,7 +132,16 @@ export class ConversationsService {
     userA: string,
     userB: string,
   ): Promise<Conversation | null> {
-    const result = await this.conversationRepository
+    const pairKey = ConversationsService.buildDirectPairKey(userA, userB);
+    const byKey = await this.conversationRepository.findOne({
+      where: { type: ConversationType.DIRECT, directPairKey: pairKey },
+      relations: ['members'],
+    });
+    if (byKey) {
+      return byKey;
+    }
+
+    return this.conversationRepository
       .createQueryBuilder('conversation')
       .innerJoin('conversation.members', 'memberA')
       .innerJoin('conversation.members', 'memberB')
@@ -118,8 +150,6 @@ export class ConversationsService {
       .andWhere('memberB.userId = :userB', { userB })
       .leftJoinAndSelect('conversation.members', 'members')
       .getOne();
-
-    return result;
   }
 
   private toResponse(conversation: Conversation): ResponseConversationDto {

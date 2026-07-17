@@ -3,7 +3,10 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
+  ParseUUIDPipe,
   Put,
   Post,
   Query,
@@ -34,7 +37,10 @@ export class GpsController {
   @ApiOperation({ summary: 'Registrar posición GPS de un bus' })
   @ApiParam({ name: 'busId', format: 'uuid' })
   @ApiCreatedResponse({ type: ResponseGpsDto })
-  create(@Param('busId') busId: string, @Body() dto: CreateGpsDto) {
+  create(
+    @Param('busId', ParseUUIDPipe) busId: string,
+    @Body() dto: CreateGpsDto,
+  ) {
     return this.gpsService.create(busId, dto);
   }
 
@@ -49,7 +55,7 @@ export class GpsController {
   @ApiOperation({ summary: 'Obtener GPS de un bus' })
   @ApiParam({ name: 'busId', format: 'uuid' })
   @ApiOkResponse({ type: ResponseGpsDto })
-  findByBus(@Param('busId') busId: string) {
+  findByBus(@Param('busId', ParseUUIDPipe) busId: string) {
     return this.gpsService.findByBusId(busId);
   }
 
@@ -57,7 +63,7 @@ export class GpsController {
   @ApiOperation({ summary: 'Obtener registro GPS por id' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ type: ResponseGpsDto })
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.gpsService.findOne(id);
   }
 
@@ -65,15 +71,16 @@ export class GpsController {
   @ApiOperation({ summary: 'Actualizar registro GPS' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ type: ResponseGpsDto })
-  update(@Param('id') id: string, @Body() dto: UpdateGpsDto) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateGpsDto) {
     return this.gpsService.update(id, dto);
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Eliminar registro GPS' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiNoContentResponse({ description: 'Registro GPS eliminado' })
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.gpsService.remove(id);
   }
 }

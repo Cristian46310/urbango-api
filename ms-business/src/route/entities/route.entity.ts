@@ -2,6 +2,7 @@ import { Node } from '@/node/entities/node.entity';
 import {
   Column,
   CreateDateColumn,
+  DeleteDateColumn,
   Entity,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -23,4 +24,7 @@ export class Route {
   nodes!: Node[];
   @CreateDateColumn()
   createdAt!: Date;
+
+  @DeleteDateColumn()
+  deletedAt?: Date | null;
 }

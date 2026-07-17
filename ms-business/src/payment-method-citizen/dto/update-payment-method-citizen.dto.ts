@@ -1,10 +1,6 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNumber, IsOptional, Min } from 'class-validator';
-
-export class UpdatePaymentMethodCitizenDto {
-  @ApiProperty({ example: 15000, required: false })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  balance?: number;
-}
+/**
+ * Update de método de pago ciudadano.
+ * El saldo solo se modifica vía recargas / abordaje (no por CRUD directo).
+ * Body vacío permitido; campos desconocidos los rechaza el ValidationPipe global.
+ */
+export class UpdatePaymentMethodCitizenDto {}

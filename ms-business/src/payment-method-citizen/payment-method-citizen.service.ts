@@ -42,7 +42,7 @@ export class PaymentMethodCitizenService {
     const pmcData: Partial<PaymentMethodCitizen> = {
       citizen: { id: citizen.id } as Citizen,
       paymentMethod: { id: pm.id } as PaymentMethod,
-      balance: createDto.balance ?? 0,
+      balance: 0,
     };
 
     if (pm.isRechargeable) {
@@ -167,9 +167,8 @@ export class PaymentMethodCitizenService {
     if (!pmc)
       throw new NotFoundException(`PaymentMethodCitizen ${id} not found`);
 
-    if (updateDto.balance !== undefined) {
-      pmc.balance = updateDto.balance;
-    }
+    // Balance is not mutable via CRUD; use card-recharge / boarding flows.
+    void updateDto;
 
     const saved = await this.pmcRepository.save(pmc);
     return plainToInstance(ResponsePaymentMethodCitizenDto, saved);

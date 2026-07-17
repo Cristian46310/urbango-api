@@ -26,7 +26,6 @@ import { BoardingModule } from './boarding/boarding.module';
 import { IncidentModule } from './incident/incident.module';
 import { CardRechargeModule } from './card-recharge/card-recharge.module';
 import { DashboardModule } from './dashboard/dashboard.module';
-import { SharedModule } from './shared/shared.module';
 import { IncidentCommentModule } from './incident-comment/incident-comment.module';
 import { GpsModule } from './gps/gps.module';
 import { BusPhotoModule } from './bus-photo/bus-photo.module';
@@ -73,7 +72,6 @@ import { IncidentPhotoModule } from './incident-photo/incident-photo.module';
     IncidentCommentModule,
     CardRechargeModule,
     DashboardModule,
-    SharedModule,
   ],
   controllers: [AppController],
   providers: [AppService],

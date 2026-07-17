@@ -31,6 +31,12 @@ describe('TurnService', () => {
     turnRepository = {
       findOne: jest.fn(),
       save: jest.fn(),
+      createQueryBuilder: jest.fn(() => ({
+        leftJoin: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(null),
+      })),
     };
 
     const module: TestingModule = await Test.createTestingModule({

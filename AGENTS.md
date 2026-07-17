@@ -1,6 +1,6 @@
 # dev-backend-uc — Guía para agentes de IA
 
-Backend del proyecto UCaldas (semestre 2026-1). Monorepo con tres microservicios independientes que se integran por HTTP.
+Backend del proyecto UCaldas (semestre 2026-1). Monorepo con microservicios independientes que se integran por HTTP (ms-messages comparte Postgres con ms-business).
 
 ## Microservicios
 
@@ -8,6 +8,7 @@ Backend del proyecto UCaldas (semestre 2026-1). Monorepo con tres microservicios
 |----------|-------|--------|---------|-------|
 | **ms-security** | Spring Boot 4, Java 17, PostgreSQL (Supabase schema `security`) | 8080 | `ms-security/` | `/ms-security` o skill `ms-security` |
 | **ms-business** | NestJS 11, TypeORM, PostgreSQL | 3000 | `ms-business/` | `/ms-business` o skill `ms-business` |
+| **ms-messages** | NestJS 11, TypeORM, Socket.IO, PostgreSQL (misma BD que business) | 3001 | `ms-messages/` | `/ms-messages` o skill `ms-messages` |
 | **ms-notifications** | FastAPI, Python 3.12, uv, Gmail API | 8000 | `ms-notifications/` | `/ms-notifications` o skill `ms-notifications` |
 
 Skill transversal del monorepo: `/monorepo-overview` o `.agents/skills/monorepo-overview/`.
@@ -50,6 +51,7 @@ Scripts para agentes y desarrollo ágil. GitHub Actions ejecuta pasos adicionale
 |----|--------|---------------------|
 | ms-security | `scripts/build.sh` | `mvn clean package -DskipTests` |
 | ms-business | `scripts/verify.sh` | `pnpm lint` + `pnpm build` |
+| ms-messages | `scripts/verify.sh` | `pnpm lint` + `pnpm build` |
 | ms-notifications | `scripts/lint.sh` | `ruff check` + `ruff format --check` |
 
 ## Comandos rápidos (desde la raíz del repo)
@@ -58,13 +60,14 @@ Scripts para agentes y desarrollo ágil. GitHub Actions ejecuta pasos adicionale
 # Verificación rápida por microservicio
 ./.agents/skills/ms-security/scripts/build.sh
 ./.agents/skills/ms-business/scripts/verify.sh
+./.agents/skills/ms-messages/scripts/verify.sh
 ./.agents/skills/ms-notifications/scripts/lint.sh
 
-# Docker (security + notifications)
-docker compose up -d --build ms-security ms-notifications
+# Docker (security + notifications + messages)
+docker compose up -d --build ms-security ms-notifications ms-messages
 ```
 
-Swagger local: ms-security `:8080/swagger-ui/index.html`, ms-business `:3000/docs`, ms-notifications `:8000/docs`.
+Swagger local: ms-security `:8080/swagger-ui/index.html`, ms-business `:3000/docs`, ms-messages `:3001/docs`, ms-notifications `:8000/docs`.
 
 ## Documentación humana existente
 

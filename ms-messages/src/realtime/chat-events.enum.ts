@@ -10,4 +10,8 @@ export enum ChatEvent {
   ALERT_PUSH = 'alert:push',
   /** Cliente → servidor: unirse a room de una conversación abierta en UI */
   CONVERSATION_JOIN = 'conversation:join',
+  /** Servidor → cliente: refetch historial/inbox vía REST tras connect/reconnect */
+  SYNC_REQUIRED = 'sync:required',
+  /** Servidor → cliente: error (p. ej. auth) antes de disconnect */
+  ERROR = 'error',
 }

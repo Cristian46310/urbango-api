@@ -16,6 +16,7 @@ import { UpdateDriverDto } from './dto/update-driver.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { Authenticated } from '@/auth/decorators/authenticated.decorator';
+import { Roles } from '@/auth/decorators/roles.decorator';
 import type { JwtPayload } from '@/auth/types';
 
 @ApiTags('Drivers')
@@ -26,9 +27,10 @@ export class DriverController {
 
   @Post()
   @Authenticated()
+  @Roles('DRIVER')
   @ApiOperation({
     summary:
-      'Registrar perfil de conductor (solo JWT, sin RBAC — onboarding; enterpriseId en body)',
+      'Registrar perfil de conductor (requiere rol DRIVER ya promovido en ms-security; enterpriseId en body)',
   })
   create(
     @Body() createDriverDto: CreateDriverDto,

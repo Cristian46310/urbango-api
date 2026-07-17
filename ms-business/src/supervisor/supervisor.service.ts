@@ -7,12 +7,14 @@ import {
 import { CreateSupervisorDto } from './dto/create-supervisor.dto';
 import { UpdateSupervisorDto } from './dto/update-supervisor.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Supervisor } from './entities/supervisor.entity';
 import { Enterprise } from '@/enterprise/entities/enterprise.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponseSupervisorDto } from './dto/response-supervisor.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
+import { SecurityProfileRole } from '@/auth/services/security-role-client.service';
+import { ProfileRoleOutboxService } from '@/auth/services/profile-role-outbox.service';
 
 export type CreateSupervisorInput = CreateSupervisorDto & { userId: string };
 
@@ -23,6 +25,8 @@ export class SupervisorService {
     private readonly supervisorRepository: Repository<Supervisor>,
     @InjectRepository(Enterprise)
     private readonly enterpriseRepository: Repository<Enterprise>,
+    private readonly profileRoleOutbox: ProfileRoleOutboxService,
+    private readonly dataSource: DataSource,
   ) {}
 
   private async assertUniqueSupervisorFields(
@@ -87,7 +91,21 @@ export class SupervisorService {
     };
 
     const sup = this.supervisorRepository.create(supData);
-    const saved = await this.supervisorRepository.save(sup);
+    const { saved, outboxId } = await this.dataSource.transaction(
+      async (manager) => {
+        const savedSupervisor = await manager
+          .getRepository(Supervisor)
+          .save(sup);
+        const outbox = await this.profileRoleOutbox.enqueue(manager, {
+          userId: input.userId,
+          profileId: savedSupervisor.id,
+          profileType: 'supervisor',
+          role: SecurityProfileRole.SUPERVISOR,
+        });
+        return { saved: savedSupervisor, outboxId: outbox.id };
+      },
+    );
+    await this.profileRoleOutbox.tryProcessSoon(outboxId);
     return this.toResponse(saved);
   }
 

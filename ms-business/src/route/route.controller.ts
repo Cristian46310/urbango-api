@@ -7,6 +7,9 @@ import {
   Param,
   Delete,
   Query,
+  ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
@@ -46,7 +49,7 @@ export class RouteController {
   @ApiOperation({ summary: 'Obtener una ruta por id' })
   @ApiParam({ name: 'id', description: 'Id de la ruta', format: 'uuid' })
   @ApiOkResponse({ type: ResponseRouteDto })
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return await this.routeService.findOne(id);
   }
 
@@ -55,17 +58,18 @@ export class RouteController {
   @ApiParam({ name: 'id', description: 'Id de la ruta', format: 'uuid' })
   @ApiOkResponse({ type: ResponseRouteDto })
   async update(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() updateRouteDto: UpdateRouteDto,
   ) {
     return await this.routeService.update(id, updateRouteDto);
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Eliminar una ruta por id' })
   @ApiParam({ name: 'id', description: 'Id de la ruta', format: 'uuid' })
   @ApiNoContentResponse({ description: 'Ruta eliminada' })
-  async remove(@Param('id') id: string) {
-    return await this.routeService.remove(id);
+  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    await this.routeService.remove(id);
   }
 }

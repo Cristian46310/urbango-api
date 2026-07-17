@@ -138,7 +138,7 @@ export class CardRechargeController {
   @Public()
   @ApiOperation({
     summary:
-      'Retorno del navegador ePayco: confirma la recarga y redirige al front (usar en EPAYCO_RESPONSE_URL con URL pública)',
+      'Retorno del navegador ePayco: consulta estado y redirige al front (no acredita saldo)',
   })
   async returnFromEpayco(
     @Query() query: Record<string, string | string[] | undefined>,

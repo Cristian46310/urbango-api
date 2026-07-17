@@ -5,9 +5,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
-import { Brackets, Repository } from 'typeorm';
+import { Brackets, DataSource, EntityManager, Repository } from 'typeorm';
 import { Group } from '../entities/group.entity';
 import { GroupMember } from '../entities/group-member.entity';
 import { GroupBlockedUser } from '../entities/group-blocked-user.entity';
@@ -49,6 +49,8 @@ export class GroupMembershipService {
     private readonly conversationMemberRepository: Repository<ConversationMember>,
     private readonly securityUserClient: SecurityUserClientService,
     private readonly realtimeEmitter: RealtimeEmitterService,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {}
 
   async assertNotBlocked(groupId: string, userId: string): Promise<void> {
@@ -152,7 +154,6 @@ export class GroupMembershipService {
     groupId: string,
     adminId: string,
     query: GroupSearchQueryDto,
-    token: string,
   ): Promise<ResponseGroupMemberListDto> {
     const group = await this.getGroupWithMembers(groupId);
     this.assertAdmin(group, adminId);
@@ -161,7 +162,7 @@ export class GroupMembershipService {
 
     if (query.q?.trim()) {
       const searchTerm = query.q.trim().toLowerCase();
-      const enriched = await this.enrichMembers(activeMembers, token);
+      const enriched = await this.enrichMembers(activeMembers);
       const filtered = enriched.filter(
         (member) =>
           member.name.toLowerCase().includes(searchTerm) ||
@@ -175,7 +176,7 @@ export class GroupMembershipService {
     const limit = query.limit ?? 10;
     const skip = (page - 1) * limit;
     const pageMembers = activeMembers.slice(skip, skip + limit);
-    const items = await this.enrichMembers(pageMembers, token);
+    const items = await this.enrichMembers(pageMembers);
 
     return {
       items,
@@ -188,7 +189,6 @@ export class GroupMembershipService {
     adminId: string,
     targetUserId: string,
     role: GroupMemberRole,
-    token: string,
   ): Promise<ResponseGroupMemberEnrichedDto> {
     if (targetUserId === adminId) {
       throw new BadRequestException('No puedes cambiar tu propio rol aquí');
@@ -243,7 +243,7 @@ export class GroupMembershipService {
       role,
     });
 
-    const user = await this.securityUserClient.getUserById(targetUserId, token);
+    const user = await this.securityUserClient.getUserById(targetUserId);
 
     return plainToInstance(ResponseGroupMemberEnrichedDto, {
       userId: targetUserId,
@@ -288,12 +288,28 @@ export class GroupMembershipService {
     }
 
     const removedAt = new Date();
-    membership.leftAt = removedAt;
-    await this.groupMemberRepository.save(membership);
 
-    await this.conversationMemberRepository.delete({
-      conversationId: group.conversationId,
-      userId: targetUserId,
+    await this.dataSource.transaction(async (manager) => {
+      const groupMemberRepo = manager.getRepository(GroupMember);
+      const conversationMemberRepo = manager.getRepository(ConversationMember);
+
+      membership.leftAt = removedAt;
+      await groupMemberRepo.save(membership);
+
+      await conversationMemberRepo.delete({
+        conversationId: group.conversationId,
+        userId: targetUserId,
+      });
+
+      if (options.block) {
+        await this.blockUserRecord(
+          manager,
+          groupId,
+          targetUserId,
+          adminId,
+          options.reason,
+        );
+      }
     });
 
     await this.realtimeEmitter.removeUserFromConversation(
@@ -332,7 +348,13 @@ export class GroupMembershipService {
     }
 
     if (options.block) {
-      await this.blockUser(groupId, targetUserId, adminId, options.reason);
+      await this.logMembership(
+        groupId,
+        GroupMembershipAction.BLOCKED,
+        adminId,
+        targetUserId,
+        options.reason ? { reason: options.reason } : undefined,
+      );
     }
 
     return { groupId, userId: targetUserId, removedAt };
@@ -342,7 +364,6 @@ export class GroupMembershipService {
     groupId: string,
     adminId: string,
     pagination: PaginationQueryDto,
-    token: string,
   ): Promise<ResponseMembershipLogListDto> {
     const group = await this.getGroupWithMembers(groupId);
     this.assertAdmin(group, adminId);
@@ -364,7 +385,7 @@ export class GroupMembershipService {
       if (log.targetUserId) userIds.add(log.targetUserId);
     }
 
-    const userNames = await this.fetchUserNames([...userIds], token);
+    const userNames = await this.fetchUserNames([...userIds]);
 
     const items = logs.map((log) =>
       plainToInstance(ResponseMembershipLogDto, {
@@ -387,19 +408,21 @@ export class GroupMembershipService {
     };
   }
 
-  private async blockUser(
+  private async blockUserRecord(
+    manager: EntityManager,
     groupId: string,
     userId: string,
     blockedBy: string,
     reason?: string,
   ): Promise<void> {
-    const existing = await this.blockedUserRepository.findOne({
+    const blockedUserRepo = manager.getRepository(GroupBlockedUser);
+    const existing = await blockedUserRepo.findOne({
       where: { groupId, userId },
     });
 
     if (!existing) {
-      await this.blockedUserRepository.save(
-        this.blockedUserRepository.create({
+      await blockedUserRepo.save(
+        blockedUserRepo.create({
           groupId,
           userId,
           blockedBy,
@@ -407,26 +430,14 @@ export class GroupMembershipService {
         }),
       );
     }
-
-    await this.logMembership(
-      groupId,
-      GroupMembershipAction.BLOCKED,
-      blockedBy,
-      userId,
-      reason ? { reason } : undefined,
-    );
   }
 
   private async enrichMembers(
     members: GroupMember[],
-    token: string,
   ): Promise<ResponseGroupMemberEnrichedDto[]> {
     return Promise.all(
       members.map(async (member) => {
-        const user = await this.securityUserClient.getUserById(
-          member.userId,
-          token,
-        );
+        const user = await this.securityUserClient.getUserById(member.userId);
         return plainToInstance(ResponseGroupMemberEnrichedDto, {
           userId: member.userId,
           name: user.name,
@@ -440,13 +451,12 @@ export class GroupMembershipService {
 
   private async fetchUserNames(
     userIds: string[],
-    token: string,
   ): Promise<Map<string, string>> {
     const names = new Map<string, string>();
     await Promise.all(
       userIds.map(async (id) => {
         try {
-          const user = await this.securityUserClient.getUserById(id, token);
+          const user = await this.securityUserClient.getUserById(id);
           names.set(id, user.name);
         } catch {
           names.set(id, id);

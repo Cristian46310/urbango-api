@@ -45,15 +45,24 @@ describe('SchedulerService', () => {
     };
     schedulerRepository = {
       create: jest.fn((data) => data),
-      save: jest.fn(async (scheduler) => ({
-        id: 'scheduler-1',
-        createdAt: new Date(),
-        ...scheduler,
-      })),
+      save: jest.fn(async (scheduler) => {
+        if (Array.isArray(scheduler)) {
+          return scheduler.map((item, index) => ({
+            id: `scheduler-${index + 1}`,
+            createdAt: new Date(),
+            ...item,
+          }));
+        }
+        return {
+          id: 'scheduler-1',
+          createdAt: new Date(),
+          ...scheduler,
+        };
+      }),
       createQueryBuilder: jest.fn(() => queryBuilder),
       findAndCount: jest.fn(),
       findOne: jest.fn(),
-      delete: jest.fn(),
+      softDelete: jest.fn(),
     };
     busRepository = {
       findOne: jest.fn(),
@@ -123,14 +132,20 @@ describe('SchedulerService', () => {
       recurrenceType: RecurrenceType.WEEKDAYS,
     });
 
-    expect(schedulerRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        date: '2026-05-20',
-        status: SchedulerStatus.SCHEDULED,
-        toleranceMinutes: 5,
-        recurrenceType: RecurrenceType.WEEKDAYS,
-      }),
+    expect(schedulerRepository.create).toHaveBeenCalled();
+    expect(schedulerRepository.save).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          date: '2026-05-20',
+          status: SchedulerStatus.SCHEDULED,
+          toleranceMinutes: 5,
+          recurrenceType: RecurrenceType.WEEKDAYS,
+        }),
+      ]),
     );
+    // 2026-05-20 is Wednesday → weekdays in a 28-day window ≈ 20 occurrences
+    const savedArg = schedulerRepository.save.mock.calls[0][0] as unknown[];
+    expect(savedArg.length).toBeGreaterThan(1);
     expect(result.id).toBe('scheduler-1');
     expect(result.departureTime).toBeDefined();
     expect(result.endTime).toBeDefined();

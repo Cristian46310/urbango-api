@@ -68,10 +68,20 @@ export class DashboardRealtimeService {
     const buses =
       await this.busService.findAllWithGpsAndSchedules(enterpriseId);
 
+    const eligible = buses.filter((bus) => this.isEligibleForRealtimeFleet(bus));
+    const busIds = eligible.map((bus) => bus.id);
+    const [passengerCounts, incidentCounts] = await Promise.all([
+      this.ticketService.countActiveTicketsByBusIds(busIds),
+      this.incidentService.countActiveIncidentsByBusIds(busIds),
+    ]);
+
     return Promise.all(
-      buses
-        .filter((bus) => this.isEligibleForRealtimeFleet(bus))
-        .map(async (bus) => this.buildRealtimeBus(bus, waitingStopId)),
+      eligible.map(async (bus) =>
+        this.buildRealtimeBus(bus, waitingStopId, {
+          activePassengers: passengerCounts.get(bus.id) ?? 0,
+          activeIncidents: incidentCounts.get(bus.id) ?? 0,
+        }),
+      ),
     );
   }
 
@@ -152,6 +162,7 @@ export class DashboardRealtimeService {
     return this.notificationSubscriptionRepository.find({
       where: { notifiedAt: IsNull() },
       order: { createdAt: 'ASC' },
+      take: 100,
     });
   }
 
@@ -159,10 +170,9 @@ export class DashboardRealtimeService {
     subscription: NotificationSubscription,
   ): Promise<ArrivalNotificationDispatchResult> {
     const status = await this.findTargetBusStatus({
-      email: subscription.email,
-      routeId: subscription.routeId,
-      busId: subscription.busId,
-      stopId: subscription.stopId,
+      routeId: subscription.routeId ?? undefined,
+      busId: subscription.busId ?? undefined,
+      stopId: subscription.stopId ?? undefined,
       anticipationMinutes: subscription.anticipationMinutes,
       message: subscription.message,
     });
@@ -175,10 +185,13 @@ export class DashboardRealtimeService {
       };
     }
 
-    const etaMinutes = this.getEtaForStop(status, subscription.stopId);
+    const etaMinutes = this.getEtaForStop(
+      status,
+      subscription.stopId ?? undefined,
+    );
     const stopName = this.getStopNameForSubscription(
       status,
-      subscription.stopId,
+      subscription.stopId ?? undefined,
     );
     const shouldSendNow =
       etaMinutes !== undefined &&
@@ -231,6 +244,7 @@ export class DashboardRealtimeService {
   private async buildRealtimeBus(
     bus: any,
     waitingStopId?: string,
+    preloadedCounts?: { activePassengers: number; activeIncidents: number },
   ): Promise<ResponseRealtimeBusDto> {
     const coordinates = this.resolveBusCoordinates(bus);
     if (!coordinates) {
@@ -279,11 +293,12 @@ export class DashboardRealtimeService {
       ? this.calculateEstimatedMinutesToStop(route, nearestStop, waitingStopId)
       : undefined;
 
-    const activePassengers = await this.ticketService.countActiveTicketsByBus(
-      bus.id,
-    );
+    const activePassengers =
+      preloadedCounts?.activePassengers ??
+      (await this.ticketService.countActiveTicketsByBus(bus.id));
     const activeIncidents =
-      await this.incidentService.countActiveIncidentsByBus(bus.id);
+      preloadedCounts?.activeIncidents ??
+      (await this.incidentService.countActiveIncidentsByBus(bus.id));
     const capacity = (bus.seatedCapacity ?? 0) + (bus.standingCapacity ?? 0);
     const occupancyPercent =
       capacity > 0

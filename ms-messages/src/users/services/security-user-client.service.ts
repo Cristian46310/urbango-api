@@ -24,9 +24,11 @@ export class SecurityUserClientService {
   private readonly internalKey: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.securityServiceUrl =
-      this.configService.get<string>('MS_SECURITY_URL') ??
-      'http://localhost:8080';
+    const url = this.configService.get<string>('MS_SECURITY_URL')?.trim();
+    if (!url) {
+      throw new Error('MS_SECURITY_URL is required');
+    }
+    this.securityServiceUrl = url.replace(/\/$/, '');
     this.internalKey =
       this.configService.get<string>('MS_SECURITY_INTERNAL_KEY')?.trim() ?? '';
   }
@@ -45,7 +47,6 @@ export class SecurityUserClientService {
     query: string,
     page: number,
     limit: number,
-    _token: string,
   ): Promise<{
     items: ResponseUserSummaryDto[];
     totalItems: number;
@@ -80,10 +81,7 @@ export class SecurityUserClientService {
     }
   }
 
-  async getUserById(
-    userId: string,
-    _token: string,
-  ): Promise<ResponseUserSummaryDto> {
+  async getUserById(userId: string): Promise<ResponseUserSummaryDto> {
     try {
       const response = await axios.get<{
         id: string;
@@ -99,12 +97,22 @@ export class SecurityUserClientService {
         name: response.data.name,
         email: response.data.email,
       };
-    } catch {
-      throw new NotFoundException(`User ${userId} not found`);
+    } catch (error) {
+      if (
+        axios.isAxiosError(error) &&
+        error.response?.status === HttpStatus.NOT_FOUND
+      ) {
+        throw new NotFoundException(`User ${userId} not found`);
+      }
+      this.logger.error(`getUserById failed for ${userId}`);
+      throw new HttpException(
+        'User lookup service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 
-  async getAllUserIds(_token: string): Promise<string[]> {
+  async getAllUserIds(): Promise<string[]> {
     const userIds: string[] = [];
     let page = 0;
     const size = 200;

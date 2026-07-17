@@ -1,19 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsEmail,
-  IsIn,
-  IsInt,
-  IsOptional,
-  IsString,
-  IsUUID,
-} from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class CreateArrivalNotificationDto {
-  @ApiPropertyOptional({ example: 'usuario@example.com' })
-  @IsOptional()
-  @IsEmail()
-  email?: string;
-
   @ApiPropertyOptional({ example: 'route-uuid' })
   @IsOptional()
   @IsUUID()

@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, Post } from '@nestjs/common';
+import { Body, Controller, Post } from '@nestjs/common';
 import {
   ApiBody,
   ApiCreatedResponse,
@@ -27,13 +27,10 @@ export class ConversationsController {
   async createDirect(
     @Body() dto: CreateDirectConversationDto,
     @CurrentUser() user: JwtPayload,
-    @Headers('authorization') authorization: string,
   ): Promise<ResponseConversationDto> {
-    const token = authorization.replace(/^Bearer\s+/i, '');
     return this.conversationsService.findOrCreateDirectConversation(
       user.id,
       dto,
-      token,
     );
   }
 }

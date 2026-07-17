@@ -10,6 +10,8 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { JwtValidationService } from '@/auth/services/jwt-validation.service';
+import type { JwtPayload } from '@/auth/types';
 import { DashboardRealtimeService } from './dashboard-realtime.service';
 import {
   buildBusRoom,
@@ -28,7 +30,7 @@ import {
   // Engine path distinto de las rutas REST (/dashboard/realtime/fleet, ...).
   path: '/dashboard/realtime/ws',
   cors: {
-    origin: true,
+    origin: process.env.FRONTEND_URL ?? 'http://localhost:5173',
     credentials: true,
   },
 })
@@ -50,6 +52,7 @@ export class DashboardRealtimeGateway
 
   constructor(
     private readonly dashboardRealtimeService: DashboardRealtimeService,
+    private readonly jwtValidationService: JwtValidationService,
   ) {}
 
   afterInit(server: Server): void {
@@ -73,8 +76,49 @@ export class DashboardRealtimeGateway
   }
 
   handleConnection(client: Socket): void {
-    this.logger.debug(`Client connected: ${client.id}`);
-    void this.registerDefaultSubscriptions(client);
+    void this.authenticateConnection(client);
+  }
+
+  private extractToken(client: Socket): string | undefined {
+    const auth = client.handshake.auth as { token?: string } | undefined;
+    if (typeof auth?.token === 'string' && auth.token.length > 0) {
+      return auth.token.replace(/^Bearer\s+/i, '');
+    }
+
+    const header = client.handshake.headers.authorization;
+    if (typeof header === 'string' && header.startsWith('Bearer ')) {
+      return header.slice(7);
+    }
+
+    const queryToken = client.handshake.query.token;
+    if (typeof queryToken === 'string' && queryToken.length > 0) {
+      return queryToken;
+    }
+
+    return undefined;
+  }
+
+  private async authenticateConnection(client: Socket): Promise<void> {
+    try {
+      const token = this.extractToken(client);
+      if (!token) {
+        this.logger.warn(`WS reject ${client.id}: missing token`);
+        client.emit('error', { message: 'Missing authentication token' });
+        client.disconnect(true);
+        return;
+      }
+
+      const user = await this.jwtValidationService.validateToken(token);
+      client.data.user = user;
+      this.logger.debug(`Client connected: ${client.id} user=${user.id}`);
+      await this.registerDefaultSubscriptions(client);
+    } catch (error) {
+      this.logger.warn(
+        `WS reject ${client.id}: invalid token (${String(error)})`,
+      );
+      client.emit('error', { message: 'Invalid or expired token' });
+      client.disconnect(true);
+    }
   }
 
   private extractEnterpriseId(client: Socket): string | undefined {
@@ -126,6 +170,9 @@ export class DashboardRealtimeGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: FleetSubscribePayload,
   ) {
+    if (!client.data.user) {
+      return { subscribed: false, error: 'Unauthorized' };
+    }
     const room = this.buildFleetRoom(
       payload.enterpriseId,
       payload.routeId,
@@ -146,6 +193,9 @@ export class DashboardRealtimeGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: BusSubscribePayload,
   ) {
+    if (!client.data.user) {
+      return { subscribed: false, error: 'Unauthorized' };
+    }
     const room = this.buildBusRoom(payload.busId, payload.stopId);
     await client.join(room);
     const bus = await this.dashboardRealtimeService.getBusRealtimeStatus(
@@ -161,6 +211,9 @@ export class DashboardRealtimeGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { enterpriseId?: string },
   ) {
+    if (!client.data.user) {
+      return { subscribed: false, error: 'Unauthorized' };
+    }
     const room = this.buildDashboardRoom(payload.enterpriseId);
     await client.join(room);
     await this.emitDashboardSnapshot(room, payload.enterpriseId);
@@ -168,14 +221,16 @@ export class DashboardRealtimeGateway
   }
 
   @SubscribeMessage('dashboard:subscribe-notifications')
-  async subscribeNotifications(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { email?: string },
-  ) {
-    if (!payload?.email) {
-      return { subscribed: false, error: 'email is required' };
+  async subscribeNotifications(@ConnectedSocket() client: Socket) {
+    const user = client.data.user as JwtPayload | undefined;
+    const email = user?.email?.trim();
+    if (!email) {
+      return {
+        subscribed: false,
+        error: 'Authenticated user email is required',
+      };
     }
-    const room = this.buildNotificationRoom(payload.email);
+    const room = this.buildNotificationRoom(email);
     await client.join(room);
     return { subscribed: true, room };
   }

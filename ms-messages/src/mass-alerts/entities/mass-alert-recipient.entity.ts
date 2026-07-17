@@ -1,6 +1,5 @@
 import {
   Column,
-  CreateDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
@@ -19,8 +18,9 @@ export class MassAlertRecipient {
   @Column({ name: 'user_id', type: 'varchar', length: 64 })
   userId!: string;
 
-  @CreateDateColumn({ name: 'delivered_at', type: 'timestamptz' })
-  deliveredAt!: Date;
+  /** Se asigna explícitamente al momento del envío (no en la creación de la alerta programada). */
+  @Column({ name: 'delivered_at', type: 'timestamptz', nullable: true })
+  deliveredAt?: Date | null;
 
   @Column({ name: 'read_at', type: 'timestamptz', nullable: true })
   readAt?: Date | null;

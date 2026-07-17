@@ -17,12 +17,17 @@ export class JwtValidationService {
   private readonly securityServiceUrl: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.securityServiceUrl =
-      this.configService.get<string>('MS_SECURITY_URL') ??
-      'http://localhost:8080';
+    const url = this.configService.get<string>('MS_SECURITY_URL')?.trim();
+    if (!url) {
+      throw new Error('MS_SECURITY_URL is required');
+    }
+    this.securityServiceUrl = url.replace(/\/$/, '');
   }
 
-  async validateToken(token: string): Promise<JwtPayload> {
+  async validateToken(
+    token: string,
+    options?: { timeoutMs?: number },
+  ): Promise<JwtPayload> {
     try {
       const validationUrl = `${this.securityServiceUrl}/api/public/security/validate-token`;
 
@@ -36,7 +41,7 @@ export class JwtValidationService {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          timeout: 60000,
+          timeout: options?.timeoutMs ?? 10000,
         },
       );
 

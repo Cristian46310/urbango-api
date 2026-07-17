@@ -64,9 +64,8 @@
 
 ## shared
 
-- `UserIdMapping` — Mongo ObjectId ↔ PostgreSQL UUID.
-- `HttpExceptionFilter` — respuestas de error consistentes.
-- `PaginationQueryDto` — listados paginados.
+- Entidades base (`Person` STI), `HttpExceptionFilter`, `PaginationQueryDto`.
+- El vínculo con ms-security es `persons.user_id` = UUID del usuario (sin tabla de mapeo).
 
 ## auth
 

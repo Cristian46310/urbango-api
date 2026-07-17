@@ -12,8 +12,11 @@
 
 | Archivo | Propósito |
 |---------|-----------|
-| `1777345388544-SetupBases.ts` | Esquema base |
-| `1779048000000-CreateUserIdMappings.ts` | Tabla mapeo IDs security ↔ business |
+| `1779566461133-Business.ts` | Esquema base de dominio |
+| `1779700000000-HuEnt2SchemaAlign.ts` | Alineación HU-ENTR-2 (turns/tickets/history) |
+| `1781539199999-CreateNotificationSubscriptions.ts` | Suscripciones de llegada |
+| `1781539200000-DashboardRealtimeWebsocket.ts` | Columna `notifiedAt` (idempotente) |
+| `1782000000000-ReviewSchemaHardening.ts` | Índices FK, UNIQUE profiles/foto, drop `buses.gps_id` |
 
 ## Comandos típicos
 

@@ -69,6 +69,13 @@ export class TurnService {
       createTurnDto.endTime ? new Date(createTurnDto.endTime) : undefined,
     );
 
+    await this.assertNoOverlappingTurn({
+      busId: createTurnDto.busId,
+      driverId: createTurnDto.driverId,
+      startTime,
+      endTime,
+    });
+
     const turnData: Partial<Turn> = {
       startTime,
       endTime,
@@ -239,7 +246,10 @@ export class TurnService {
       if (!drv) throw new BadRequestException('Driver not found');
     }
 
-    const existing = await this.turnRepository.findOne({ where: { id } });
+    const existing = await this.turnRepository.findOne({
+      where: { id },
+      relations: ['bus', 'driver'],
+    });
     if (!existing) throw new NotFoundException(`Turn ${id} not found`);
 
     const mergedStart = updateTurnDto.startTime
@@ -252,6 +262,14 @@ export class TurnService {
       mergedStart,
       mergedEnd,
     );
+
+    await this.assertNoOverlappingTurn({
+      busId: updateTurnDto.busId ?? existing.bus?.id,
+      driverId: updateTurnDto.driverId ?? existing.driver?.id,
+      startTime,
+      endTime,
+      excludeTurnId: id,
+    });
 
     const preloadData: Partial<Turn> = {
       id,
@@ -274,7 +292,54 @@ export class TurnService {
   async remove(id: string) {
     const turn = await this.turnRepository.findOne({ where: { id } });
     if (!turn) throw new NotFoundException(`Turn ${id} not found`);
-    await this.turnRepository.delete(id);
+    await this.turnRepository.softDelete(id);
     return;
+  }
+
+  private async assertNoOverlappingTurn(params: {
+    busId?: string;
+    driverId?: string;
+    startTime: Date;
+    endTime: Date;
+    excludeTurnId?: string;
+  }): Promise<void> {
+    const { busId, driverId, startTime, endTime, excludeTurnId } = params;
+    if (!busId && !driverId) {
+      return;
+    }
+
+    const qb = this.turnRepository
+      .createQueryBuilder('turn')
+      .leftJoin('turn.bus', 'bus')
+      .leftJoin('turn.driver', 'driver')
+      .where('turn.status IN (:...activeStatuses)', {
+        activeStatuses: [TurnStatus.SCHEDULED, TurnStatus.IN_PROGRESS],
+      })
+      .andWhere('turn.startTime < :endTime', { endTime })
+      .andWhere('(turn.endTime IS NULL OR turn.endTime > :startTime)', {
+        startTime,
+      });
+
+    if (excludeTurnId) {
+      qb.andWhere('turn.id != :excludeTurnId', { excludeTurnId });
+    }
+
+    if (busId && driverId) {
+      qb.andWhere('(bus.id = :busId OR driver.id = :driverId)', {
+        busId,
+        driverId,
+      });
+    } else if (busId) {
+      qb.andWhere('bus.id = :busId', { busId });
+    } else if (driverId) {
+      qb.andWhere('driver.id = :driverId', { driverId });
+    }
+
+    const overlap = await qb.getOne();
+    if (overlap) {
+      throw new ConflictException(
+        'Ya existe un turno solapado para el bus o conductor en esa ventana',
+      );
+    }
   }
 }

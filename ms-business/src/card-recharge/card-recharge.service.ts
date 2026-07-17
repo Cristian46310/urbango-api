@@ -346,7 +346,9 @@ export class CardRechargeService {
   }
 
   /**
-   * Retorno del navegador tras pago ePayco (query params). En sandbox acredita sin firma.
+   * Retorno del navegador tras pago ePayco (query params).
+   * Nunca acredita saldo: solo informa estado. La acreditación es vía webhook
+   * (producción) o confirm-local-test / sync autenticado (sandbox).
    */
   async confirmFromEpaycoReturn(
     payload: EpaycoWebhookPayload,
@@ -381,16 +383,7 @@ export class CardRechargeService {
       return { reference, status: 'approved' };
     }
 
-    if (this.epaycoService.isTestMode()) {
-      await this.creditApprovedTransaction(
-        transaction,
-        payload.x_transaction_id ?? 'sandbox',
-      );
-      return { reference, status: 'approved' };
-    }
-
-    await this.handleWebhookConfirmation(payload);
-    return { reference, status: 'approved' };
+    return { reference, status: 'pending' };
   }
 
   /**
@@ -448,8 +441,6 @@ export class CardRechargeService {
     transaction: CardRechargeTransaction,
     epaycoTransactionId: string,
   ): Promise<void> {
-    const sandboxMode = this.epaycoService.isTestMode();
-
     await this.dataSource.transaction(async (manager) => {
       const txRepo = manager.getRepository(CardRechargeTransaction);
       const pmcRepo = manager.getRepository(PaymentMethodCitizen);
@@ -457,7 +448,7 @@ export class CardRechargeService {
       const lockedTx = await txRepo.findOne({
         where: { id: transaction.id },
         relations: ['paymentMethodCitizen'],
-        ...(sandboxMode ? {} : { lock: { mode: 'pessimistic_write' } }),
+        lock: { mode: 'pessimistic_write' },
       });
 
       if (
