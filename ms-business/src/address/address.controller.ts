@@ -23,6 +23,7 @@ import {
 import { ResponseAddressDto } from './dto/response-address.dto';
 import { ResponseAddressListDto } from './dto/response-address-list.dto';
 import { Authenticated } from '@/auth/decorators/authenticated.decorator';
+import { Roles } from '@/auth/decorators/roles.decorator';
 
 @ApiTags('address')
 @Controller('address')
@@ -42,13 +43,20 @@ export class AddressController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List addresses (paginated)' })
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Listar direcciones paginado (solo ADMIN)' })
   @ApiOkResponse({ type: ResponseAddressListDto })
   findAll(@Query() pagination: PaginationQueryDto) {
     return this.addressService.findAll(pagination);
   }
 
   @Get(':id')
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Detalle de dirección por id (solo ADMIN)' })
   @ApiOkResponse({ type: ResponseAddressDto })
   @ApiNotFoundResponse({ description: 'Address not found' })
   findOne(@Param('id') id: string) {
@@ -56,11 +64,19 @@ export class AddressController {
   }
 
   @Put(':id')
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Actualizar dirección (solo ADMIN)' })
   update(@Param('id') id: string, @Body() updateAddressDto: UpdateAddressDto) {
     return this.addressService.update(id, updateAddressDto);
   }
 
   @Delete(':id')
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Eliminar dirección (solo ADMIN)' })
   remove(@Param('id') id: string) {
     return this.addressService.remove(id);
   }

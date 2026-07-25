@@ -40,7 +40,8 @@
 - Historial de viajes; `GET /history/:id/trip-details` — detalle extendido.
 
 ### payment-method / payment-method-citizen
-- Métodos de pago y asociación ciudadano–método.
+- Catálogo fijo (`code`): `CASH`, `SYSTEM_CARD` (recargable), `EXTERNAL_CARD`. Sin QR por ahora.
+- Ciudadano elige y vincula con `GET /payment-method` + `POST /payment-method-citizen/me`.
 
 ### dashboard
 - **HU-ENTR-2-014:** ingresos por método de pago (tickets `completed`, `completedAt` en período).

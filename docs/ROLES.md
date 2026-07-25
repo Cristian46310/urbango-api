@@ -116,8 +116,7 @@ Unión de CITIZEN + DRIVER + SUPERVISOR + BUSINESS_ADMIN +
 - Admin ms-security (interceptor, URLs tras quitar `/api`):  
   `GET|POST /roles`, `GET|PUT|DELETE /roles/?`,  
   `GET|POST /permissions`, `GET|PUT|DELETE /permissions/?`,  
-  `POST /role-permission/assign-multiple`, `POST /role-permission/role/?/permission/?`, `DELETE /role-permission/?`,  
-  `GET|POST /profiles`, `GET|PUT|DELETE /profiles/?`
+  `POST /role-permission/assign-multiple`, `POST /role-permission/role/?/permission/?`, `DELETE /role-permission/?`
 
 ### USER
 
@@ -217,6 +216,11 @@ Hash con BCrypt (`PasswordEncoder`). Cuentas OAuth pueden tener `password` NULL;
 - `POST /api/public/security/refresh-token` (Bearer válido) emite un **nuevo** JWT con roles actuales (útil tras promover a DRIVER/ADMIN).
 - La UI no debe confiar solo en claims viejos del access token para gates críticos.
 
-## Profile (ms-security)
+## Perfil de dominio (no en ms-security)
 
-`POST /api/profiles` exige `userId` + phone + photo y asocia el perfil al usuario en un solo paso.
+`security.profiles` (phone/photo) fue eliminado. El perfil de persona vive en **ms-business**:
+
+- Ciudadano: `POST /citizen`, `GET /citizen/me`
+- Conductor: `POST /driver` (requiere rol JWT `DRIVER`), `GET /driver/me`
+
+`GET /api/public/security/me` solo devuelve identidad auth: `id`, `name`, `email`, `roles`, `permissions` (sin `profile`).

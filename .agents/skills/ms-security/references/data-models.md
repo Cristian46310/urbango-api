@@ -21,9 +21,6 @@ Paquete: `com.jmmg.ms_security.models`
 ### RolePermission
 - Relación Role ↔ Permission
 
-### Profile
-- Perfiles adicionales asociables a usuarios (endpoints user/profile)
-
 ## Sesión y 2FA
 
 ### Session
@@ -51,12 +48,11 @@ Paquete: `com.jmmg.ms_security.models`
 
 ```
 User ──< UserRole >── Role ──< RolePermission >── Permission
-User ── Profile (asignación vía API)
-User ── GitHubAccount / MicrosoftAccount
+User ── GitHubAccount
 ```
 
 ## DTOs de lectura
 
-`GetUserDetailDTO` — incluye lista de roles para validate-token y detalle de usuario.
+`GetUserDetailDTO` — `id`, `name`, `email`, `roles`, `permissions` (sin profile; dominio en ms-business `persons`).
 
 No modificar esquema Mongo sin revisar índices en anotaciones `@Indexed` de los modelos.

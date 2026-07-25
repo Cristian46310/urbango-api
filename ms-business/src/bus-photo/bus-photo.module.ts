@@ -9,11 +9,7 @@ import { BusPhotoStorageService } from './bus-photo-storage.service';
 import { BusModule } from '@/bus/bus.module';
 
 @Module({
-  imports: [
-    ConfigModule,
-    TypeOrmModule.forFeature([BusPhoto, Bus]),
-    BusModule,
-  ],
+  imports: [ConfigModule, TypeOrmModule.forFeature([BusPhoto, Bus]), BusModule],
   controllers: [BusPhotoController],
   providers: [BusPhotoService, BusPhotoStorageService],
   exports: [BusPhotoService, TypeOrmModule],

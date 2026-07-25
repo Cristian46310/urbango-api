@@ -69,6 +69,22 @@ VALUES
     (uuid_generate_v4(), '/history/*', 'PUT'),
     (uuid_generate_v4(), '/history/*', 'DELETE'),
 
+    -- ADMIN persons (list/CRUD; self-service uses /me + @Authenticated)
+    (uuid_generate_v4(), '/citizen', 'GET'),
+    (uuid_generate_v4(), '/citizen/*', 'GET'),
+    (uuid_generate_v4(), '/citizen/*', 'PUT'),
+    (uuid_generate_v4(), '/citizen/*', 'DELETE'),
+    (uuid_generate_v4(), '/driver', 'GET'),
+    (uuid_generate_v4(), '/driver/*', 'GET'),
+    (uuid_generate_v4(), '/driver/*', 'PUT'),
+    (uuid_generate_v4(), '/driver/*', 'DELETE'),
+
+    -- ADMIN address (list/CRUD; create for onboarding is @Authenticated)
+    (uuid_generate_v4(), '/address', 'GET'),
+    (uuid_generate_v4(), '/address/*', 'GET'),
+    (uuid_generate_v4(), '/address/*', 'PUT'),
+    (uuid_generate_v4(), '/address/*', 'DELETE'),
+
     -- ADMIN ms-security (ValidatorService strips /api; UUID/id → ?)
     (uuid_generate_v4(), '/roles', 'GET'),
     (uuid_generate_v4(), '/roles', 'POST'),
@@ -82,12 +98,7 @@ VALUES
     (uuid_generate_v4(), '/permissions/?', 'DELETE'),
     (uuid_generate_v4(), '/role-permission/assign-multiple', 'POST'),
     (uuid_generate_v4(), '/role-permission/role/?/permission/?', 'POST'),
-    (uuid_generate_v4(), '/role-permission/?', 'DELETE'),
-    (uuid_generate_v4(), '/profiles', 'GET'),
-    (uuid_generate_v4(), '/profiles', 'POST'),
-    (uuid_generate_v4(), '/profiles/?', 'GET'),
-    (uuid_generate_v4(), '/profiles/?', 'PUT'),
-    (uuid_generate_v4(), '/profiles/?', 'DELETE')
+    (uuid_generate_v4(), '/role-permission/?', 'DELETE')
 ON CONFLICT (url, method) DO NOTHING;
 
 -- Helper: link role name → all matching (url, method) pairs

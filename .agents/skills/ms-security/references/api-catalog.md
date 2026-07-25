@@ -55,10 +55,8 @@ Base local: `http://localhost:8080`
 | POST | `` |
 | PUT | `{id}` |
 | DELETE | `{id}` |
-| POST | `{id}/profile/{profileID}` |
-| DELETE | `{id}/profile/{profileID}` |
 
-## UserRoleController — `/api/public/user-role`
+## UserRoleController — `/api/user-role`
 
 | Método | Ruta |
 |--------|------|
@@ -77,16 +75,6 @@ Base local: `http://localhost:8080`
 | DELETE | `{id}` |
 
 ## PermissionController — `/api/permissions`
-
-| Método | Ruta |
-|--------|------|
-| GET | `` |
-| GET | `{id}` |
-| POST | `` |
-| PUT | `{id}` |
-| DELETE | `{id}` |
-
-## ProfileController — `/api/profiles`
 
 | Método | Ruta |
 |--------|------|

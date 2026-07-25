@@ -10,6 +10,10 @@ export class PaymentMethod {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
+  /** Código estable del catálogo: CASH | SYSTEM_CARD | EXTERNAL_CARD */
+  @Column({ type: 'varchar', length: 32, unique: true, nullable: true })
+  code?: string;
+
   @Column({ type: 'varchar', length: 128 })
   name!: string;
 

@@ -386,8 +386,7 @@ export class SchedulerService {
       : existing.startTime;
     const endTime = this.computeEndTime(departureTime, route);
 
-    const cancelling =
-      updateSchedulerDto.status === SchedulerStatus.CANCELLED;
+    const cancelling = updateSchedulerDto.status === SchedulerStatus.CANCELLED;
 
     if (!cancelling) {
       await this.validateBusAvailability(

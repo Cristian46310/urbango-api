@@ -71,7 +71,7 @@ export class PaymentMethodCitizenService {
     });
     if (!citizen) {
       throw new BadRequestException(
-        'Debe registrar su perfil de ciudadano antes de solicitar una tarjeta',
+        'Debe registrar su perfil de ciudadano antes de vincular un método de pago',
       );
     }
 

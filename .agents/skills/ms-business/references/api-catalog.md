@@ -52,13 +52,17 @@ Documentación interactiva: `/docs`
 
 ## citizen
 
-| Método | Ruta |
-|--------|------|
-| POST | `/citizen` |
-| GET | `/citizen` |
-| GET | `/citizen/:id` |
-| PUT | `/citizen/:id` |
-| DELETE | `/citizen/:id` |
+| Método | Ruta | Notas |
+|--------|------|-------|
+| POST | `/citizen` | Acepta `address: { address, city }` transaccional o el `addressId` legado, pero no ambos |
+| GET | `/citizen` | |
+| GET | `/citizen/:id` | |
+| PUT | `/citizen/:id` | Permite actualizar dirección anidada conservando compatibilidad con `addressId` |
+| DELETE | `/citizen/:id` | |
+
+Las respuestas de ciudadano incluyen `addressId` y `address`. El frontend no
+debe pedir UUID de dirección al usuario ni presentar `/address` como catálogo
+de domicilios.
 
 ## driver
 

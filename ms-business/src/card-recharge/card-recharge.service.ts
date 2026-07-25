@@ -72,10 +72,14 @@ export class CardRechargeService {
 
     let paymentMethodId = dto.paymentMethodId;
     if (!paymentMethodId) {
-      const defaultMethod = await this.paymentMethodRepository.findOne({
-        where: { isRechargeable: true },
-        order: { createdAt: 'ASC' },
-      });
+      const defaultMethod =
+        (await this.paymentMethodRepository.findOne({
+          where: { code: 'SYSTEM_CARD' },
+        })) ??
+        (await this.paymentMethodRepository.findOne({
+          where: { isRechargeable: true },
+          order: { createdAt: 'ASC' },
+        }));
       if (!defaultMethod) {
         throw new BadRequestException(
           'No hay método de pago recargable en el catálogo. Ejecute la migración de seed o cree uno con isRechargeable: true',

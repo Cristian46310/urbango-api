@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS security.profiles (
     photo TEXT,
     CONSTRAINT profiles_user_id_unique UNIQUE (user_id)
 );
+-- Deprecated: dropped by V5__drop_security_profiles.sql (domain profile = ms-business persons).
 
 CREATE TABLE IF NOT EXISTS security.sessions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

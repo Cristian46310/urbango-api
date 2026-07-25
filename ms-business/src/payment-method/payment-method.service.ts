@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreatePaymentMethodDto } from './dto/create-payment-method.dto';
@@ -19,6 +23,17 @@ export class PaymentMethodService {
   async create(
     createPaymentMethodDto: CreatePaymentMethodDto,
   ): Promise<ResponsePaymentMethodDto> {
+    if (createPaymentMethodDto.code) {
+      const existingCode = await this.pmRepository.findOne({
+        where: { code: createPaymentMethodDto.code },
+      });
+      if (existingCode) {
+        throw new BadRequestException(
+          `Ya existe un método de pago con code ${createPaymentMethodDto.code}`,
+        );
+      }
+    }
+
     const pm = this.pmRepository.create(
       createPaymentMethodDto as Partial<PaymentMethod>,
     );
@@ -48,10 +63,19 @@ export class PaymentMethodService {
   }
 
   async findDefaultRechargeable(): Promise<PaymentMethod | null> {
+    const byCode = await this.pmRepository.findOne({
+      where: { code: 'SYSTEM_CARD' },
+    });
+    if (byCode) return byCode;
+
     return this.pmRepository.findOne({
       where: { isRechargeable: true },
       order: { createdAt: 'ASC' },
     });
+  }
+
+  async findByCode(code: string): Promise<PaymentMethod | null> {
+    return this.pmRepository.findOne({ where: { code } });
   }
 
   async findAll(
@@ -60,7 +84,7 @@ export class PaymentMethodService {
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? 10;
     const [items, totalItems] = await this.pmRepository.findAndCount({
-      order: { createdAt: 'DESC' },
+      order: { createdAt: 'ASC' },
       skip: (page - 1) * limit,
       take: limit,
     });
@@ -80,6 +104,17 @@ export class PaymentMethodService {
     id: string,
     updatePaymentMethodDto: UpdatePaymentMethodDto,
   ): Promise<ResponsePaymentMethodDto> {
+    if (updatePaymentMethodDto.code) {
+      const existingCode = await this.pmRepository.findOne({
+        where: { code: updatePaymentMethodDto.code },
+      });
+      if (existingCode && existingCode.id !== id) {
+        throw new BadRequestException(
+          `Ya existe un método de pago con code ${updatePaymentMethodDto.code}`,
+        );
+      }
+    }
+
     const preloadData: Partial<PaymentMethod> = {
       id,
       ...updatePaymentMethodDto,
@@ -93,6 +128,11 @@ export class PaymentMethodService {
   async remove(id: string): Promise<void> {
     const pm = await this.pmRepository.findOne({ where: { id } });
     if (!pm) throw new NotFoundException(`PaymentMethod ${id} not found`);
+    if (pm.code && ['CASH', 'SYSTEM_CARD', 'EXTERNAL_CARD'].includes(pm.code)) {
+      throw new BadRequestException(
+        `No se puede eliminar el método de catálogo ${pm.code}`,
+      );
+    }
     await this.pmRepository.delete(id);
     return;
   }

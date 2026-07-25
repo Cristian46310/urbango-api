@@ -5,9 +5,13 @@ import { CitizenController } from './citizen.controller';
 import { Citizen } from './entities/citizen.entity';
 import { Person } from '@/shared/entities/person.entity';
 import { Address } from '@/address/entities/address.entity';
+import { UserPhotoModule } from '@/user-photo/user-photo.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Citizen, Person, Address])],
+  imports: [
+    TypeOrmModule.forFeature([Citizen, Person, Address]),
+    UserPhotoModule,
+  ],
   controllers: [CitizenController],
   providers: [CitizenService],
   exports: [CitizenService],

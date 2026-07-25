@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.jmmg.ms_security.DTOs.message.ResponseMessage;
 import com.jmmg.ms_security.DTOs.user.GetUserListDTO;
 import com.jmmg.ms_security.DTOs.user.GetUserDTO;
 import com.jmmg.ms_security.DTOs.user.PostUserDTO;
@@ -70,26 +69,6 @@ public class UserController {
     public ResponseEntity<Void> delete(@PathVariable String id) {
         this.userService.delete(id);
         return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("{id}/profile/{profileID}")
-    public ResponseEntity<ResponseMessage> addProfile(@PathVariable String id, @PathVariable String profileID) {
-        boolean success = this.userService.addProfile(id, profileID);
-        if (success) {
-            return ResponseEntity.ok(new ResponseMessage("Profile added successfully"));
-        } else {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    @DeleteMapping("{id}/profile/{profileID}")
-    public ResponseEntity<Void> removeProfile(@PathVariable String id, @PathVariable String profileID) {
-        boolean success = this.userService.removeProfile(id, profileID);
-        if (success) {
-            return ResponseEntity.noContent().build();
-        } else {
-            return ResponseEntity.notFound().build();
-        }
     }
 
 }

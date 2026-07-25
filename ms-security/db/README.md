@@ -8,6 +8,10 @@ Scripts versionados del schema PostgreSQL `security` (mismo proyecto Supabase qu
 | `V2__seed_permissions.sql` | Permisos RBAC ms-business + admin security base |
 | `V3__users_password_nullable.sql` | `ALTER` password nullable (si V1 viejo ya aplicado) |
 | `V4__admin_users_roles_permissions.sql` | Permisos `/users` y `/user-role` para ADMIN |
+| `V5__drop_security_profiles.sql` | Elimina `security.profiles` y permisos `/profiles` (perfil de dominio = ms-business `persons`) |
+| `V6__citizen_driver_admin_permissions.sql` | Permisos ADMIN para listar/CRUD `/citizen` y `/driver` |
+| `V7__address_admin_permissions.sql` | Permisos ADMIN para listar/CRUD `/address` |
+| `V8__admin_domain_list_permissions.sql` | Permisos ADMIN para `/payment-method-citizen`, `/supervisor`, `/ticket`, `/turn`, mutaciones `/payment-method` |
 
 ## Aplicar
 
@@ -18,6 +22,10 @@ node ../ms-security/db/apply-v1.cjs
 node ../ms-security/db/apply-v2.cjs
 node ../ms-security/db/apply-v3.cjs
 node ../ms-security/db/apply-v4.cjs
+node ../ms-security/db/apply-v5.cjs
+node ../ms-security/db/apply-v6.cjs
+node ../ms-security/db/apply-v7.cjs
+node ../ms-security/db/apply-v8.cjs
 ```
 
 Scripts idempotentes donde aplica (`ON CONFLICT` / `ALTER` seguro).

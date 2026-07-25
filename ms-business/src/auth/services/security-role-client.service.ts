@@ -1,6 +1,12 @@
-import { BadGatewayException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadGatewayException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
+import { AxiosError } from 'axios';
 import { firstValueFrom } from 'rxjs';
 
 /** Claves de perfil → nombre de rol en ms-security. */
@@ -53,6 +59,38 @@ export class SecurityRoleClientService {
       );
       throw new BadGatewayException(
         `No se pudo asignar el rol del perfil (${profileRole}). El perfil se creó; vuelve a intentar o contacta al administrador.`,
+      );
+    }
+  }
+
+  async assertUserExists(userId: string): Promise<void> {
+    if (!this.internalKey) {
+      throw new BadGatewayException(
+        'Falta configurar MS_SECURITY_INTERNAL_KEY en el entorno de ms-business.',
+      );
+    }
+
+    try {
+      await firstValueFrom(
+        this.httpService.get(
+          `${this.securityServiceUrl}/api/internal/users/${userId}`,
+          {
+            timeout: 30000,
+            headers: { 'X-Internal-Key': this.internalKey },
+          },
+        ),
+      );
+    } catch (error) {
+      if (error instanceof AxiosError && error.response?.status === 404) {
+        throw new NotFoundException(
+          `No existe un usuario en ms-security con id ${userId}`,
+        );
+      }
+      this.logger.error(
+        `Failed to verify security user ${userId}: ${String(error)}`,
+      );
+      throw new BadGatewayException(
+        'No se pudo verificar el usuario en ms-security.',
       );
     }
   }

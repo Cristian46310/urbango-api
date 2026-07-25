@@ -25,6 +25,7 @@ import { UpdateTurnGpsDto } from './dto/update-turn-gps.dto';
 import { ResponseGpsDto } from '@/gps/dto/response-gps.dto';
 import { StartTurnResponseDto } from './dto/start-turn-response.dto';
 import { Authenticated } from '@/auth/decorators/authenticated.decorator';
+import { Roles } from '@/auth/decorators/roles.decorator';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import type { JwtPayload } from '@/auth/types';
 import { ProfileContextService } from '@/auth/services/profile-context.service';
@@ -38,6 +39,10 @@ export class TurnController {
   ) {}
 
   @Post()
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Crear turno (ADMIN)' })
   create(@Body() createTurnDto: CreateTurnDto) {
     return this.turnService.create(createTurnDto);
   }
@@ -78,21 +83,37 @@ export class TurnController {
   }
 
   @Get()
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Listar turnos paginado (ADMIN)' })
   findAll(@Query() pagination: PaginationQueryDto) {
     return this.turnService.findAll(pagination);
   }
 
   @Get(':id')
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Detalle de turno (ADMIN)' })
   findOne(@Param('id') id: string) {
     return this.turnService.findOne(id);
   }
 
   @Put(':id')
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Actualizar turno (ADMIN)' })
   update(@Param('id') id: string, @Body() updateTurnDto: UpdateTurnDto) {
     return this.turnService.update(id, updateTurnDto);
   }
 
   @Delete(':id')
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Eliminar turno (ADMIN)' })
   remove(@Param('id') id: string) {
     return this.turnService.remove(id);
   }

@@ -58,16 +58,28 @@ export class SupervisorController {
   }
 
   @Get()
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiOperation({
+    summary:
+      'Listar supervisores paginado (solo ADMIN). Perfil propio: GET /supervisor/me',
+  })
   findAll(@Query() pagination: PaginationQueryDto) {
     return this.supervisorService.findAll(pagination);
   }
 
   @Get(':id')
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Detalle de supervisor por id (solo ADMIN)' })
   findOne(@Param('id') id: string) {
     return this.supervisorService.findOne(id);
   }
 
   @Put(':id')
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Actualizar supervisor (solo ADMIN)' })
   update(
     @Param('id') id: string,
     @Body() updateSupervisorDto: UpdateSupervisorDto,
@@ -76,6 +88,9 @@ export class SupervisorController {
   }
 
   @Delete(':id')
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Eliminar supervisor (solo ADMIN)' })
   remove(@Param('id') id: string) {
     return this.supervisorService.remove(id);
   }

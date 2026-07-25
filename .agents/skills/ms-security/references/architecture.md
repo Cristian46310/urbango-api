@@ -55,6 +55,6 @@ Detalle de servicios: [layers-and-packages.md](layers-and-packages.md).
 |---------|--------|
 | `/api/public/security` | Login, register, validate-token, OAuth |
 | `/api/public/users` | Gestión usuarios |
-| `/api/roles`, `/api/permissions`, `/api/profiles` | RBAC admin |
+| `/api/roles`, `/api/permissions`, `/api/user-role` | RBAC admin |
 
 Catálogo: [api-catalog.md](api-catalog.md).

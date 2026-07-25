@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, LessThanOrEqual, Repository } from 'typeorm';
 import {
@@ -51,7 +56,7 @@ export class ProfileRoleOutboxService implements OnModuleInit, OnModuleDestroy {
     params: {
       userId: string;
       profileId: string;
-      profileType: 'citizen' | 'supervisor';
+      profileType: 'citizen' | 'driver' | 'supervisor';
       role: SecurityProfileRole;
     },
   ): Promise<ProfileRoleOutbox> {
@@ -70,7 +75,9 @@ export class ProfileRoleOutboxService implements OnModuleInit, OnModuleDestroy {
 
   /** Immediate attempt after create; failures stay pending for the poller. */
   async tryProcessSoon(outboxId: string): Promise<void> {
-    const row = await this.outboxRepository.findOne({ where: { id: outboxId } });
+    const row = await this.outboxRepository.findOne({
+      where: { id: outboxId },
+    });
     if (!row || row.status !== ProfileRoleOutboxStatus.PENDING) {
       return;
     }

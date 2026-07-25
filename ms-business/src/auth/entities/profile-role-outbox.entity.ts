@@ -25,11 +25,11 @@ export class ProfileRoleOutbox {
   @Column({ type: 'uuid' })
   profileId!: string;
 
-  /** citizen | supervisor (driver assigns role before profile). */
+  /** citizen | driver | supervisor */
   @Column({ type: 'varchar', length: 32 })
   profileType!: string;
 
-  /** CITIZEN | SUPERVISOR */
+  /** CITIZEN | DRIVER | SUPERVISOR */
   @Column({ type: 'varchar', length: 32 })
   roleName!: string;
 

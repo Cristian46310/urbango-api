@@ -68,7 +68,9 @@ export class DashboardRealtimeService {
     const buses =
       await this.busService.findAllWithGpsAndSchedules(enterpriseId);
 
-    const eligible = buses.filter((bus) => this.isEligibleForRealtimeFleet(bus));
+    const eligible = buses.filter((bus) =>
+      this.isEligibleForRealtimeFleet(bus),
+    );
     const busIds = eligible.map((bus) => bus.id);
     const [passengerCounts, incidentCounts] = await Promise.all([
       this.ticketService.countActiveTicketsByBusIds(busIds),
