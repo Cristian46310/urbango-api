@@ -6,7 +6,7 @@ src/main/java/com/jmmg/ms_security/
 ├── controllers/          # 10 REST controllers
 ├── services/             # JwtService, SecurityService, *OAuthService, UserService…
 ├── repositories/         # IUserRepository, IRoleRepository, …
-├── models/               # Documentos MongoDB
+├── models/               # Entidades JPA (@Entity)
 ├── DTOs/
 │   ├── login/
 │   ├── user/
@@ -17,17 +17,17 @@ src/main/java/com/jmmg/ms_security/
 ├── infra/
 │   ├── config/           # JwtProperties, EmailProperties, *OAuthProperties
 │   ├── errors/           # ErrorHandle (@ControllerAdvice)
-│   └── exception/        # DataNotFound, EntityAlreadyExists, MissingToken…
-└── configurations/       # WebConfig
+│   └── exception/        # DataNotFound, EntityAlreadyExists, InvalidCredentials…
+└── configurations/       # WebConfig, SecurityConfig
 ```
 
 ## Flujo de una petición
 
 1. Controller recibe DTO + headers.
 2. Service aplica reglas y accede a repositories.
-3. Repository persiste/consulta MongoDB.
+3. Repository persiste/consulta PostgreSQL.
 4. Controller devuelve DTO o `ResponseEntity` con status HTTP.
-5. Excepciones → `ErrorHandle` → `ErrorDTO` / `ErrorResponse`.
+5. Excepciones → `ErrorHandle` → `ErrorDTO`.
 
 ## Servicios clave
 
@@ -38,7 +38,7 @@ src/main/java/com/jmmg/ms_security/
 | `UserService` | CRUD usuario, detalle con roles |
 | `UserRoleService` | Asignación roles |
 | `RolePermissionService` | Permisos por rol |
-| `GitHubOAuthService` / `MicrosoftOAuthService` | OAuth flows |
+| `GitHubOAuthService` | OAuth GitHub |
 | `AuthFactorService` | 2FA |
 | `ValidatorService` | Validaciones compartidas |
 | `AuthenticatedUserService` | Contexto usuario en request |
@@ -47,7 +47,8 @@ src/main/java/com/jmmg/ms_security/
 
 `src/test/java/.../MsSecurityApplicationTests.java` — context load.
 
-CI: `./mvnw -B clean verify`.
+Verificación rápida (agentes): `scripts/build.sh` → `mvn clean package -DskipTests`.  
+CI (GitHub): `./mvnw -B clean verify`.
 
 ## Dependencias notables (pom.xml)
 

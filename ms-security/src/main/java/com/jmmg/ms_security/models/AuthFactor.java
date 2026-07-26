@@ -1,6 +1,6 @@
 package com.jmmg.ms_security.models;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -14,8 +14,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
 import lombok.Data;
 
 @Data
@@ -34,8 +32,7 @@ public class AuthFactor {
     @Column(nullable = false, length = 128)
     private String code;
 
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date expiration;
+    private Instant expiration;
 
     @Column(columnDefinition = "text")
     private String token;
@@ -48,13 +45,11 @@ public class AuthFactor {
     @Column(nullable = false, length = 32)
     private AuthFactorType type;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false)
-    private Date createdAt = new Date();
+    private Instant createdAt = Instant.now();
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "updated_at", nullable = false)
-    private Date updatedAt = new Date();
+    private Instant updatedAt = Instant.now();
 
     public String getIdAsString() {
         return id == null ? null : id.toString();

@@ -86,7 +86,6 @@ public class JwtService {
     /**
      * Parsea y valida el JWT una sola vez (firma, expiración y claims mínimos).
      */
-    @SuppressWarnings("unchecked")
     public ValidatedTokenClaims parseValidToken(String token) {
         try {
             Claims claims = parseClaims(token);

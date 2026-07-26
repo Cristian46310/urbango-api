@@ -14,15 +14,15 @@ Content-Type: application/json
 
 ```json
 {
-  "id": "<mongoObjectId>",
+  "id": "<uuid>",
   "name": "Juan Pérez",
   "email": "juan@ucaldas.edu.co",
-  "userId": "<mongoObjectId>",
-  "roles": ["DRIVER", "ADMIN"]
+  "roles": ["DRIVER", "ADMIN"],
+  "createdAt": 1710000000000
 }
 ```
 
-**Implementación consumidor:** `ms-business/src/auth/services/jwt-validation.service.ts` mapea a `JwtPayload` (`id`, `name`, `email`, `roles`, `createdAt`). Si la respuesta incluye `postgresUuid`, se persiste en `user_id_mapping`.
+**Implementación consumidor:** `ms-business/src/auth/services/jwt-validation.service.ts` mapea a `JwtPayload` (`id`, `name`, `email`, `roles`, `createdAt`).
 
 **Errores:** 401 con `{ "error": "..." }` → ms-business lanza `HttpException` Unauthorized.
 
@@ -174,6 +174,84 @@ URL pública: `{SUPABASE_URL}/storage/v1/object/public/{bucket}/{path}`
 | `WHATSAPP_NOTIFICATION_URL` | — | Stub/futuro endpoint WhatsApp |
 | `PUSH_NOTIFICATION_URL` | — | Stub/futuro endpoint push |
 
+### Assessment síncrono (GPS → OpenWeather → risk determinista → NL)
+
+```
+POST /api/weather/assess
+Content-Type: application/json
+
+{ "lat": 5.07, "lon": -75.51, "travel_hour": 7 }
+```
+
+**Response:** `location`, `metrics` (temp, humidity, wind, rain_probability, …), `risk_level` (`low|medium|high` calculado en código), `explanation`, `recommendation` (LangGraph/LLM; no inventa métricas).
+
+| Variable | Default | Descripción |
+|----------|---------|-------------|
+| `WEATHER_RAIN_THRESHOLD_PERCENT` | `50` | Umbral medium |
+| `WEATHER_RAIN_HIGH_THRESHOLD_PERCENT` | `70` | Umbral high |
+
+---
+
+## 2d. ms-ai → ms-business (transporte, solo lectura)
+
+**Principios:** ms-ai solo GET; no replica datos operativos; **no shared DTOs** (JSON + mapper en AI).
+
+### Versionado
+
+Prefijo M2M: `/internal/v1/...`. Breaking → `/internal/v2`. Non-breaking: campos opcionales nuevos en v1.
+
+### Auth (Internal Key)
+
+```
+Header: X-Internal-Key: <MS_INTERNAL_API_KEY>
+Header: X-Correlation-Id: <uuid>   # opcional, propagado por ms-ai
+```
+
+| Variable (ms-business) | Variable (ms-ai) | Notas |
+|------------------------|------------------|-------|
+| `MS_INTERNAL_API_KEY` | `MS_BUSINESS_INTERNAL_KEY` | Mismo secreto |
+| `MS_INTERNAL_API_KEY_PREVIOUS` | — | Ventana dual-key ~7 días al rotar |
+
+**Rotación:** cada ~90 días. Clave no permanente. Durante la ventana, business acepta current + previous.
+
+### Endpoints
+
+```
+GET {MS_BUSINESS_URL}/internal/v1/scheduler?date=&routeId=&status=programado&page=&limit=
+→ 200 { items: [...], meta }
+
+GET {MS_BUSINESS_URL}/internal/v1/scheduler/:id
+→ 200 schedule | 404
+```
+
+ms-ai mapea JSON a proyección `RouteSchedule` (`HttpBusinessTransportClient`). No importar DTOs Nest.
+
+### Automatización (ms-ai)
+
+```
+POST /api/automation/route-reminders
+{ "business_schedule_id": "uuid", "user_id": "...", "user_email": "..." }
+→ { reminder_id, calendar_event_id, sync_status, departure_time, route_name }
+
+DELETE /api/automation/route-reminders/{reminder_id}
+```
+
+Tabla puente `automation_route_reminders`: solo IDs + `sync_status` (`PENDING|SYNCED|FAILED|CANCELLED`).
+
+### PQRS — categoría soporte técnico
+
+`category` incluye `technical_support`. Si `category` se omite en POST `/api/pqrs`, el LLM sugiere y se valida contra el enum (fallback `other`).
+
+### Decisiones rechazadas (ms-ai)
+
+| Rechazado | Razón |
+|-----------|--------|
+| Guardar rutas/horarios en ms-ai | Single Source of Truth |
+| Package compartido de DTOs | Acopla despliegues |
+| JWT de usuario en jobs AI→business | Jobs sin sesión; Internal Key |
+| `risk_level` vía LLM | Debe ser reproducible |
+| Categorías fuera del enum | Whitelist de dominio |
+
 ---
 
 ## 3. Variables de entorno compartidas
@@ -182,9 +260,11 @@ URL pública: `{SUPABASE_URL}/storage/v1/object/public/{bucket}/{path}`
 |----------|----------|-------------|
 | `MS_SECURITY_URL` | ms-business | Base URL de ms-security (default `http://localhost:8080`) |
 | `MS_NOTIFICATION_URL` | ms-security, ms-business, ms-ai | URL completa del endpoint send |
+| `MS_BUSINESS_URL` | ms-ai | Base URL ms-business |
+| `MS_BUSINESS_INTERNAL_KEY` / `MS_INTERNAL_API_KEY` | ms-ai / ms-business | M2M X-Internal-Key |
 | `JWT_SECRET` | ms-security | Firma de tokens (no duplicar lógica en business) |
-| `MONGO_URI` / `MONGO_DATABASE` | ms-security | MongoDB |
-| `DB_URL` | ms-business | PostgreSQL (Supabase pooler u otro) |
+| `DB_URL` | ms-security, ms-business, ms-messages | PostgreSQL (Supabase; security usa schema `security`) |
+| `MS_SECURITY_INTERNAL_KEY` | ms-security, ms-business, ms-messages | Header `X-Internal-Key` M2M |
 
 ---
 
@@ -192,11 +272,10 @@ URL pública: `{SUPABASE_URL}/storage/v1/object/public/{bucket}/{path}`
 
 | Origen | Formato | Uso |
 |--------|---------|-----|
-| ms-security | MongoDB ObjectId string | JWT `id`, `currentUser.id` en incidentes |
+| ms-security | UUID string | JWT `id`, `persons.user_id` en ms-business |
 | ms-business | UUID PostgreSQL | PKs locales en tablas de negocio |
 
-Entidad: `ms-business/src/shared/entities/user-id-mapping.entity.ts`  
-Servicio: `UserIdMappingService` — sincroniza cuando validate-token devuelve `postgresUuid`.
+El `id` del JWT de security es el mismo UUID que se guarda en `persons.user_id` (no hay ObjectId Mongo).
 
 ---
 
@@ -212,7 +291,7 @@ Content-Type: application/json
 { "method": "GET", "url": "/dashboard/payment-method-income" }
 ```
 
-`SecurityGuard` envía `method` y `url` (sin query string). ms-security compara con permisos MongoDB (patrones exactos o prefijo `/*`).
+`SecurityGuard` envía `method` y `url` (sin query string). ms-security compara con permisos en PostgreSQL (patrones exactos o prefijo `/*`).
 
 **Dashboard (HU-ENTR-2-014)** — registrar en ms-security y asignar a `BUSINESS_ADMIN` o `ADMIN`:
 

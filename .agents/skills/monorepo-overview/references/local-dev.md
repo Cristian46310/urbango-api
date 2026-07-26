@@ -2,21 +2,26 @@
 
 ## Orden sugerido al levantar el stack
 
-1. **MongoDB** — Atlas o local (ms-security).
-2. **ms-security** — puerto 8080; sin él, ms-business no valida JWT.
-3. **ms-notifications** — puerto 8000; opcional salvo flujos de email/incidentes.
-4. **PostgreSQL** — requerido para ms-business (`DB_URL`).
-5. **ms-business** — puerto 3000.
+1. **PostgreSQL / Supabase** — schema `security` (ms-security) + `public` (ms-business/messages).
+2. **ms-notifications** — puerto 8000; necesario para 2FA / emails.
+3. **ms-security** — puerto 8080; sin él, ms-business no valida JWT.
+4. **ms-business** — puerto 3000.
+5. **ms-messages** — puerto 3001 (opcional).
 
 ## ms-security
 
 ```bash
-mkdir -p ~/.config/ms-security
-# Copiar variables desde ms-security/.env.example
-cd ms-security && ./mvnw spring-boot:run
+cd ms-security
+cp .env.example .env   # editar DB_URL, JWT_SECRET, etc.
+./mvnw spring-boot:run
 ```
 
-Variables mínimas: `MONGO_URI`, `MONGO_DATABASE`, `JWT_SECRET`, `MS_NOTIFICATION_URL`.
+Variables mínimas: `DB_URL`, `JWT_SECRET`, `MS_NOTIFICATION_URL`, `MS_SECURITY_INTERNAL_KEY`.
+
+Health: http://localhost:8080/api/health  
+Swagger: http://localhost:8080/swagger-ui/index.html
+
+Ver [SETUP-LOCAL.md](../../../ms-security/SETUP-LOCAL.md).
 
 ## ms-business
 
@@ -45,18 +50,19 @@ uv run fastapi dev --host 0.0.0.0 --port 8000
 Desde la raíz:
 
 ```bash
-docker compose up -d --build ms-security ms-notifications
+docker compose up -d --build ms-security ms-notifications ms-messages
 ```
 
 `ms-business` no está en compose actual; ejecutar con pnpm localmente.
 
-- Security: `8080`, env desde `./.env` en raíz.
+- Security: `8080`, Postgres vía `DB_URL`, health `/api/health`.
 - Notifications: `8000`, secrets montados en `/run/secrets`.
+- Messages: `3001`, depende de ms-security healthy.
 
 ## Verificación rápida
 
 ```bash
-curl -s http://localhost:8080/actuator/health
+curl -s http://localhost:8080/api/health
 curl -s http://localhost:8000/api/email/health
 curl -s http://localhost:3000/
 ```

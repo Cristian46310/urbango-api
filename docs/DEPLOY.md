@@ -34,14 +34,21 @@ dev-backend-uc/
 
 ### ms-security
 
-Crear un `.env` en la raíz del repositorio o exportar las variables antes de levantar Compose:
+Crear un `.env` en la raíz del repositorio (o `ms-security/.env`) según `.env.example`:
 
 ```bash
-JWT_SECRET=tu-secreto-seguro
-JWT_EXPIRATION=3600000
-SPRING_MONGODB_URI=mongodb+srv://usuario:password@cluster.mongodb.net/?appName=app
-SPRING_MONGODB_DATABASE=backend-jmmg
+DB_URL=jdbc:postgresql://.../postgres?currentSchema=security&sslmode=require&prepareThreshold=0
+DB_USERNAME=postgres.<project-ref>
+DB_PASSWORD=<db-password>
+JWT_SECRET=<secreto_min_32_chars>
+MS_SECURITY_INTERNAL_KEY=<clave_interna>
+MS_NOTIFICATION_URL=http://ms-notifications:8000/api/email/send
+CORS_ALLOWED_ORIGINS=http://localhost:5173
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 ```
+
+Health: `GET /api/health` (no actuator).
 
 ### ms-notifications
 

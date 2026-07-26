@@ -4,10 +4,12 @@ Documentación extendida: `docs/ROLES.md`, `docs/GITHUB_LOGIN_FRONTEND.md`.
 
 ## Login clásico
 
-1. `POST /api/public/security/login` con `LoginDTO` (email, password).
-2. `SecurityService` busca usuario, compara password SHA256.
-3. Respuesta incluye JWT (`TokenDTO`) si credenciales válidas.
-4. Si 2FA activo → flujo intermedio antes del token final.
+1. `POST /api/public/security/login` con `LoginDTO` (email, password, reCAPTCHA).
+2. `SecurityService` busca usuario y verifica password con **BCrypt**.
+3. Si OK → crea `AuthFactor` y envía código por email (`MS_NOTIFICATION_URL`).
+4. Respuesta: `LoginChallengeDTO` (`challengeToken`, expiración). **No** JWT todavía.
+5. `POST /api/public/security/verify-2fa` → JWT (`TokenDTO`).
+6. Credenciales inválidas → **401**; fallo al enviar email 2FA → **503**.
 
 ## Registro
 
@@ -30,10 +32,6 @@ Documentación extendida: `docs/ROLES.md`, `docs/GITHUB_LOGIN_FRONTEND.md`.
 4. Vincular cuenta existente: `link/authorize`, `link`, `DELETE link`.
 
 Redirect URI por defecto: `http://localhost:5173/auth/github/callback` (`github.oauth.redirect-uri`).
-
-## Microsoft
-
-Login Microsoft **retirado** del API. Las tablas JPA `microsoft_*` pueden existir en DB pero no hay endpoints.
 
 ## 2FA
 

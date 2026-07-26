@@ -1,34 +1,31 @@
-# Modelos de datos — ms-security (MongoDB)
+# Modelos de datos — ms-security (JPA / PostgreSQL)
 
-Paquete: `com.jmmg.ms_security.models`
+Paquete: `com.jmmg.ms_security.models`  
+Schema: `security`
 
 ## Core RBAC
 
 ### User
-- `id`, `name`, `email` (único), `password` (SHA256)
-- Referenciado por sesiones, roles, OAuth accounts
+- `id` (UUID), `name`, `email` (único), `password` (BCrypt; nullable para OAuth-only)
 
 ### Role
 - `name` (ej. ADMIN, DRIVER, USER), `description`
 
 ### UserRole
-- Relación User ↔ Role (`@DBRef`)
-- Índices: unicidad user+role, búsqueda por user/role
+- Relación User ↔ Role
 
 ### Permission
-- Permisos granulares del sistema
+- Permisos granulares (`url`, `method`, …)
 
 ### RolePermission
 - Relación Role ↔ Permission
 
 ## Sesión y 2FA
 
-### Session
-- Sesiones activas del usuario
-
 ### AuthFactor
-- Factores de segundo factor (`AuthFactorType`, `AuthFactorStatus`)
-- Códigos con expiración (`auth.factor.expiration` en properties)
+- Challenge 2FA (`AuthFactorType`, `AuthFactorStatus`)
+- Códigos con expiración (`auth.factor.expiration`)
+- El JWT es **stateless** (no hay tabla `sessions`).
 
 ## OAuth
 
@@ -36,13 +33,12 @@ Paquete: `com.jmmg.ms_security.models`
 - Estados: `GitHubAuthRequestStatus`, modos: `GitHubAuthMode`
 - Flujo authorize → callback → complete-registration
 
-### MicrosoftAccount / MicrosoftAuthRequest
-- Análogo a GitHub (`MicrosoftAuthRequestStatus`, `MicrosoftAuthMode`)
+Google login usa idToken (`GoogleTokenVerifierService`) sin tablas dedicadas.
 
 ## Otros
 
 ### Method
-- Métodos de autenticación registrados
+- Métodos HTTP usados en permisos
 
 ## Relaciones típicas
 
@@ -53,6 +49,6 @@ User ── GitHubAccount
 
 ## DTOs de lectura
 
-`GetUserDetailDTO` — `id`, `name`, `email`, `roles`, `permissions` (sin profile; dominio en ms-business `persons`).
+`GetUserDetailDTO` — `id`, `name`, `email`, `roles`, `permissions` (perfil de dominio en ms-business `persons`).
 
-No modificar esquema Mongo sin revisar índices en anotaciones `@Indexed` de los modelos.
+Cambios de esquema: scripts en `ms-security/db/` (`V1`…`V10`).

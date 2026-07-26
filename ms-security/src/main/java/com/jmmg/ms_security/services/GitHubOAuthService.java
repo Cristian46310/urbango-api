@@ -1,9 +1,9 @@
 package com.jmmg.ms_security.services;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -65,7 +65,7 @@ public class GitHubOAuthService {
     private RestTemplate restTemplate;
 
     public GitHubAuthorizeDTO createAuthorization(GitHubAuthMode mode, UUID userId) {
-        Date now = new Date();
+        Instant now = Instant.now();
         GitHubAuthRequest authRequest = new GitHubAuthRequest();
         authRequest.setState(UUID.randomUUID().toString());
         authRequest.setMode(mode);
@@ -73,7 +73,7 @@ public class GitHubOAuthService {
         authRequest.setUserId(userId);
         authRequest.setCreatedAt(now);
         authRequest.setUpdatedAt(now);
-        authRequest.setExpiration(new Date(now.getTime() + this.gitHubOAuthProperties.getStateExpiration()));
+        authRequest.setExpiration(now.plusMillis(this.gitHubOAuthProperties.getStateExpiration()));
         this.gitHubAuthRequestRepository.save(authRequest);
 
         String authorizationUrl = UriComponentsBuilder
@@ -112,7 +112,7 @@ public class GitHubOAuthService {
         authRequest.setGithubEmail(resolvedEmail);
         authRequest.setGithubAvatarUrl(profile.avatarUrl());
         authRequest.setGithubProfileUrl(profile.htmlUrl());
-        authRequest.setUpdatedAt(new Date());
+        authRequest.setUpdatedAt(Instant.now());
         this.gitHubAuthRequestRepository.save(authRequest);
 
         if (authRequest.getMode() == GitHubAuthMode.LINK) {
@@ -132,7 +132,7 @@ public class GitHubOAuthService {
 
         if (resolvedEmail == null || resolvedEmail.isBlank()) {
             authRequest.setStatus(GitHubAuthRequestStatus.EMAIL_REQUIRED);
-            authRequest.setUpdatedAt(new Date());
+            authRequest.setUpdatedAt(Instant.now());
             this.gitHubAuthRequestRepository.save(authRequest);
             return new GitHubAuthResultDTO(
                     "EMAIL_REQUIRED",
@@ -259,7 +259,7 @@ public class GitHubOAuthService {
         GitHubAccount account = this.gitHubAccountRepository.findByProviderUserId(authRequest.getGithubUserId())
                 .orElseGet(GitHubAccount::new);
 
-        Date now = new Date();
+        Instant now = Instant.now();
         if (account.getCreatedAt() == null) {
             account.setCreatedAt(now);
             account.setLinkedAt(now);
@@ -349,19 +349,19 @@ public class GitHubOAuthService {
         return headers;
     }
 
-    private boolean isExpired(Date expiration) {
-        return expiration == null || expiration.before(new Date());
+    private boolean isExpired(Instant expiration) {
+        return expiration == null || expiration.isBefore(Instant.now());
     }
 
     private void markAsCompleted(GitHubAuthRequest authRequest) {
         authRequest.setStatus(GitHubAuthRequestStatus.COMPLETED);
-        authRequest.setUpdatedAt(new Date());
+        authRequest.setUpdatedAt(Instant.now());
         this.gitHubAuthRequestRepository.save(authRequest);
     }
 
     private void markAsCanceled(GitHubAuthRequest authRequest) {
         authRequest.setStatus(GitHubAuthRequestStatus.CANCELED);
-        authRequest.setUpdatedAt(new Date());
+        authRequest.setUpdatedAt(Instant.now());
         this.gitHubAuthRequestRepository.save(authRequest);
     }
 

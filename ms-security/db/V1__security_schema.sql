@@ -5,7 +5,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE SCHEMA IF NOT EXISTS security;
-COMMENT ON SCHEMA security IS 'ms-security: auth, RBAC, sessions; OAuth/2FA tables reserved for later';
+COMMENT ON SCHEMA security IS 'ms-security: auth, RBAC, GitHub OAuth, 2FA (auth_factors); JWT is stateless';
 
 -- ---------------------------------------------------------------------------
 -- Core: login / RBAC
@@ -54,29 +54,8 @@ CREATE TABLE IF NOT EXISTS security.role_permissions (
 CREATE INDEX IF NOT EXISTS idx_role_permissions_role_id ON security.role_permissions (role_id);
 CREATE INDEX IF NOT EXISTS idx_role_permissions_permission_id ON security.role_permissions (permission_id);
 
-CREATE TABLE IF NOT EXISTS security.profiles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES security.users (id) ON DELETE CASCADE,
-    phone VARCHAR(64),
-    photo TEXT,
-    CONSTRAINT profiles_user_id_unique UNIQUE (user_id)
-);
--- Deprecated: dropped by V5__drop_security_profiles.sql (domain profile = ms-business persons).
-
-CREATE TABLE IF NOT EXISTS security.sessions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES security.users (id) ON DELETE CASCADE,
-    token TEXT NOT NULL,
-    expiration TIMESTAMPTZ,
-    code_2fa VARCHAR(64),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON security.sessions (user_id);
-CREATE INDEX IF NOT EXISTS idx_sessions_token ON security.sessions (token);
-
 -- ---------------------------------------------------------------------------
--- Future: 2FA / password reset
+-- 2FA / password-reset challenges
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS security.auth_factors (
@@ -95,7 +74,7 @@ CREATE INDEX IF NOT EXISTS idx_auth_factors_user_id ON security.auth_factors (us
 CREATE INDEX IF NOT EXISTS idx_auth_factors_token ON security.auth_factors (token);
 
 -- ---------------------------------------------------------------------------
--- Future: GitHub OAuth
+-- GitHub OAuth
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS security.github_accounts (
@@ -130,76 +109,6 @@ CREATE TABLE IF NOT EXISTS security.github_auth_requests (
     github_avatar_url TEXT,
     github_profile_url TEXT,
     CONSTRAINT github_auth_requests_state_unique UNIQUE (state)
-);
-
--- ---------------------------------------------------------------------------
--- Future: Microsoft OAuth
--- ---------------------------------------------------------------------------
-
-CREATE TABLE IF NOT EXISTS security.microsoft_accounts (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES security.users (id) ON DELETE CASCADE,
-    provider_user_id VARCHAR(255) NOT NULL,
-    display_name VARCHAR(255),
-    email VARCHAR(255),
-    linked_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT microsoft_accounts_provider_user_id_unique UNIQUE (provider_user_id),
-    CONSTRAINT microsoft_accounts_user_id_unique UNIQUE (user_id)
-);
-
-CREATE TABLE IF NOT EXISTS security.microsoft_auth_requests (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    state VARCHAR(255) NOT NULL,
-    nonce VARCHAR(255),
-    code_verifier TEXT,
-    mode VARCHAR(32) NOT NULL,
-    status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
-    user_id UUID REFERENCES security.users (id) ON DELETE SET NULL,
-    expiration TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    microsoft_user_id VARCHAR(255),
-    microsoft_name VARCHAR(255),
-    microsoft_email VARCHAR(255),
-    microsoft_phone VARCHAR(64),
-    microsoft_photo_url TEXT,
-    CONSTRAINT microsoft_auth_requests_state_unique UNIQUE (state)
-);
-
--- ---------------------------------------------------------------------------
--- Future: Google OAuth (placeholder)
--- ---------------------------------------------------------------------------
-
-CREATE TABLE IF NOT EXISTS security.google_accounts (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES security.users (id) ON DELETE CASCADE,
-    provider_user_id VARCHAR(255) NOT NULL,
-    display_name VARCHAR(255),
-    email VARCHAR(255),
-    avatar_url TEXT,
-    linked_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT google_accounts_provider_user_id_unique UNIQUE (provider_user_id),
-    CONSTRAINT google_accounts_user_id_unique UNIQUE (user_id)
-);
-
-CREATE TABLE IF NOT EXISTS security.google_auth_requests (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    state VARCHAR(255) NOT NULL,
-    mode VARCHAR(32) NOT NULL DEFAULT 'LOGIN',
-    status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
-    user_id UUID REFERENCES security.users (id) ON DELETE SET NULL,
-    expiration TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    google_user_id VARCHAR(255),
-    google_email VARCHAR(255),
-    google_name VARCHAR(255),
-    google_avatar_url TEXT,
-    CONSTRAINT google_auth_requests_state_unique UNIQUE (state)
 );
 
 -- ---------------------------------------------------------------------------

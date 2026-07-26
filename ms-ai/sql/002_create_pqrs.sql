@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS pqrs (
     id UUID PRIMARY KEY,
     ticket_number VARCHAR(20) UNIQUE NOT NULL,
     type VARCHAR(50) NOT NULL CHECK (type IN ('petition', 'complaint', 'claim', 'suggestion')),
-    category VARCHAR(50) NOT NULL CHECK (category IN ('driver', 'bus', 'route', 'card', 'other')),
+    category VARCHAR(50) NOT NULL CHECK (category IN ('driver', 'bus', 'route', 'card', 'technical_support', 'other')),
     status VARCHAR(50) NOT NULL DEFAULT 'received' CHECK (
         status IN ('received', 'in_review', 'in_progress', 'resolved')
     ),

@@ -75,5 +75,5 @@ Health: http://localhost:8000/api/email/health
 ## Notas
 
 - **No uses Mongo** para security: ya no está en el `pom.xml`.
-- OAuth Google/GitHub: requieren Client ID/Secret en `.env`. Microsoft login retirado del API.
+- OAuth Google/GitHub: requieren Client ID/Secret en `.env`.
 - Rota la password de DB si se expuso en chat.

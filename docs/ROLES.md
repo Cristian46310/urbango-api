@@ -178,7 +178,7 @@ ON CONFLICT (user_id, role_id) DO NOTHING;
 
 ## Modelos en `security` (resumen)
 
-- **User**: identidad (UUID, email, password SHA-256).
+- **User**: identidad (UUID, email, password BCrypt).
 - **Role**: `ADMIN`, `USER`, `CITIZEN`, `DRIVER`, `BUSINESS_ADMIN`, `SUPERVISOR`.
 - **Permission**: `(url, method)` único.
 - **UserRole** / **RolePermission**: N:M.

@@ -38,10 +38,11 @@ Skill transversal del monorepo: `/monorepo-overview` o `.agents/skills/monorepo-
 ## Reglas globales
 
 - No commitear `.env`, `secrets/`, claves JWT ni `client_secret_*.json`.
-- **ms-security:** secretos en `~/.config/ms-security/.env` (ver `ms-security/README.md`).
+- **ms-security:** secretos en `ms-security/.env` (ver `ms-security/.env.example` y `SETUP-LOCAL.md`).
 - **ms-business:** `synchronize: false` en TypeORM; usar migraciones en `src/migrations/`.
 - Documentación de dominio en español; identificadores de código en inglés.
 - Antes de cambiar contratos HTTP entre MS, actualizar `monorepo-overview/references/inter-service-contracts.md`.
+- Passwords en ms-security: **BCrypt** (no SHA256).
 
 ## Verificación local (rápida) vs CI
 

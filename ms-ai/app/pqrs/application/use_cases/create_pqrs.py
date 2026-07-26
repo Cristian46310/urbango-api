@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from app.pqrs.application.use_cases.classify_pqrs_category import ClassifyPqrsCategoryUseCase
 from app.pqrs.application.dto.pqrs_dto import PqrsDTO
 from app.pqrs.application.helpers.pqrs_helpers import (
     calculate_estimated_response_at,
@@ -28,25 +29,35 @@ class CreatePqrsUseCase:
         updates_repo: IPqrsUpdatesRepository,
         storage_port: IStoragePort,
         notification_orchestrator: INotificationOrchestrator,
+        category_classifier: ClassifyPqrsCategoryUseCase | None = None,
     ) -> None:
         self.pqrs_repo = pqrs_repo
         self.images_repo = images_repo
         self.updates_repo = updates_repo
         self.storage_port = storage_port
         self.notification_orchestrator = notification_orchestrator
+        self.category_classifier = category_classifier
 
     def execute(
         self,
         type: PqrsType,
-        category: PqrsCategory,
         description: str,
         user_email: str,
+        category: PqrsCategory | None = None,
         user_id: str = "",
         files: list[UploadFile] | None = None,
     ) -> PqrsDTO:
         if len(description) > self.MAX_DESCRIPTION_LENGTH:
             raise ValueError(f"Description must be at most {self.MAX_DESCRIPTION_LENGTH} characters")
         validate_email(user_email)
+
+        resolved_category = category
+        if resolved_category is None:
+            if not self.category_classifier:
+                raise ValueError("category is required when classifier is not configured")
+            resolved_category = self.category_classifier.execute(
+                description, pqrs_type=type.value
+            )
 
         upload_files = files or []
         if len(upload_files) > self.MAX_IMAGES:
@@ -56,12 +67,12 @@ class CreatePqrsUseCase:
                 raise ValueError(f"Image {file.original_name} exceeds 5MB limit")
 
         ticket_number = self.pqrs_repo.next_ticket_number()
-        estimated_response_at = calculate_estimated_response_at(category)
+        estimated_response_at = calculate_estimated_response_at(resolved_category)
 
         pqrs = Pqrs(
             ticket_number=ticket_number,
             type=type,
-            category=category,
+            category=resolved_category,
             status=PqrsStatus.RECEIVED,
             description=description,
             user_id=user_id,

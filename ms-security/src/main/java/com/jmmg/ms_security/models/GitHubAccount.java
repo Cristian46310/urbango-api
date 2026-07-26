@@ -1,6 +1,6 @@
 package com.jmmg.ms_security.models;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -9,8 +9,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
 import lombok.Data;
 
 @Data
@@ -40,17 +38,14 @@ public class GitHubAccount {
     @Column(name = "profile_url", columnDefinition = "text")
     private String profileUrl;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "linked_at")
-    private Date linkedAt;
+    private Instant linkedAt;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false)
-    private Date createdAt = new Date();
+    private Instant createdAt = Instant.now();
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "updated_at", nullable = false)
-    private Date updatedAt = new Date();
+    private Instant updatedAt = Instant.now();
 
     public String getIdAsString() {
         return id == null ? null : id.toString();

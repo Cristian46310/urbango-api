@@ -20,11 +20,9 @@ import com.jmmg.ms_security.DTOs.user.RoleSummaryDTO;
 import com.jmmg.ms_security.models.Permission;
 import com.jmmg.ms_security.models.Role;
 import com.jmmg.ms_security.models.RolePermission;
-import com.jmmg.ms_security.models.Session;
 import com.jmmg.ms_security.models.User;
 import com.jmmg.ms_security.models.UserRole;
 import com.jmmg.ms_security.repositories.IRolePermissionRepository;
-import com.jmmg.ms_security.repositories.ISessionRepository;
 import com.jmmg.ms_security.repositories.IUserRepository;
 import com.jmmg.ms_security.repositories.IUserRoleRepository;
 
@@ -33,8 +31,6 @@ public class UserService {
 
     @Autowired
     private IUserRepository userRepository;
-    @Autowired
-    private ISessionRepository sessionRepository;
     @Autowired
     private IUserRoleRepository userRoleRepository;
     @Autowired
@@ -173,30 +169,6 @@ public class UserService {
         user.setPassword(encryptionService.encode(newPlainPassword));
         userRepository.save(user);
         return true;
-    }
-
-    public boolean addSession(String userId, String sessionId) {
-        User theUser = this.userRepository.findById(UUID.fromString(userId)).orElse(null);
-        Session session = this.sessionRepository.findById(UUID.fromString(sessionId)).orElse(null);
-        if (theUser != null && session != null) {
-            session.setUser(theUser);
-            this.sessionRepository.save(session);
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    public boolean removeSession(String userId, String sessionId) {
-        User user = this.userRepository.findById(UUID.fromString(userId)).orElse(null);
-        Session session = this.sessionRepository.findById(UUID.fromString(sessionId)).orElse(null);
-        if (user != null && session != null) {
-            session.setUser(null);
-            this.sessionRepository.save(session);
-            return true;
-        } else {
-            return false;
-        }
     }
 
 }

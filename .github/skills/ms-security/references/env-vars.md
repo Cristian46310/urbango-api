@@ -2,20 +2,21 @@
 
 ## Ubicación del archivo
 
-Producción/desarrollo local recomendado:
-
 ```
-~/.config/ms-security/.env
+ms-security/.env
 ```
 
-También soportado (opcional): `.env` en raíz del repo o `ms-security/.env` vía `spring.config.import`.
+También: `optional:file:.env` / `./ms-security/.env` vía `spring.config.import`.
 
-## MongoDB
+## PostgreSQL (Supabase schema `security`)
 
 | Variable | Property |
 |----------|----------|
-| `MONGO_URI` | `spring.mongodb.uri` |
-| `MONGO_DATABASE` | `spring.mongodb.database` |
+| `DB_URL` | `spring.datasource.url` (JDBC + `currentSchema=security`) |
+| `DB_USERNAME` | `spring.datasource.username` (`postgres.<project-ref>` en pooler) |
+| `DB_PASSWORD` | `spring.datasource.password` |
+
+Usar **pooler IPv4** (`aws-0-<region>.pooler.supabase.com:6543`), no el host `db.*` si la red no tiene IPv6.
 
 ## JWT
 
@@ -31,43 +32,14 @@ También soportado (opcional): `.env` en raíz del repo o `ms-security/.env` ví
 
 Ejemplo: `http://127.0.0.1:8000/api/email/send`
 
-## Google OAuth
+## Google OAuth / GitHub / Recaptcha
 
-| Variable |
-|----------|
-| `GOOGLE_CLIENT_ID` |
-| `GOOGLE_CLIENT_SECRET` |
-| `GOOGLE_SCOPE` (default openid,profile,email) |
-
-## GitHub OAuth
-
-| Variable | Default en properties |
-|----------|----------------------|
-| `GITHUB_CLIENT_ID` | — |
-| `GITHUB_CLIENT_SECRET` | — |
-| `GITHUB_REDIRECT_URI` | `http://localhost:5173/auth/github/callback` |
-
-## Microsoft OAuth
-
-| Variable |
-|----------|
-| `MICROSOFT_CLIENT_ID` |
-| `MICROSOFT_SECRET_KEY` |
-| `MICROSOFT_TENANT_ID` |
-| `MICROSOFT_REDIRECT_URI` |
-| `MICROSOFT_AUTHORIZE_URI`, `MICROSOFT_TOKEN_URI`, etc. |
-
-## Recaptcha
-
-| Variable |
-|----------|
-| `RECAPTCHA_SITE_KEY` |
-| `RECAPTCHA_SECRET_KEY` |
+Ver `.env.example`. Pueden ir placeholders hasta activar esos flujos.
 
 ## Servidor
 
 | Variable | Notas |
 |----------|-------|
-| `SERVER_PORT` | Docker compose; default 8080 |
+| `SERVER_PORT` | Default 8080 |
 
-Ver plantilla completa: `ms-security/.env.example`.
+Setup paso a paso: [SETUP-LOCAL.md](../../../ms-security/SETUP-LOCAL.md) (desde la skill: `ms-security/SETUP-LOCAL.md`).

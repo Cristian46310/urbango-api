@@ -12,6 +12,7 @@ import com.jmmg.ms_security.DTOs.errors.ErrorDTO;
 import com.jmmg.ms_security.DTOs.errors.FieldErrorDTO;
 import com.jmmg.ms_security.infra.exception.DataNotFound;
 import com.jmmg.ms_security.infra.exception.EntityAlreadyExists;
+import com.jmmg.ms_security.infra.exception.InvalidCredentials;
 import com.jmmg.ms_security.infra.exception.MissingData;
 import com.jmmg.ms_security.infra.exception.NotPermitted;
 
@@ -23,6 +24,10 @@ public class ErrorHandle {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorDTO(e.getMessage(), "404"));
     }
 
+    @ExceptionHandler(InvalidCredentials.class)
+    public ResponseEntity<ErrorDTO> handleInvalidCredentials(InvalidCredentials e) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorDTO(e.getMessage(), "401"));
+    }
 
     @ExceptionHandler(NotPermitted.class)
     public ResponseEntity<ErrorDTO> handleNotPermitted(NotPermitted e) {
@@ -32,6 +37,11 @@ public class ErrorHandle {
     @ExceptionHandler({ MissingData.class, EntityAlreadyExists.class, IllegalArgumentException.class })
     public ResponseEntity<ErrorDTO> handleBadRequest(RuntimeException e) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorDTO(e.getMessage(), "400"));
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorDTO> handleServiceUnavailable(IllegalStateException e) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(new ErrorDTO(e.getMessage(), "503"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

@@ -12,6 +12,8 @@ Scripts versionados del schema PostgreSQL `security` (mismo proyecto Supabase qu
 | `V6__citizen_driver_admin_permissions.sql` | Permisos ADMIN para listar/CRUD `/citizen` y `/driver` |
 | `V7__address_admin_permissions.sql` | Permisos ADMIN para listar/CRUD `/address` |
 | `V8__admin_domain_list_permissions.sql` | Permisos ADMIN para `/payment-method-citizen`, `/supervisor`, `/ticket`, `/turn`, mutaciones `/payment-method` |
+| `V9__drop_microsoft_oauth.sql` | Elimina tablas `microsoft_*` (OAuth Microsoft retirado) |
+| `V10__drop_unused_tables.sql` | Elimina `microsoft_*`, `google_*` placeholders y `sessions` (JWT stateless) |
 
 ## Aplicar
 
@@ -26,6 +28,14 @@ node ../ms-security/db/apply-v5.cjs
 node ../ms-security/db/apply-v6.cjs
 node ../ms-security/db/apply-v7.cjs
 node ../ms-security/db/apply-v8.cjs
+node ../ms-security/db/apply-v9.cjs
+node ../ms-security/db/apply-v10.cjs
+```
+
+Inspección solo lectura:
+
+```bash
+node ../ms-security/db/inspect-security-schema.cjs
 ```
 
 Scripts idempotentes donde aplica (`ON CONFLICT` / `ALTER` seguro).

@@ -32,7 +32,7 @@ Usar **pooler IPv4** (`aws-0-<region>.pooler.supabase.com:6543`), no el host `db
 
 Ejemplo: `http://127.0.0.1:8000/api/email/send`
 
-## Google OAuth / GitHub / Microsoft / Recaptcha
+## Google OAuth / GitHub / Recaptcha
 
 Ver `.env.example`. Pueden ir placeholders hasta activar esos flujos.
 

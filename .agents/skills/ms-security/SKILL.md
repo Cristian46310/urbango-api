@@ -2,7 +2,7 @@
 name: ms-security
 description: >-
   Microservicio Spring Boot de autenticación y autorización: JWT, login,
-  registro, OAuth Google/GitHub/Microsoft, 2FA, roles y permisos MongoDB.
+  registro, OAuth Google/GitHub, 2FA, roles y permisos PostgreSQL.
   Endpoint validate-token para ms-business. Usar al editar ms-security/, auth,
   OAuth, usuarios, roles o integración con ms-notifications.
 paths:
@@ -29,14 +29,14 @@ paths:
 Capas en `com.jmmg.ms_security`:
 
 ```
-controllers/ → services/ → repositories/ → models/ (MongoDB)
+controllers/ → services/ → repositories/ → models/ (JPA / PostgreSQL)
      ↓              ↓
    DTOs/      infra/ (config, errors, springdoc)
 ```
 
 - **Controller:** REST, `@Valid`, `ResponseEntity`, sin lógica de negocio pesada.
 - **Service:** JWT, login, OAuth, RBAC, llamadas a ms-notifications.
-- **Repository:** interfaces Spring Data.
+- **Repository:** interfaces Spring Data JPA.
 - **DTOs:** contrato API; no exponer `models/` en JSON.
 
 Diagrama y convenciones: [references/architecture.md](references/architecture.md).  
@@ -44,11 +44,11 @@ Paquetes y servicios: [references/layers-and-packages.md](references/layers-and-
 
 ## Estilo de código
 
-- Respuestas siempre como **DTO**; modelos Mongo solo internos.
+- Respuestas siempre como **DTO**; entidades JPA solo internas.
 - Rutas públicas bajo `/api/public/`; admin RBAC en `/api/roles`, `/api/permissions`, etc.
 - Errores centralizados: `infra/errors/ErrorHandle.java`.
-- Passwords: **SHA256** (`docs/ROLES.md`).
-- Secretos: `~/.config/ms-security/.env` (no en el repo).
+- Passwords: **BCrypt** (`EncryptionService`).
+- Secretos: `ms-security/.env` (ver `.env.example`).
 
 ## Swagger (probar la API)
 
@@ -71,7 +71,7 @@ Guía paso a paso: [references/swagger-testing.md](references/swagger-testing.md
 | Prefijo | Acceso | Ejemplos |
 |---------|--------|----------|
 | `/api/public/security` | Público | login, register, validate-token, OAuth |
-| `/api/public/users` | Usuarios | CRUD, perfiles |
+| `/api/users` | Usuarios | CRUD |
 | `/api/roles`, `/api/permissions` | Admin RBAC | CRUD |
 
 Catálogo: [references/api-catalog.md](references/api-catalog.md).
@@ -83,8 +83,8 @@ POST /api/public/security/validate-token
 Authorization: Bearer <jwt>
 ```
 
-Respuesta 200: `id`, `name`, `email`, `userId`, `roles[]`.  
-Implementación: `ValidationController.java`.
+Respuesta 200: `id`, `name`, `email`, `roles[]`, `createdAt`.  
+Implementación: `SecurityController.java`.
 
 ## Notificaciones
 
@@ -110,7 +110,7 @@ Scripts: `scripts/build.sh`, `scripts/check-env.sh`. Alias: `build-verify.sh` �
 | [architecture.md](references/architecture.md) | Capas y convenciones |
 | [swagger-testing.md](references/swagger-testing.md) | Probar con Swagger UI |
 | [api-catalog.md](references/api-catalog.md) | Endpoints |
-| [data-models.md](references/data-models.md) | MongoDB |
+| [data-models.md](references/data-models.md) | Entidades JPA / PostgreSQL |
 | [auth-oauth-2fa.md](references/auth-oauth-2fa.md) | Flujos auth |
 | [layers-and-packages.md](references/layers-and-packages.md) | Estructura detallada |
 | [env-vars.md](references/env-vars.md) | Variables |

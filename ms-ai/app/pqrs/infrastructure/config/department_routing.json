@@ -15,6 +15,10 @@
     "email": "tarjeta@ucaldas.edu.co",
     "slack_webhook": ""
   },
+  "technical_support": {
+    "email": "soporte@ucaldas.edu.co",
+    "slack_webhook": ""
+  },
   "other": {
     "email": "pqrs@ucaldas.edu.co",
     "slack_webhook": ""

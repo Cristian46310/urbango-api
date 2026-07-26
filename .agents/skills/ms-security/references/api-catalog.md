@@ -6,25 +6,17 @@ Base local: `http://localhost:8080`
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| POST | `login` | Email/password → JWT |
+| POST | `login` | Email/password → challenge 2FA |
 | POST | `login/google` | Login Google token |
 | POST | `login/github/authorize` | Iniciar OAuth GitHub |
 | POST | `login/github` | Callback/token GitHub |
 | POST | `login/github/complete` | Completar registro GitHub |
-| POST | `login/microsoft/authorize` | Iniciar OAuth Microsoft |
-| POST | `login/microsoft` | Token Microsoft |
-| POST | `login/microsoft/complete` | Completar registro Microsoft |
-| POST | `verify-2fa` | Verificación segundo factor |
+| POST | `verify-2fa` | Verificación segundo factor → JWT |
 | POST | `register` | Registro usuario |
 | POST | `forgot-password` | Solicitud reset |
 | POST | `reset-password` | Cambio de contraseña |
-| GET | `me` | Usuario autenticado (Bearer) |
-
-## ValidationController — `/api/public/security`
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
 | POST | `validate-token` | Valida JWT; usado por ms-business |
+| GET | `me` | Usuario autenticado (Bearer) |
 
 ## GitHubAuthController — `/api/public/security/github`
 
@@ -36,17 +28,7 @@ Base local: `http://localhost:8080`
 | POST | `complete-registration` |
 | DELETE | `link` |
 
-## MicrosoftAuthController — `/api/public/security/microsoft`
-
-| Método | Ruta |
-|--------|------|
-| GET/POST | `authorize` |
-| GET/POST | `link/authorize` |
-| GET/POST | `callback` |
-| POST | `complete-registration` |
-| DELETE | `link` |
-
-## UserController — `/api/public/users`
+## UserController — `/api/users`
 
 | Método | Ruta |
 |--------|------|
@@ -92,6 +74,8 @@ Base local: `http://localhost:8080`
 | POST | `/assign-multiple` |
 | DELETE | `{rolePermissionId}` |
 
-## Actuator
+## HealthController — `/api/health`
 
-Health (Docker): `GET /actuator/health`
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `` | Health check (Docker / compose) |
