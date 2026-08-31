@@ -2,7 +2,8 @@
 
 ## Ya hecho en el repo / Supabase
 
-- Schema `security` + tablas + roles seed (`ms-security/db/V1__security_schema.sql`)
+- Scripts SQL del schema `security` en `ms-security/db/schema.sql`
+- Aplicar con `node scripts/db-migrate.cjs --only ms-security` (ver [docs/DATABASE.md](../docs/DATABASE.md))
 - ms-security migrado de Mongo → **JPA + PostgreSQL**
 - `ms-security/.env` y `ms-notifications/.env` (plantilla) creados localmente (no se commitean)
 
@@ -13,7 +14,15 @@
 - Python 3.12 + `uv` (ms-notifications)
 - Proyecto Supabase ya creado (mismo de business)
 
-## 2. ms-security `.env`
+## 2. Migraciones (primera vez)
+
+Desde la raíz del repo, con `ms-business/.env` configurado (`DB_URL`):
+
+```bash
+node scripts/db-migrate.cjs --only ms-security
+```
+
+## 3. ms-security `.env`
 
 Archivo: `ms-security/.env` (basado en `.env.example`)
 
@@ -35,7 +44,7 @@ cd ms-security
 
 Swagger: http://localhost:8080/swagger-ui/index.html
 
-## 3. ms-notifications `.env`
+## 4. ms-notifications `.env`
 
 ```bash
 cd ms-notifications
@@ -59,13 +68,13 @@ Pasos Gmail:
 
 Health: http://localhost:8000/api/email/health
 
-## 4. Orden de arranque
+## 5. Orden de arranque
 
 1. ms-notifications (`:8000`) — si vas a emails
 2. ms-security (`:8080`)
 3. ms-business (`:3000`) — ya tiene `.env` con Supabase + role IDs
 
-## 5. Probar lo básico
+## 6. Probar lo básico
 
 1. `POST /api/public/security/register` (o crear usuario)
 2. `POST /api/public/security/login` — si pide reCAPTCHA, configura keys reales o ajusta el flujo después

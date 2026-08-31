@@ -57,7 +57,7 @@ pnpm run migration:run
 pnpm run start:dev
 ```
 
-Verificación rápida: `pnpm run verify` (lint + build) o `./.agents/skills/ms-messages/scripts/verify.sh` desde la raíz.
+Verificación rápida: `pnpm run verify` (lint + build).
 
 Swagger: `http://localhost:3001/docs`
 
@@ -200,10 +200,3 @@ pnpm run migration:run
 ```
 
 Incluye init DM/groups, soft-delete, mass-alerts, membership admin, uuid extension, DM uniqueness e índices.
-
-## Docker
-
-```bash
-# Desde la raíz del monorepo (requiere DB_URL y claves en env)
-docker compose up -d --build ms-messages
-```

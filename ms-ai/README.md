@@ -6,7 +6,17 @@ Microservicio FastAPI (puerto **8001**) de automatización inteligente: citas, P
 
 - Python 3.11+
 - PostgreSQL (`DATABASE_URL`)
-- Scripts SQL en `sql/` (ejecutar manualmente)
+- Migraciones SQL en `sql/schema.sql` — ver [docs/DATABASE.md](../docs/DATABASE.md)
+
+## Migraciones
+
+Desde la raíz del monorepo (requiere `pnpm install` en ms-business):
+
+```bash
+node scripts/sql-migrate.cjs ms-ai
+```
+
+Atajo: `node ms-ai/scripts/migrate.cjs`
 
 ## Arranque
 

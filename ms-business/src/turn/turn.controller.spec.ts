@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TurnController } from './turn.controller';
 import { TurnService } from './turn.service';
+import { ProfileContextService } from '@/auth/services/profile-context.service';
 
 describe('TurnController', () => {
   let controller: TurnController;
@@ -17,7 +18,15 @@ describe('TurnController', () => {
             findOne: jest.fn(),
             update: jest.fn(),
             remove: jest.fn(),
+            startTurn: jest.fn(),
+            endTurn: jest.fn(),
+            getCurrentTurn: jest.fn(),
+            updateGpsPosition: jest.fn(),
           },
+        },
+        {
+          provide: ProfileContextService,
+          useValue: { requireDriverId: jest.fn() },
         },
       ],
     }).compile();

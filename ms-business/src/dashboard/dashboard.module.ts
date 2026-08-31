@@ -14,6 +14,7 @@ import { BusModule } from '@/bus/bus.module';
 import { TicketModule } from '@/ticket/ticket.module';
 import { IncidentModule } from '@/incident/incident.module';
 import { StopModule } from '@/stop/stop.module';
+import { NotificationsModule } from '@/notifications/notifications.module';
 import { NotificationSubscription } from './entities/notification-subscription.entity';
 import { DashboardRealtimeGateway } from './services/dashboard-realtime.gateway';
 
@@ -29,6 +30,7 @@ import { DashboardRealtimeGateway } from './services/dashboard-realtime.gateway'
     TicketModule,
     IncidentModule,
     StopModule,
+    NotificationsModule,
   ],
   controllers: [DashboardController],
   providers: [

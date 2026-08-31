@@ -1,155 +1,48 @@
-# Guía de Despliegue con Docker y Docker Compose
+# Despliegue
 
-Este documento cubre la forma recomendada de ejecutar el proyecto completo en producción o en desarrollo local usando Docker.
+> **Nota:** La contenedorización con Docker aún no está implementada. Este documento describe el despliegue manual actual y lo planificado.
 
-## Requisitos Previos
+## Estado actual
 
-- Docker instalado
-- Docker Compose v2 instalado
-- Un archivo `.env` para cada servicio
-- La carpeta `ms-notifications/secrets/` con el JSON de Google OAuth
+Cada microservicio se ejecuta de forma independiente en el host (JVM, Node/pnpm o Python/uv). Ver el [README](../README.md) para arranque local y variables de entorno por servicio.
 
-Verifica la instalación:
+## Requisitos de infraestructura
 
-```bash
-docker --version
-docker compose version
-```
+- PostgreSQL accesible (Supabase u otro): schema `security` para ms-security y schema `public` compartido por ms-business/ms-messages.
+- Puerto expuesto por servicio según necesidad del frontend:
+  - ms-security: `8080`
+  - ms-business: `3000`
+  - ms-messages: `3001`
+  - ms-notifications: `8000`
+  - ms-ai: `8001`
+- Secretos fuera del repositorio: `.env`, `secrets/`, claves JWT, OAuth Gmail.
 
-## Estructura Esperada
+## Variables críticas entre servicios
 
-```text
-dev-backend-uc/
-├── docker-compose.yml
-├── ms-security/
-│   └── DockerFile
-└── ms-notifications/
-    ├── Dockerfile
-    ├── .env
-    └── secrets/
-        └── client_secret_xxx.json
-```
+| Variable | Servicio | Descripción |
+|----------|----------|-------------|
+| `MS_SECURITY_URL` | business, messages, ai | URL base de ms-security |
+| `MS_SECURITY_INTERNAL_KEY` | business, messages | Header `X-Internal-Key` para APIs internas |
+| `MS_NOTIFICATION_URL` | security, business, ai | Endpoint completo de envío de email |
+| `DB_URL` | todos los que usan Postgres | Cadena de conexión JDBC o PostgreSQL |
 
-## Variables de Entorno
+Ver variables por servicio en el [README](../README.md) y cada `README.md` de microservicio.
 
-### ms-security
+## Checklist antes de producción
 
-Crear un `.env` en la raíz del repositorio (o `ms-security/.env`) según `.env.example`:
+1. Configurar CORS (`CORS_ALLOWED_ORIGINS`) en cada servicio con el dominio del frontend.
+2. Usar `JWT_SECRET` de al menos 32 caracteres y rotarlo periódicamente.
+3. Ejecutar migraciones TypeORM en ms-business y ms-messages antes del arranque.
+4. Verificar health endpoints tras el despliegue.
+5. No commitear `.env` ni archivos `client_secret_*.json`.
 
-```bash
-DB_URL=jdbc:postgresql://.../postgres?currentSchema=security&sslmode=require&prepareThreshold=0
-DB_USERNAME=postgres.<project-ref>
-DB_PASSWORD=<db-password>
-JWT_SECRET=<secreto_min_32_chars>
-MS_SECURITY_INTERNAL_KEY=<clave_interna>
-MS_NOTIFICATION_URL=http://ms-notifications:8000/api/email/send
-CORS_ALLOWED_ORIGINS=http://localhost:5173
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-```
+## Planificado (Docker)
 
-Health: `GET /api/health` (no actuator).
+Cuando se implemente la contenedorización:
 
-### ms-notifications
+- `docker-compose.yml` en la raíz del monorepo.
+- Dockerfiles por microservicio.
+- Montaje de volúmenes para secretos de Gmail (`ms-notifications/secrets/`).
+- Healthchecks y red interna entre servicios.
 
-Crear `ms-notifications/.env` con estas variables:
-
-```bash
-SCOPES=https://www.googleapis.com/auth/gmail.send
-SECRETS_LOCATION=/run/secrets
-EMAIL=tu-email@gmail.com
-CLIENT_SECRET=client_secret_xxx.apps.googleusercontent.com.json
-```
-
-Importante: `CLIENT_SECRET` debe ser solo el nombre del archivo, no una ruta completa.
-
-## Ejecutar con Docker Run
-
-### ms-security
-
-```bash
-docker build -t ms-security:prod -f ms-security/DockerFile ms-security
-docker run -d --name ms-security-app \
-  -p 8080:8080 \
-  --env-file .env \
-  ms-security:prod
-```
-
-### ms-notifications
-
-```bash
-docker build -t ms-notifications:prod -f ms-notifications/Dockerfile ms-notifications
-docker run -d --name ms-notifications-app \
-  -p 8000:8000 \
-  --env-file ms-notifications/.env \
-  -v "$PWD/ms-notifications/secrets:/run/secrets:ro" \
-  ms-notifications:prod
-```
-
-## Ejecutar con Docker Compose
-
-El archivo de Compose está en la raíz del repositorio: [docker-compose.yml](../docker-compose.yml).
-
-### Levantar todos los servicios
-
-```bash
-docker compose up -d --build
-```
-
-### Levantar solo un servicio
-
-```bash
-docker compose up -d --build ms-security
-docker compose up -d --build ms-notifications
-```
-
-### Detener los servicios
-
-```bash
-docker compose down
-```
-
-### Detener y borrar volúmenes
-
-```bash
-docker compose down -v
-```
-
-## Puertos
-
-- ms-security: `http://localhost:8080`
-- ms-notifications: `http://localhost:8000`
-
-## Logs
-
-```bash
-docker compose logs -f ms-security
-docker compose logs -f ms-notifications
-```
-
-## Notas de Producción
-
-- No copies la carpeta `secrets/` dentro de la imagen.
-- Usa `.dockerignore` para excluir secretos y artefactos locales.
-- Mantén las credenciales de Google montadas como volumen de solo lectura.
-- Si cambias el archivo JSON, reinicia el contenedor.
-
-## Solución de Problemas
-
-### ms-notifications no encuentra el archivo JSON
-
-Revisa que estas tres cosas coincidan:
-
-1. El volumen monta `ms-notifications/secrets` en `/run/secrets`
-2. `SECRETS_LOCATION=/run/secrets`
-3. `CLIENT_SECRET` contiene solo el nombre del archivo JSON
-
-### Puerto ocupado
-
-Si el puerto 8000 o 8080 ya está ocupado, cambia el mapeo en `docker-compose.yml` o usa otro puerto en `docker run`.
-
-## Actualizar la Aplicación
-
-```bash
-docker compose up -d --build
-```
+Hasta entonces, usar el desarrollo local descrito en el [README](../README.md).

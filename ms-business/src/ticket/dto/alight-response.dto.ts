@@ -18,7 +18,11 @@ export class AlightResponseDto {
   @Expose()
   stopName!: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    description:
+      'Duración del viaje en minutos, desde abordaje (boardedAt) hasta descenso',
+    example: 12,
+  })
   @Expose()
   totalTravelTime!: number;
 }

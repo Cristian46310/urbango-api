@@ -24,6 +24,8 @@ import { StartTurnRequestDto } from './dto/start-turn-request.dto';
 import { UpdateTurnGpsDto } from './dto/update-turn-gps.dto';
 import { ResponseGpsDto } from '@/gps/dto/response-gps.dto';
 import { StartTurnResponseDto } from './dto/start-turn-response.dto';
+import { EndTurnResponseDto } from './dto/end-turn-response.dto';
+import { CurrentTurnResponseDto } from './dto/current-turn-response.dto';
 import { Authenticated } from '@/auth/decorators/authenticated.decorator';
 import { Roles } from '@/auth/decorators/roles.decorator';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
@@ -62,6 +64,22 @@ export class TurnController {
     return { success: true, message: 'Turno iniciado', ...result };
   }
 
+  @Post('end')
+  @Authenticated()
+  @ApiBearerAuth('bearer')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Finalizar turno en progreso del conductor autenticado',
+  })
+  @ApiOkResponse({ type: EndTurnResponseDto })
+  async endTurn(
+    @CurrentUser() currentUser: JwtPayload,
+  ): Promise<EndTurnResponseDto> {
+    const driverId = await this.profileContext.requireDriverId(currentUser);
+    const result = await this.turnService.endTurn(driverId);
+    return { success: true, message: 'Turno finalizado', ...result };
+  }
+
   @Post('gps')
   @Authenticated()
   @ApiBearerAuth('bearer')
@@ -80,6 +98,21 @@ export class TurnController {
       dto.latitude,
       dto.longitude,
     );
+  }
+
+  @Get('current')
+  @Authenticated()
+  @ApiBearerAuth('bearer')
+  @ApiOperation({
+    summary:
+      'Turno activo del conductor autenticado (sincronizar UI; null lógico si no hay in_progress)',
+  })
+  @ApiOkResponse({ type: CurrentTurnResponseDto })
+  async getCurrentTurn(
+    @CurrentUser() currentUser: JwtPayload,
+  ): Promise<CurrentTurnResponseDto> {
+    const driverId = await this.profileContext.requireDriverId(currentUser);
+    return this.turnService.getCurrentTurn(driverId);
   }
 
   @Get()

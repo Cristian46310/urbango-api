@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Incident } from './entities/incident.entity';
 import { IncidentBus } from './entities/incident-bus.entity';
-import { NotificationService } from './services/notification.service';
+import { MsNotificationsClient } from '@/notifications/infrastructure/clients/ms-notifications.client';
 import { IncidentSeverity } from './enums/incident.enum';
 
 @Injectable()
@@ -13,7 +13,7 @@ export class IncidentNotificationService {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly notificationService: NotificationService,
+    private readonly notificationService: MsNotificationsClient,
     @InjectRepository(IncidentBus)
     private readonly incidentBusRepository: Repository<IncidentBus>,
   ) {}

@@ -67,7 +67,9 @@ export class PaymentMethodCitizenController {
   @Authenticated()
   @Roles('ADMIN')
   @ApiBearerAuth('bearer')
-  @ApiOperation({ summary: 'Registrar método de pago para un ciudadano (ADMIN)' })
+  @ApiOperation({
+    summary: 'Registrar método de pago para un ciudadano (ADMIN)',
+  })
   create(@Body() createPaymentMethodCitizenDto: CreatePaymentMethodCitizenDto) {
     return this.paymentMethodCitizenService.create(
       createPaymentMethodCitizenDto,

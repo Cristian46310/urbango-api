@@ -134,12 +134,13 @@ Sin filas en `role_permissions`.
 
 ## Aplicar seed
 
-Desde `ms-business/` (usa `DB_URL` del `.env`):
+Desde la raíz del repositorio (usa `DB_URL` de `ms-business/.env`):
 
 ```bash
-node ../ms-security/db/apply-v1.cjs   # schema + roles (si aún no)
-node ../ms-security/db/apply-v2.cjs   # permissions + role_permissions
+node scripts/db-migrate.cjs --only ms-security
 ```
+
+Esto aplica V1 (schema + roles) y V2 (permissions) si aún no están registradas en `public.db_migrations`.
 
 Promover un usuario a ADMIN (después de existir en `security.users`):
 

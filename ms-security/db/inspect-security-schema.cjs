@@ -1,6 +1,6 @@
 /**
  * Read-only: list tables in schema security.
- * Run from repo root or ms-business:
+ * Run from repo root:
  *   node ms-security/db/inspect-security-schema.cjs
  */
 const path = require('path');

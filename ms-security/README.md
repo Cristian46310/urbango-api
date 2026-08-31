@@ -4,7 +4,7 @@ Spring Boot 4 + Java 17 + JPA/PostgreSQL (schema `security`). Puerto **8080**.
 
 ## Variables de entorno
 
-Copia `.env.example` → `ms-security/.env` (también se puede usar `.env` en la raíz del monorepo vía Docker Compose).
+Copia `.env.example` → `ms-security/.env`.
 
 `application.properties` importa:
 

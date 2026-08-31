@@ -296,6 +296,19 @@ export class TicketService {
     }
 
     return this.dataSource.transaction(async (manager) => {
+      // Lock only the ticket row. Relations (eager ManyToOne / LEFT JOIN) +
+      // FOR UPDATE fail in PostgreSQL with "cannot be applied to the nullable
+      // side of an outer join".
+      const locked = await manager.findOne(Ticket, {
+        where: { id: ticketId },
+        lock: { mode: 'pessimistic_write' },
+        loadEagerRelations: false,
+      });
+
+      if (!locked) {
+        throw new NotFoundException(`Ticket ${ticketId} not found`);
+      }
+
       const ticket = await manager.findOne(Ticket, {
         where: { id: ticketId },
         relations: [
@@ -304,10 +317,7 @@ export class TicketService {
           'scheduler.bus',
           'scheduler.route',
           'histories',
-          'histories.node',
-          'histories.node.stop',
         ],
-        lock: { mode: 'pessimistic_write' },
       });
 
       if (!ticket) {
@@ -349,19 +359,15 @@ export class TicketService {
       ticket.completedAt = now;
       await manager.save(ticket);
 
-      let totalTravelTime = 0;
-      const allHistories = [
-        ...(ticket.histories ?? []),
-        { ...alightHistory, createdAt: now },
-      ];
-      if (allHistories.length > 0) {
-        const times = allHistories.map((h) =>
-          ('createdAt' in h && h.createdAt ? h.createdAt : now).getTime(),
-        );
-        const firstTime = Math.min(...times);
-        const lastTime = Math.max(...times);
-        totalTravelTime = Math.round((lastTime - firstTime) / 60000);
-      }
+      const boardingHistory = (ticket.histories ?? []).find(
+        (h) => h.eventType === HistoryEventType.BOARDING,
+      );
+      const boardedAt =
+        ticket.boardedAt ?? boardingHistory?.createdAt ?? ticket.createdAt;
+      const totalTravelTime = Math.max(
+        0,
+        Math.round((now.getTime() - boardedAt.getTime()) / 60000),
+      );
 
       const response = new AlightResponseDto();
       response.message = 'Viaje completado - Gracias por usar nuestro servicio';

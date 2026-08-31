@@ -19,10 +19,50 @@
 *.tar.gz
 *.rar
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+# virtual machine crash logs
 hs_err_pid*
 replay_pid*
 
-# Environment files
+# Environment files and secrets
 .env
+.env.*
+!.env.example
+secrets/
+client_secret_*.json
 
+# Node / Python
+node_modules/
+dist/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+coverage/
+
+# IDE (configuración personal)
+.idea/
+*.iml
+.vscode/
+
+# ---------------------------------------------------------------------------
+# Interno — no visible para clientes / reclutadores (solo equipo + IA local)
+# ---------------------------------------------------------------------------
+.agents/
+.cursor/
+.github/skills/
+.github/AI_CONTEXT.md
+AGENTS.md
+
+# Documentación de equipo, curso e IA
+docs/UCaldas/
+docs/team/
+docs/*PROMPT*.md
+docs/HISTORIAS_DE_USUARIO.md
+ms-business/docs/REVIEW-FINDINGS.md
+ms-business/docs/HU-*-TESTING.md
+
+# Docker (pendiente de implementación)
+docker-compose.yml
+**/Dockerfile
+**/DockerFile
+**/.dockerignore

@@ -60,11 +60,11 @@ export class DashboardRealtimeGateway
 
     this.fleetInterval = setInterval(() => {
       void this.broadcastFleetSnapshots();
-    }, 10_000);
+    }, 3_000);
 
     this.busInterval = setInterval(() => {
       void this.broadcastBusSnapshots();
-    }, 10_000);
+    }, 3_000);
 
     this.dashboardInterval = setInterval(() => {
       void this.broadcastDashboardSnapshots();

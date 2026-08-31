@@ -31,7 +31,6 @@ import { BusIncidentQueryDto } from './dto/bus-incident-query.dto';
 import { ResponseBusIncidentListDto } from './dto/response-bus-incident-list.dto';
 import { ResponseIncidentDto } from './dto/response-incident.dto';
 import { ResponseIncidentDriverDto } from './dto/response-incident-driver.dto';
-import { ResponseIncidentPhotoDto } from '@/incident-photo/dto/response-incident-photo.dto';
 import { ResponseIncidentStatisticsDto } from './dto/response-incident-statistics.dto';
 import { UpdateIncidentStatusDto } from './dto/update-incident-status.dto';
 
@@ -182,7 +181,12 @@ export class IncidentService {
         status: incident.status,
         description: incident.description,
         driver,
-        photos: plainToInstance(ResponseIncidentPhotoDto, photos),
+        busPlate: incidentBus?.bus?.plate,
+        photos: photos.map((photo) => ({
+          id: photo.id,
+          publicUrl: photo.photoUrl,
+          createdAt: photo.createdAt,
+        })),
       },
       { excludeExtraneousValues: true },
     );
@@ -363,7 +367,9 @@ export class IncidentService {
       .getMany();
     return Promise.all(
       incidents.map((incident) => {
-        const busPlate = incident.incidentBuses?.[0]?.bus?.plate;
+        const incidentBus = incident.incidentBuses?.[0];
+        const busPlate = incidentBus?.bus?.plate;
+        const photos = incidentBus?.photos ?? [];
         return plainToInstance(
           ResponseIncidentDto,
           {
@@ -374,10 +380,11 @@ export class IncidentService {
             status: incident.status,
             description: incident.description,
             driver: undefined,
-            photos: plainToInstance(
-              ResponseIncidentPhotoDto,
-              incident.incidentBuses?.[0]?.photos ?? [],
-            ),
+            photos: photos.map((photo) => ({
+              id: photo.id,
+              publicUrl: photo.photoUrl,
+              createdAt: photo.createdAt,
+            })),
             busPlate,
           },
           { excludeExtraneousValues: true },

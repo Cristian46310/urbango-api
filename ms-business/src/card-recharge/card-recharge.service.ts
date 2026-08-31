@@ -449,10 +449,13 @@ export class CardRechargeService {
       const txRepo = manager.getRepository(CardRechargeTransaction);
       const pmcRepo = manager.getRepository(PaymentMethodCitizen);
 
+      // No cargar relaciones con FOR UPDATE: el ManyToOne eager hace LEFT JOIN
+      // y Postgres responde "FOR UPDATE cannot be applied to the nullable side
+      // of an outer join".
       const lockedTx = await txRepo.findOne({
         where: { id: transaction.id },
-        relations: ['paymentMethodCitizen'],
         lock: { mode: 'pessimistic_write' },
+        loadEagerRelations: false,
       });
 
       if (
@@ -462,9 +465,7 @@ export class CardRechargeService {
         return;
       }
 
-      const paymentMethodCitizenId =
-        lockedTx.paymentMethodCitizen?.id ??
-        transaction.paymentMethodCitizen?.id;
+      const paymentMethodCitizenId = transaction.paymentMethodCitizen?.id;
 
       if (!paymentMethodCitizenId) {
         throw new BadRequestException(

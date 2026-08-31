@@ -6,7 +6,7 @@ import { BusService } from '@/bus/bus.service';
 import { TicketService } from '@/ticket/ticket.service';
 import { IncidentService } from '@/incident/incident.service';
 import { StopService } from '@/stop/stop.service';
-import { NotificationService } from '@/incident/services/notification.service';
+import { MsNotificationsClient } from '@/notifications/infrastructure/clients/ms-notifications.client';
 import { ResponseRealtimeBusDto } from '../dto/response-realtime-bus.dto';
 import { ResponseRealtimeBusListDto } from '../dto/response-realtime-bus-list.dto';
 import { ResponseRealtimeSummaryDto } from '../dto/response-realtime-summary.dto';
@@ -45,7 +45,7 @@ export class DashboardRealtimeService {
     private readonly ticketService: TicketService,
     private readonly incidentService: IncidentService,
     private readonly stopService: StopService,
-    private readonly notificationService: NotificationService,
+    private readonly notificationService: MsNotificationsClient,
   ) {}
 
   async getRealtimeFleet(

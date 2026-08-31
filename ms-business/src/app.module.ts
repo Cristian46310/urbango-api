@@ -1,5 +1,7 @@
-import { Module } from '@nestjs/common';
+﻿import { Module } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -30,11 +32,14 @@ import { IncidentCommentModule } from './incident-comment/incident-comment.modul
 import { GpsModule } from './gps/gps.module';
 import { BusPhotoModule } from './bus-photo/bus-photo.module';
 import { IncidentPhotoModule } from './incident-photo/incident-photo.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
     DiscoveryModule,
     ConfigModule.forRoot({ isGlobal: true }),
+    EventEmitterModule.forRoot(),
+    ScheduleModule.forRoot(),
     HttpModule,
     SecurityModule,
     AuthModule,
@@ -49,6 +54,7 @@ import { IncidentPhotoModule } from './incident-photo/incident-photo.module';
         synchronize: false,
       }),
     }),
+    NotificationsModule,
     RouteModule,
     StopModule,
     NodeModule,
