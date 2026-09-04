@@ -1,18 +1,18 @@
-# dev-backend-uc
+# urbango-api
 
-Backend del sistema de transporte público UCaldas — semestre **2026-1**.
+Backend de **UrbanGo** (transporte público UCaldas). Repositorio: [github.com/Cristian46310/urbango-api](https://github.com/Cristian46310/urbango-api).
 
-Monorepo con microservicios independientes que se comunican por HTTP. **ms-messages** y **ms-business** comparten la misma base PostgreSQL; **ms-security** usa el schema `security` en Supabase/Postgres.
+Monorepo de microservicios HTTP independientes: autenticación, dominio de transporte, mensajería en tiempo real, notificaciones por correo y automatización con IA. **ms-messages** y **ms-business** comparten PostgreSQL; **ms-security** usa el schema `security` (Supabase/Postgres).
 
-## Microservicios
+## Microservicios y librerías
 
-| Servicio | Stack | Puerto | Carpeta | Descripción |
-|----------|-------|--------|---------|-------------|
-| **ms-security** | Spring Boot 4, Java 17 | 8080 | `ms-security/` | Autenticación, JWT, OAuth (Google/GitHub), 2FA, roles y permisos |
-| **ms-business** | NestJS 11, TypeORM | 3000 | `ms-business/` | Dominio de transporte: rutas, buses, tickets, incidentes, conductores |
-| **ms-messages** | NestJS 11, Socket.IO | 3001 | `ms-messages/` | Mensajería directa, grupos, alertas masivas, tiempo real |
-| **ms-notifications** | FastAPI, Python 3.12 | 8000 | `ms-notifications/` | Envío de correos vía Gmail API |
-| **ms-ai** | FastAPI, Python 3.11+ | 8001 | `ms-ai/` | Automatización: citas, PQRS, clima, recordatorios de ruta |
+| Servicio | Stack principal | Puerto | Carpeta | Rol |
+|----------|-----------------|--------|---------|-----|
+| **ms-security** | Spring Boot 4, Java 17, Spring Security, JPA, JJWT, SpringDoc, Google API Client | 8080 | `ms-security/` | Auth, JWT, OAuth (Google/GitHub), 2FA, roles y permisos |
+| **ms-business** | NestJS 11, TypeORM, PostgreSQL (`pg`), Socket.IO, Swagger, Axios, class-validator | 3000 | `ms-business/` | Rutas, buses, tickets, incidentes, conductores |
+| **ms-messages** | NestJS 11, TypeORM, Socket.IO, Swagger, Axios | 3001 | `ms-messages/` | DM, grupos, alertas masivas, WebSocket |
+| **ms-notifications** | FastAPI, Gmail API (`google-api-python-client`), OAuth, uv, Ruff | 8000 | `ms-notifications/` | Correos (2FA, incidentes, avisos) |
+| **ms-ai** | FastAPI, LangChain / LangGraph, httpx, psycopg2, uvicorn | 8001 | `ms-ai/` | Citas, PQRS, clima, recordatorios de ruta |
 
 ## Arquitectura
 
@@ -43,7 +43,7 @@ flowchart LR
 - **Node.js 22** y **pnpm** (ms-business, ms-messages)
 - **Python 3.12+** y **uv** (ms-notifications); Python 3.11+ (ms-ai)
 - **PostgreSQL** (Supabase recomendado): schema `security` + schema `public` compartido
-- Cuenta Gmail con OAuth2 configurada (ms-notifications) — ver `ms-notifications/README.md`
+- Cuenta Gmail con OAuth2 (ms-notifications) — ver `ms-notifications/README.md`
 
 ## Desarrollo local
 
@@ -56,6 +56,22 @@ Orden recomendado al levantar el stack:
 4. **ms-business** (puerto 3000)
 5. **ms-messages** (puerto 3001) — opcional según la funcionalidad
 6. **ms-ai** (puerto 8001) — opcional
+
+### Arrancar todo (Windows)
+
+Desde la raíz del repo, abre **una ventana de PowerShell por microservicio**:
+
+```powershell
+.\scripts\start-all.ps1
+```
+
+Solo algunos:
+
+```powershell
+.\scripts\start-all.ps1 -Only ms-security,ms-business
+```
+
+Si un puerto ya está ocupado, ese servicio se omite.
 
 ### ms-security
 
@@ -137,8 +153,6 @@ Guía completa: [docs/DATABASE.md](docs/DATABASE.md).
 
 ## Verificación rápida
 
-Comandos por microservicio:
-
 ```bash
 cd ms-security && ./mvnw clean package -DskipTests
 cd ms-business && pnpm run lint && pnpm run build
@@ -164,7 +178,7 @@ curl -s http://localhost:3001/health
 | Despliegue | [docs/DEPLOY.md](docs/DEPLOY.md) |
 | Arquitectura ms-business | [ms-business/docs/ARCHITECTURE.md](ms-business/docs/ARCHITECTURE.md) |
 
-Cada microservicio tiene su propio `README.md` con variables de entorno y endpoints relevantes.
+Cada microservicio tiene su propio `README.md` con variables de entorno y endpoints.
 
 ## CI
 
