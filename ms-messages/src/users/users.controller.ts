@@ -1,4 +1,4 @@
-import { Controller, Get, Headers, Query } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { SearchUsersQueryDto } from './dto/search-users-query.dto';
@@ -18,10 +18,8 @@ export class UsersController {
   @ApiOkResponse({ type: ResponseUserSummaryListDto })
   async search(
     @Query() query: SearchUsersQueryDto,
-    @Headers('authorization') authorization: string,
     @CurrentUser() user: JwtPayload,
   ): Promise<ResponseUserSummaryListDto> {
-    const token = authorization.replace(/^Bearer\s+/i, '');
-    return this.usersService.search(query, token, user.id);
+    return this.usersService.search(query, user.id);
   }
 }

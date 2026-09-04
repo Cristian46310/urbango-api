@@ -1,4 +1,4 @@
-import { Controller, Get, Headers, Param, Patch, Query } from '@nestjs/common';
+import { Controller, Get, Param, Patch, Query } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -44,10 +44,8 @@ export class UserAlertsController {
   async list(
     @Query() query: AlertsQueryDto,
     @CurrentUser() user: JwtPayload,
-    @Headers('authorization') authorization: string,
   ): Promise<ResponseUserAlertListDto> {
-    const token = authorization.replace(/^Bearer\s+/i, '');
-    return this.massAlertsService.listUserAlerts(user.id, query, token);
+    return this.massAlertsService.listUserAlerts(user.id, query);
   }
 
   @Get(':id')
@@ -58,10 +56,8 @@ export class UserAlertsController {
   async getById(
     @Param('id') id: string,
     @CurrentUser() user: JwtPayload,
-    @Headers('authorization') authorization: string,
   ): Promise<ResponseUserAlertDto> {
-    const token = authorization.replace(/^Bearer\s+/i, '');
-    return this.massAlertsService.getUserAlertById(id, user.id, token);
+    return this.massAlertsService.getUserAlertById(id, user.id);
   }
 
   @Patch(':id/read')
@@ -72,9 +68,7 @@ export class UserAlertsController {
   async markAsRead(
     @Param('id') id: string,
     @CurrentUser() user: JwtPayload,
-    @Headers('authorization') authorization: string,
   ): Promise<ResponseUserAlertDto> {
-    const token = authorization.replace(/^Bearer\s+/i, '');
-    return this.massAlertsService.markUserAlertAsRead(id, user.id, token);
+    return this.massAlertsService.markUserAlertAsRead(id, user.id);
   }
 }

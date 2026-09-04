@@ -33,6 +33,10 @@ export class Person {
   @Column({ nullable: true })
   birthDate?: Date;
 
+  /** URL pública en Supabase Storage (`SUPABASE_USER_BUCKET`). */
+  @Column({ name: 'photo_url', nullable: true })
+  photoUrl?: string;
+
   /** ID del usuario en ms-security (JWT sub / id). */
   @Column({ name: 'user_id' })
   userId!: string;

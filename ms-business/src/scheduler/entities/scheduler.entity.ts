@@ -5,6 +5,7 @@ import {
   JoinColumn,
   Column,
   CreateDateColumn,
+  DeleteDateColumn,
 } from 'typeorm';
 import { Bus } from '@/bus/entities/bus.entity';
 import { Route } from '@/route/entities/route.entity';
@@ -68,4 +69,7 @@ export class Scheduler {
 
   @CreateDateColumn({ type: 'timestamp with time zone' })
   createdAt!: Date;
+
+  @DeleteDateColumn({ type: 'timestamp with time zone' })
+  deletedAt?: Date | null;
 }

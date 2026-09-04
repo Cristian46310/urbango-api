@@ -3,6 +3,7 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  DeleteDateColumn,
   OneToMany,
 } from 'typeorm';
 import { Bus } from '@/bus/entities/bus.entity';
@@ -31,4 +32,7 @@ export class Enterprise {
 
   @CreateDateColumn()
   createdAt!: Date;
+
+  @DeleteDateColumn()
+  deletedAt?: Date | null;
 }

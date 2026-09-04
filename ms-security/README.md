@@ -1,31 +1,45 @@
-# Configuracion segura de variables de entorno
+# ms-security
 
-Este servicio carga secretos desde un archivo local fuera del repositorio:
+Spring Boot 4 + Java 17 + JPA/PostgreSQL (schema `security`). Puerto **8080**.
 
-- Ruta esperada: `${user.home}/.config/ms-security/.env`
-- Esta ruta se importa desde `src/main/resources/application.properties` usando `spring.config.import`
+## Variables de entorno
 
-## 1) Crear archivo local de entorno
+Copia `.env.example` → `ms-security/.env`.
 
-```bash
-mkdir -p ~/.config/ms-security
-cat > ~/.config/ms-security/.env << 'EOF'
-SPRING_MONGODB_URI=mongodb+srv://USUARIO:CLAVE@cluster.mongodb.net/?appName=Cluster0
-SPRING_MONGODB_DATABASE=db_security
-SERVER_PORT=8080
-JWT_SECRET=cambia-este-secreto
-JWT_EXPIRATION=3600000
-NOTIFICATIONS_URL=http://127.0.0.1:8000/api/email/send
-GOOGLE_CLIENT_ID=tu_google_client_id
-GOOGLE_CLIENT_SECRET=tu_google_client_secret
-GOOGLE_SCOPE=openid,profile,email
-EOF
+`application.properties` importa:
+
+```text
+optional:file:.env[.properties]
+optional:file:./ms-security/.env[.properties]
 ```
 
-## 2) Ejecutar el servicio
+| Variable | Requerida | Notas |
+|----------|-----------|-------|
+| `DB_URL` | sí | JDBC Supabase/Postgres + `currentSchema=security` |
+| `DB_USERNAME` / `DB_PASSWORD` | sí* | Pooler Supabase |
+| `JWT_SECRET` | sí | ≥32 caracteres |
+| `MS_SECURITY_INTERNAL_KEY` | sí (integraciones) | Header `X-Internal-Key` |
+| `MS_NOTIFICATION_URL` | para 2FA/emails | URL completa de send |
+| Google / GitHub / reCAPTCHA | según flujos | Ver `.env.example` |
+
+\* En local pueden ir vacíos si `DB_URL` ya incluye credenciales; con Supabase pooler suele hacer falta usuario/password.
+
+## Arranque
 
 ```bash
+cd ms-security
 ./mvnw spring-boot:run
 ```
 
-Spring resolvera automaticamente esas variables y no necesitaras secretos hardcodeados en el repositorio.
+- Swagger: http://localhost:8080/swagger-ui/index.html
+- Health: http://localhost:8080/api/health
+
+Setup paso a paso: [SETUP-LOCAL.md](SETUP-LOCAL.md).
+
+## Auth (resumen)
+
+1. `POST /api/public/security/login` → challenge 2FA (email)
+2. `POST /api/public/security/verify-2fa` → JWT
+3. Passwords: **BCrypt**
+
+OAuth: Google (`login/google`) y GitHub (`login/github/*` / `/github/*`).

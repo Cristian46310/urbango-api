@@ -5,9 +5,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
-import { IsNull, Not, Repository } from 'typeorm';
+import { DataSource, IsNull, Not, Repository } from 'typeorm';
 import { Group } from './entities/group.entity';
 import { GroupMember } from './entities/group-member.entity';
 import { CreateGroupDto } from './dto/create-group.dto';
@@ -49,12 +49,13 @@ export class GroupsService {
     private readonly securityUserClient: SecurityUserClientService,
     private readonly realtimeEmitter: RealtimeEmitterService,
     private readonly groupMembershipService: GroupMembershipService,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(
     creatorId: string,
     dto: CreateGroupDto,
-    token: string,
   ): Promise<ResponseGroupDto> {
     const uniqueMemberIds = [...new Set(dto.memberIds)];
 
@@ -70,55 +71,62 @@ export class GroupsService {
       );
     }
 
-    await this.validateUsersExist(uniqueMemberIds, token);
-
-    const conversation = this.conversationRepository.create({
-      type: ConversationType.GROUP,
-    });
-    const savedConversation =
-      await this.conversationRepository.save(conversation);
+    await this.validateUsersExist(uniqueMemberIds);
 
     const allUserIds = [creatorId, ...uniqueMemberIds];
-    const conversationMembers = allUserIds.map((userId) =>
-      this.conversationMemberRepository.create({
-        conversationId: savedConversation.id,
-        userId,
-      }),
-    );
-    await this.conversationMemberRepository.save(conversationMembers);
 
-    const group = this.groupRepository.create({
-      name: dto.name,
-      description: dto.description,
-      visibility: dto.visibility,
-      createdBy: creatorId,
-      conversationId: savedConversation.id,
-    });
-    const savedGroup = await this.groupRepository.save(group);
+    const { savedGroup, savedMembers } = await this.dataSource.transaction(
+      async (manager) => {
+        const conversationRepo = manager.getRepository(Conversation);
+        const conversationMemberRepo =
+          manager.getRepository(ConversationMember);
+        const groupRepo = manager.getRepository(Group);
+        const groupMemberRepo = manager.getRepository(GroupMember);
 
-    const groupMembers = [
-      this.groupMemberRepository.create({
-        groupId: savedGroup.id,
-        userId: creatorId,
-        role: GroupMemberRole.ADMIN,
-      }),
-      ...uniqueMemberIds.map((userId) =>
-        this.groupMemberRepository.create({
-          groupId: savedGroup.id,
-          userId,
-          role: GroupMemberRole.MEMBER,
-        }),
-      ),
-    ];
-    const savedMembers = await this.groupMemberRepository.save(groupMembers);
+        const conversation = conversationRepo.create({
+          type: ConversationType.GROUP,
+        });
+        const savedConversation = await conversationRepo.save(conversation);
 
-    await this.realtimeEmitter.joinUsersToConversation(
-      allUserIds,
-      savedConversation.id,
+        const conversationMembers = allUserIds.map((userId) =>
+          conversationMemberRepo.create({
+            conversationId: savedConversation.id,
+            userId,
+          }),
+        );
+        await conversationMemberRepo.save(conversationMembers);
+
+        const group = groupRepo.create({
+          name: dto.name,
+          description: dto.description,
+          visibility: dto.visibility,
+          createdBy: creatorId,
+          conversationId: savedConversation.id,
+        });
+        const savedGroup = await groupRepo.save(group);
+
+        const groupMembers = [
+          groupMemberRepo.create({
+            groupId: savedGroup.id,
+            userId: creatorId,
+            role: GroupMemberRole.ADMIN,
+          }),
+          ...uniqueMemberIds.map((userId) =>
+            groupMemberRepo.create({
+              groupId: savedGroup.id,
+              userId,
+              role: GroupMemberRole.MEMBER,
+            }),
+          ),
+        ];
+        const savedMembers = await groupMemberRepo.save(groupMembers);
+
+        return { savedGroup, savedMembers };
+      },
     );
 
     const response = this.toResponse(savedGroup, savedMembers);
-    this.emitMemberAddedEvents(response, uniqueMemberIds);
+    await this.emitMemberAddedEvents(response, allUserIds);
 
     for (const memberId of uniqueMemberIds) {
       await this.groupMembershipService.logMembership(
@@ -221,7 +229,6 @@ export class GroupsService {
     groupId: string,
     requesterId: string,
     dto: AddGroupMembersDto,
-    token: string,
   ): Promise<ResponseGroupDto> {
     const group = await this.getGroupWithMembers(groupId);
     this.assertAdmin(group, requesterId);
@@ -243,7 +250,11 @@ export class GroupsService {
       throw new ConflictException('Todos los usuarios ya son miembros activos');
     }
 
-    await this.validateUsersExist(newIds, token);
+    await this.validateUsersExist(newIds);
+
+    for (const memberId of newIds) {
+      await this.groupMembershipService.assertNotBlocked(groupId, memberId);
+    }
 
     // For former members (leftAt != null), reactivate; otherwise insert new row
     const formerMembersMap = new Map(
@@ -255,38 +266,38 @@ export class GroupsService {
     const brandNewIds = newIds.filter((id) => !formerMembersMap.has(id));
     const reactivatedIds = newIds.filter((id) => formerMembersMap.has(id));
 
-    for (const userId of reactivatedIds) {
-      const former = formerMembersMap.get(userId)!;
-      former.leftAt = null;
-      former.role = GroupMemberRole.MEMBER;
-      await this.groupMemberRepository.save(former);
-    }
+    const saved = await this.dataSource.transaction(async (manager) => {
+      const groupMemberRepo = manager.getRepository(GroupMember);
+      const conversationMemberRepo = manager.getRepository(ConversationMember);
 
-    const newConversationMembers = newIds.map((userId) =>
-      this.conversationMemberRepository.create({
-        conversationId: group.conversationId,
-        userId,
-      }),
-    );
-    await this.conversationMemberRepository.save(newConversationMembers);
+      for (const userId of reactivatedIds) {
+        const former = formerMembersMap.get(userId)!;
+        former.leftAt = null;
+        former.role = GroupMemberRole.MEMBER;
+        await groupMemberRepo.save(former);
+      }
 
-    const newGroupMembers = brandNewIds.map((userId) =>
-      this.groupMemberRepository.create({
-        groupId: group.id,
-        userId,
-        role: GroupMemberRole.MEMBER,
-      }),
-    );
-    const saved = await this.groupMemberRepository.save(newGroupMembers);
+      const newConversationMembers = newIds.map((userId) =>
+        conversationMemberRepo.create({
+          conversationId: group.conversationId,
+          userId,
+        }),
+      );
+      await conversationMemberRepo.save(newConversationMembers);
 
-    await this.realtimeEmitter.joinUsersToConversation(
-      newIds,
-      group.conversationId,
-    );
+      const newGroupMembers = brandNewIds.map((userId) =>
+        groupMemberRepo.create({
+          groupId: group.id,
+          userId,
+          role: GroupMemberRole.MEMBER,
+        }),
+      );
+      return groupMemberRepo.save(newGroupMembers);
+    });
 
     const allMembers = [...this.getActiveMembers(group), ...saved];
     const response = this.toResponse(group, allMembers);
-    this.emitMemberAddedEvents(response, newIds);
+    await this.emitMemberAddedEvents(response, newIds);
 
     for (const memberId of newIds) {
       await this.groupMembershipService.logMembership(
@@ -319,36 +330,32 @@ export class GroupsService {
       throw new ConflictException('Ya eres miembro de este grupo');
     }
 
-    let member: GroupMember;
+    const member = await this.dataSource.transaction(async (manager) => {
+      const groupMemberRepo = manager.getRepository(GroupMember);
+      const conversationMemberRepo = manager.getRepository(ConversationMember);
 
-    if (existingMember && existingMember.leftAt != null) {
-      // Reactivate former member
-      existingMember.leftAt = null;
-      existingMember.role = GroupMemberRole.MEMBER;
-      member = await this.groupMemberRepository.save(existingMember);
-
-      await this.conversationMemberRepository.save(
-        this.conversationMemberRepository.create({
-          conversationId: group.conversationId,
-          userId,
-        }),
-      );
-    } else {
-      await this.conversationMemberRepository.save(
-        this.conversationMemberRepository.create({
+      await conversationMemberRepo.save(
+        conversationMemberRepo.create({
           conversationId: group.conversationId,
           userId,
         }),
       );
 
-      member = await this.groupMemberRepository.save(
-        this.groupMemberRepository.create({
+      if (existingMember && existingMember.leftAt != null) {
+        // Reactivate former member
+        existingMember.leftAt = null;
+        existingMember.role = GroupMemberRole.MEMBER;
+        return groupMemberRepo.save(existingMember);
+      }
+
+      return groupMemberRepo.save(
+        groupMemberRepo.create({
           groupId: group.id,
           userId,
           role: GroupMemberRole.MEMBER,
         }),
       );
-    }
+    });
 
     const activeMembers = this.getActiveMembers(group).filter(
       (m) => m.userId !== userId,
@@ -403,12 +410,18 @@ export class GroupsService {
     }
 
     const leftAt = new Date();
-    membership.leftAt = leftAt;
-    await this.groupMemberRepository.save(membership);
 
-    await this.conversationMemberRepository.delete({
-      conversationId: group.conversationId,
-      userId,
+    await this.dataSource.transaction(async (manager) => {
+      const groupMemberRepo = manager.getRepository(GroupMember);
+      const conversationMemberRepo = manager.getRepository(ConversationMember);
+
+      membership.leftAt = leftAt;
+      await groupMemberRepo.save(membership);
+
+      await conversationMemberRepo.delete({
+        conversationId: group.conversationId,
+        userId,
+      });
     });
 
     await this.realtimeEmitter.removeUserFromConversation(
@@ -509,20 +522,17 @@ export class GroupsService {
     }
   }
 
-  private async validateUsersExist(
-    userIds: string[],
-    token: string,
-  ): Promise<void> {
+  private async validateUsersExist(userIds: string[]): Promise<void> {
     await Promise.all(
-      userIds.map((id) => this.securityUserClient.getUserById(id, token)),
+      userIds.map((id) => this.securityUserClient.getUserById(id)),
     );
   }
 
-  private emitMemberAddedEvents(
+  private async emitMemberAddedEvents(
     group: ResponseGroupDto,
     userIds: string[],
-  ): void {
-    void this.realtimeEmitter.joinUsersToConversation(
+  ): Promise<void> {
+    await this.realtimeEmitter.joinUsersToConversation(
       userIds,
       group.conversationId,
     );
@@ -532,7 +542,10 @@ export class GroupsService {
         groupId: group.id,
         groupName: group.name,
         conversationId: group.conversationId,
-        role: GroupMemberRole.MEMBER,
+        role:
+          userId === group.createdBy
+            ? GroupMemberRole.ADMIN
+            : GroupMemberRole.MEMBER,
       });
     }
   }

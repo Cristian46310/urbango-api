@@ -4,6 +4,7 @@ export class InitDirectMessages1749571200000 implements MigrationInterface {
   name = 'InitDirectMessages1749571200000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
     await queryRunner.query(
       `CREATE TYPE "public"."conversations_type_enum" AS ENUM('direct')`,
     );

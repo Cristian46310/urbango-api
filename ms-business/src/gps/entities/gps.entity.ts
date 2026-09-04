@@ -23,7 +23,7 @@ export class Gps {
   updatedAt?: Date;
 
   @OneToOne(() => Bus, (bus) => bus.gps, { onDelete: 'CASCADE' })
-  @JoinColumn()
+  @JoinColumn({ name: 'busId' })
   bus!: Bus;
 
   @CreateDateColumn()

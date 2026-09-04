@@ -12,13 +12,15 @@ def _parse_sla_days() -> dict[str, int]:
         data = json.loads(raw)
         return {str(key): int(value) for key, value in data.items()}
     except (json.JSONDecodeError, ValueError, TypeError):
-        return {
+        defaults = {
             "driver": 5,
             "bus": 5,
             "route": 5,
             "card": 7,
             "other": 5,
+            "technical_support": 3,
         }
+        return defaults
 
 
 class Settings:
@@ -29,6 +31,8 @@ class Settings:
     CLIENT_SECRET: str = os.getenv("CLIENT_SECRET", "")
     SCOPES: list[str] = os.getenv("SCOPES", "https://www.googleapis.com/auth/calendar.readonly").split(";")
     MS_NOTIFICATION_URL: str = os.getenv("MS_NOTIFICATION_URL", "http://127.0.0.1:8000/api/email/send")
+    MS_BUSINESS_URL: str = os.getenv("MS_BUSINESS_URL", "http://127.0.0.1:3000")
+    MS_BUSINESS_INTERNAL_KEY: str = os.getenv("MS_BUSINESS_INTERNAL_KEY", "")
     OFFICE_LOCATION: str = os.getenv("OFFICE_LOCATION", "Oficina UCaldas, Calle 65 #26-10, Manizales")
     BUSINESS_HOUR_START: int = int(os.getenv("BUSINESS_HOUR_START", "8"))
     BUSINESS_HOUR_END: int = int(os.getenv("BUSINESS_HOUR_END", "17"))
@@ -67,6 +71,7 @@ class Settings:
     )
     OPENWEATHER_FORECAST_MODE: str = os.getenv("OPENWEATHER_FORECAST_MODE", "three_hour")
     WEATHER_RAIN_THRESHOLD_PERCENT: int = int(os.getenv("WEATHER_RAIN_THRESHOLD_PERCENT", "50"))
+    WEATHER_RAIN_HIGH_THRESHOLD_PERCENT: int = int(os.getenv("WEATHER_RAIN_HIGH_THRESHOLD_PERCENT", "70"))
     WEATHER_ALERT_MAX_HOURS_BEFORE: int = int(os.getenv("WEATHER_ALERT_MAX_HOURS_BEFORE", "2"))
     WEATHER_CHECK_INTERVAL_SECONDS: int = int(os.getenv("WEATHER_CHECK_INTERVAL_SECONDS", "3600"))
     WHATSAPP_NOTIFICATION_URL: str = os.getenv("WHATSAPP_NOTIFICATION_URL", "")
@@ -74,3 +79,7 @@ class Settings:
 
 
 settings = Settings()
+
+# Ensure technical_support SLA exists even when env JSON omits it
+if "technical_support" not in settings.PQRS_SLA_DAYS_BY_CATEGORY:
+    settings.PQRS_SLA_DAYS_BY_CATEGORY["technical_support"] = 3

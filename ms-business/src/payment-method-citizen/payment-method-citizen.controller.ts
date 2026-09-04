@@ -15,6 +15,7 @@ import { UpdatePaymentMethodCitizenDto } from './dto/update-payment-method-citiz
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Authenticated } from '@/auth/decorators/authenticated.decorator';
+import { Roles } from '@/auth/decorators/roles.decorator';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import type { JwtPayload } from '@/auth/types';
 import { RegisterPaymentMethodCitizenDto } from './dto/register-payment-method-citizen.dto';
@@ -47,7 +48,7 @@ export class PaymentMethodCitizenController {
   @ApiBearerAuth('bearer')
   @ApiOperation({
     summary:
-      'Vincular método de pago al ciudadano autenticado (solo JWT, sin RBAC)',
+      'Vincular método del catálogo al ciudadano (CASH, SYSTEM_CARD, EXTERNAL_CARD). Elige paymentMethodId de GET /payment-method',
   })
   createForMe(
     @CurrentUser() currentUser: JwtPayload,
@@ -63,7 +64,12 @@ export class PaymentMethodCitizenController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Register payment method for citizen' })
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({
+    summary: 'Registrar método de pago para un ciudadano (ADMIN)',
+  })
   create(@Body() createPaymentMethodCitizenDto: CreatePaymentMethodCitizenDto) {
     return this.paymentMethodCitizenService.create(
       createPaymentMethodCitizenDto,
@@ -71,19 +77,31 @@ export class PaymentMethodCitizenController {
   }
 
   @Get()
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiBearerAuth('bearer')
   @ApiOperation({
-    summary: 'List payment methods assigned to citizens (paginated)',
+    summary:
+      'Listar métodos de pago de ciudadanos (ADMIN). Propio: GET /payment-method-citizen/me',
   })
   findAll(@Query() pagination: PaginationQueryDto) {
     return this.paymentMethodCitizenService.findAll(pagination);
   }
 
   @Get(':id')
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Detalle payment-method-citizen (ADMIN)' })
   findOne(@Param('id') id: string) {
     return this.paymentMethodCitizenService.findOne(id);
   }
 
   @Put(':id')
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Actualizar payment-method-citizen (ADMIN)' })
   update(
     @Param('id') id: string,
     @Body() updatePaymentMethodCitizenDto: UpdatePaymentMethodCitizenDto,
@@ -95,6 +113,10 @@ export class PaymentMethodCitizenController {
   }
 
   @Delete(':id')
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Eliminar payment-method-citizen (ADMIN)' })
   remove(@Param('id') id: string) {
     return this.paymentMethodCitizenService.remove(id);
   }

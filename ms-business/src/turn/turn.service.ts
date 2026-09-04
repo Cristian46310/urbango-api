@@ -1,9 +1,12 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CreateTurnDto } from './dto/create-turn.dto';
 import { UpdateTurnDto } from './dto/update-turn.dto';
 import { StartTurnRequestDto } from './dto/start-turn-request.dto';
@@ -16,12 +19,18 @@ import { plainToInstance } from 'class-transformer';
 import { ResponseTurnDto } from './dto/response-turn.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { GpsService } from '@/gps/gps.service';
+import {
+  TURN_ASSIGNED_EVENT,
+  TurnAssignedEvent,
+} from './events/turn-assigned.event';
 
 /** Duración por defecto si no envían endTime o viene antes del inicio. */
 const DEFAULT_TURN_DURATION_MS = 8 * 60 * 60 * 1000;
 
 @Injectable()
 export class TurnService {
+  private readonly logger = new Logger(TurnService.name);
+
   constructor(
     @InjectRepository(Turn)
     private readonly turnRepository: Repository<Turn>,
@@ -30,6 +39,7 @@ export class TurnService {
     @InjectRepository(Driver)
     private readonly driverRepository: Repository<Driver>,
     private readonly gpsService: GpsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -69,6 +79,13 @@ export class TurnService {
       createTurnDto.endTime ? new Date(createTurnDto.endTime) : undefined,
     );
 
+    await this.assertNoOverlappingTurn({
+      busId: createTurnDto.busId,
+      driverId: createTurnDto.driverId,
+      startTime,
+      endTime,
+    });
+
     const turnData: Partial<Turn> = {
       startTime,
       endTime,
@@ -83,6 +100,10 @@ export class TurnService {
     const turn = this.turnRepository.create(turnData);
 
     const saved = await this.turnRepository.save(turn);
+    this.eventEmitter.emit(
+      TURN_ASSIGNED_EVENT,
+      new TurnAssignedEvent(saved.id),
+    );
     return plainToInstance(ResponseTurnDto, saved);
   }
 
@@ -130,6 +151,8 @@ export class TurnService {
     }
 
     const now = new Date();
+    await this.closeExpiredTurns(now);
+
     const scheduledTurn = await this.turnRepository.findOne({
       where: {
         driver: { id: driverId },
@@ -194,11 +217,50 @@ export class TurnService {
     };
   }
 
+  /**
+   * Estado del turno activo del conductor (para sincronizar UI).
+   * Solo considera in_progress; cierra vencidos antes de consultar.
+   */
+  async getCurrentTurn(driverId: string) {
+    await this.closeExpiredTurns();
+
+    const activeTurn = await this.turnRepository.findOne({
+      where: {
+        driver: { id: driverId },
+        status: TurnStatus.IN_PROGRESS,
+      },
+      relations: ['bus'],
+      order: { actualStartTime: 'DESC', startTime: 'DESC' },
+    });
+
+    if (!activeTurn) {
+      return { active: false as const };
+    }
+
+    return {
+      active: true as const,
+      turnId: activeTurn.id,
+      bus: activeTurn.bus
+        ? {
+            id: activeTurn.bus.id,
+            placa: activeTurn.bus.plate,
+            modelo: activeTurn.bus.model,
+          }
+        : undefined,
+      startTime: activeTurn.actualStartTime ?? activeTurn.startTime,
+      scheduledStartTime: activeTurn.startTime,
+      endTime: activeTurn.endTime,
+      status: activeTurn.status,
+    };
+  }
+
   async updateGpsPosition(
     driverId: string,
     latitude: number,
     longitude: number,
   ) {
+    await this.closeExpiredTurns();
+
     const activeTurn = await this.turnRepository.findOne({
       where: {
         driver: { id: driverId },
@@ -225,6 +287,80 @@ export class TurnService {
     );
   }
 
+  /**
+   * Finaliza el turno en progreso del conductor autenticado.
+   */
+  async endTurn(driverId: string) {
+    await this.closeExpiredTurns();
+
+    const activeTurn = await this.turnRepository.findOne({
+      where: {
+        driver: { id: driverId },
+        status: TurnStatus.IN_PROGRESS,
+      },
+      relations: ['bus', 'driver'],
+      order: { actualStartTime: 'DESC', startTime: 'DESC' },
+    });
+
+    if (!activeTurn) {
+      throw new NotFoundException('No hay turno en progreso para finalizar');
+    }
+
+    activeTurn.status = TurnStatus.COMPLETED;
+    const saved = await this.turnRepository.save(activeTurn);
+
+    return {
+      turnId: saved.id,
+      status: saved.status,
+      endTime: saved.endTime,
+    };
+  }
+
+  /**
+   * Cierra turnos cuya ventana ya venció:
+   * - in_progress → completed
+   * - scheduled (nunca iniciado) → cancelled
+   */
+  async closeExpiredTurns(now: Date = new Date()): Promise<{
+    completed: number;
+    cancelled: number;
+  }> {
+    const completedResult = await this.turnRepository
+      .createQueryBuilder()
+      .update(Turn)
+      .set({ status: TurnStatus.COMPLETED })
+      .where('status = :status', { status: TurnStatus.IN_PROGRESS })
+      .andWhere('endTime IS NOT NULL')
+      .andWhere('endTime < :now', { now })
+      .andWhere('deletedAt IS NULL')
+      .execute();
+
+    const cancelledResult = await this.turnRepository
+      .createQueryBuilder()
+      .update(Turn)
+      .set({ status: TurnStatus.CANCELLED })
+      .where('status = :status', { status: TurnStatus.SCHEDULED })
+      .andWhere('endTime IS NOT NULL')
+      .andWhere('endTime < :now', { now })
+      .andWhere('deletedAt IS NULL')
+      .execute();
+
+    return {
+      completed: completedResult.affected ?? 0,
+      cancelled: cancelledResult.affected ?? 0,
+    };
+  }
+
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async handleExpiredTurnsCron(): Promise<void> {
+    const result = await this.closeExpiredTurns();
+    if (result.completed > 0 || result.cancelled > 0) {
+      this.logger.log(
+        `Turnos vencidos cerrados: ${result.completed} completed, ${result.cancelled} cancelled`,
+      );
+    }
+  }
+
   async update(id: string, updateTurnDto: UpdateTurnDto) {
     if (updateTurnDto.busId) {
       const bus = await this.busRepository.findOne({
@@ -239,7 +375,10 @@ export class TurnService {
       if (!drv) throw new BadRequestException('Driver not found');
     }
 
-    const existing = await this.turnRepository.findOne({ where: { id } });
+    const existing = await this.turnRepository.findOne({
+      where: { id },
+      relations: ['bus', 'driver'],
+    });
     if (!existing) throw new NotFoundException(`Turn ${id} not found`);
 
     const mergedStart = updateTurnDto.startTime
@@ -252,6 +391,14 @@ export class TurnService {
       mergedStart,
       mergedEnd,
     );
+
+    await this.assertNoOverlappingTurn({
+      busId: updateTurnDto.busId ?? existing.bus?.id,
+      driverId: updateTurnDto.driverId ?? existing.driver?.id,
+      startTime,
+      endTime,
+      excludeTurnId: id,
+    });
 
     const preloadData: Partial<Turn> = {
       id,
@@ -274,7 +421,54 @@ export class TurnService {
   async remove(id: string) {
     const turn = await this.turnRepository.findOne({ where: { id } });
     if (!turn) throw new NotFoundException(`Turn ${id} not found`);
-    await this.turnRepository.delete(id);
+    await this.turnRepository.softDelete(id);
     return;
+  }
+
+  private async assertNoOverlappingTurn(params: {
+    busId?: string;
+    driverId?: string;
+    startTime: Date;
+    endTime: Date;
+    excludeTurnId?: string;
+  }): Promise<void> {
+    const { busId, driverId, startTime, endTime, excludeTurnId } = params;
+    if (!busId && !driverId) {
+      return;
+    }
+
+    const qb = this.turnRepository
+      .createQueryBuilder('turn')
+      .leftJoin('turn.bus', 'bus')
+      .leftJoin('turn.driver', 'driver')
+      .where('turn.status IN (:...activeStatuses)', {
+        activeStatuses: [TurnStatus.SCHEDULED, TurnStatus.IN_PROGRESS],
+      })
+      .andWhere('turn.startTime < :endTime', { endTime })
+      .andWhere('(turn.endTime IS NULL OR turn.endTime > :startTime)', {
+        startTime,
+      });
+
+    if (excludeTurnId) {
+      qb.andWhere('turn.id != :excludeTurnId', { excludeTurnId });
+    }
+
+    if (busId && driverId) {
+      qb.andWhere('(bus.id = :busId OR driver.id = :driverId)', {
+        busId,
+        driverId,
+      });
+    } else if (busId) {
+      qb.andWhere('bus.id = :busId', { busId });
+    } else if (driverId) {
+      qb.andWhere('driver.id = :driverId', { driverId });
+    }
+
+    const overlap = await qb.getOne();
+    if (overlap) {
+      throw new ConflictException(
+        'Ya existe un turno solapado para el bus o conductor en esa ventana',
+      );
+    }
   }
 }

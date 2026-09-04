@@ -81,14 +81,14 @@ describe('SecurityGuard', () => {
     const jwt = 'header.payload.signature';
     reflector.getAllAndOverride.mockImplementation((key: string) => {
       if (key === 'isAuthenticated') return true;
-      if (key === 'roles') return ['ADMIN', 'ADMIN_BUS', 'SUPERVISER'];
+      if (key === 'roles') return ['ADMIN', 'BUSINESS_ADMIN', 'SUPERVISOR'];
       return false;
     });
     jwtValidationService.validateToken.mockResolvedValue({
       id: 'u1',
       name: 'Test',
       email: 'test@example.com',
-      roles: ['ROLE_ADMIN_BUS'],
+      roles: ['ROLE_BUSINESS_ADMIN'],
       createdAt: Date.now(),
     });
 
@@ -102,7 +102,7 @@ describe('SecurityGuard', () => {
     const jwt = 'header.payload.signature';
     reflector.getAllAndOverride.mockImplementation((key: string) => {
       if (key === 'isAuthenticated') return true;
-      if (key === 'roles') return ['ADMIN', 'ADMIN_BUS', 'SUPERVISER'];
+      if (key === 'roles') return ['ADMIN', 'BUSINESS_ADMIN', 'SUPERVISOR'];
       return false;
     });
     jwtValidationService.validateToken.mockResolvedValue({

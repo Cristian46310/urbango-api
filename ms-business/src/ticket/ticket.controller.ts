@@ -29,6 +29,7 @@ import { HistoryService } from '@/history/history.service';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { TicketQueryDto } from './dto/ticket-query.dto';
 import { Authenticated } from '@/auth/decorators/authenticated.decorator';
+import { Roles } from '@/auth/decorators/roles.decorator';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import type { JwtPayload } from '@/auth/types';
 import { ProfileContextService } from '@/auth/services/profile-context.service';
@@ -43,6 +44,10 @@ export class TicketController {
   ) {}
 
   @Post()
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Crear boleto (ADMIN)' })
   @ApiCreatedResponse({ type: ResponseTicketDto })
   create(@Body() createTicketDto: CreateTicketDto) {
     return this.ticketService.create(createTicketDto);
@@ -64,6 +69,12 @@ export class TicketController {
   }
 
   @Get()
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({
+    summary: 'Listar boletos paginado (ADMIN). Propio: GET /ticket/me',
+  })
   @ApiOkResponse({ type: ResponseTicketDto })
   findAll(@Query() pagination: PaginationQueryDto) {
     return this.ticketService.findAll(pagination);
@@ -86,12 +97,20 @@ export class TicketController {
   }
 
   @Get(':id')
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Detalle de boleto (ADMIN)' })
   @ApiOkResponse({ type: ResponseTicketDto })
   findOne(@Param('id') id: string) {
     return this.ticketService.findOne(id);
   }
 
   @Put(':id')
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Actualizar boleto (ADMIN)' })
   @ApiOkResponse({ type: ResponseTicketDto })
   update(@Param('id') id: string, @Body() updateTicketDto: UpdateTicketDto) {
     return this.ticketService.update(id, updateTicketDto);
@@ -119,6 +138,10 @@ export class TicketController {
   }
 
   @Delete(':id')
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Eliminar boleto (ADMIN)' })
   remove(@Param('id') id: string) {
     return this.ticketService.remove(id);
   }

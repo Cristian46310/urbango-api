@@ -11,7 +11,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.jmmg.ms_security.DTOs.Profile.GetProfileDTO;
 import com.jmmg.ms_security.DTOs.permission.GetPermissionDTO;
 import com.jmmg.ms_security.DTOs.user.GetUserDetailDTO;
 import com.jmmg.ms_security.DTOs.user.GetUserListDTO;
@@ -19,15 +18,11 @@ import com.jmmg.ms_security.DTOs.user.GetUserDTO;
 import com.jmmg.ms_security.DTOs.user.PostUserDTO;
 import com.jmmg.ms_security.DTOs.user.RoleSummaryDTO;
 import com.jmmg.ms_security.models.Permission;
-import com.jmmg.ms_security.models.Profile;
 import com.jmmg.ms_security.models.Role;
 import com.jmmg.ms_security.models.RolePermission;
-import com.jmmg.ms_security.models.Session;
 import com.jmmg.ms_security.models.User;
 import com.jmmg.ms_security.models.UserRole;
-import com.jmmg.ms_security.repositories.IProfileRepository;
 import com.jmmg.ms_security.repositories.IRolePermissionRepository;
-import com.jmmg.ms_security.repositories.ISessionRepository;
 import com.jmmg.ms_security.repositories.IUserRepository;
 import com.jmmg.ms_security.repositories.IUserRoleRepository;
 
@@ -36,10 +31,6 @@ public class UserService {
 
     @Autowired
     private IUserRepository userRepository;
-    @Autowired
-    private IProfileRepository profileRepository;
-    @Autowired
-    private ISessionRepository sessionRepository;
     @Autowired
     private IUserRoleRepository userRoleRepository;
     @Autowired
@@ -50,7 +41,6 @@ public class UserService {
     private UserRoleService userRoleService;
 
     public GetUserDTO create(PostUserDTO postUserDTO) {
-        // buscar si ya no existe ese usuario en la base de datos
         User newUser = new User(postUserDTO);
         newUser.setPassword(encryptionService.encode(postUserDTO.password()));
         User savedUser = userRepository.save(newUser);
@@ -84,13 +74,12 @@ public class UserService {
             return null;
         }
 
-        Profile profile = this.profileRepository.findByUserId(user.getId()).orElse(null);
         List<UserRole> userRoles = this.userRoleRepository.findByUserId(user.getId());
 
         List<RoleSummaryDTO> roles = userRoles.stream()
                 .map(UserRole::getRole)
-                .filter(java.util.Objects::nonNull)
-            .map(RoleSummaryDTO::fromModel)
+                .filter(Objects::nonNull)
+                .map(RoleSummaryDTO::fromModel)
                 .collect(Collectors.toList());
 
         List<GetPermissionDTO> permissions = this.getPermissionsForRoles(
@@ -103,7 +92,6 @@ public class UserService {
                 user.getIdAsString(),
                 user.getName(),
                 user.getEmail(),
-                GetProfileDTO.fromModel(profile),
                 roles,
                 permissions);
     }
@@ -181,54 +169,6 @@ public class UserService {
         user.setPassword(encryptionService.encode(newPlainPassword));
         userRepository.save(user);
         return true;
-    }
-
-    public boolean addProfile(String userId, String profileId) {
-        User user = this.userRepository.findById(UUID.fromString(userId)).orElse(null);
-        Profile profile = this.profileRepository.findById(UUID.fromString(profileId)).orElse(null);
-        if (user != null && profile != null) {
-            profile.setUser(user);
-            this.profileRepository.save(profile);
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    public boolean removeProfile(String userId, String profileId) {
-        User user = this.userRepository.findById(UUID.fromString(userId)).orElse(null);
-        Profile profile = this.profileRepository.findById(UUID.fromString(profileId)).orElse(null);
-        if (user != null && profile != null) {
-            profile.setUser(null);
-            this.profileRepository.save(profile);
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    public boolean addSession(String userId, String sessionId) {
-        User theUser = this.userRepository.findById(UUID.fromString(userId)).orElse(null);
-        Session session = this.sessionRepository.findById(UUID.fromString(sessionId)).orElse(null);
-        if (theUser != null && session != null) {
-            session.setUser(theUser);
-            this.sessionRepository.save(session);
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    public boolean removeSession(String userId, String sessionId) {
-        User user = this.userRepository.findById(UUID.fromString(userId)).orElse(null);
-        Session session = this.sessionRepository.findById(UUID.fromString(sessionId)).orElse(null);
-        if (user != null && session != null) {
-            session.setUser(null);
-            this.sessionRepository.save(session);
-            return true;
-        } else {
-            return false;
-        }
     }
 
 }

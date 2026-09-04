@@ -68,10 +68,8 @@ export class GroupsController {
   async create(
     @Body() dto: CreateGroupDto,
     @CurrentUser() user: JwtPayload,
-    @Headers('authorization') authorization: string,
   ): Promise<ResponseGroupDto> {
-    const token = authorization.replace(/^Bearer\s+/i, '');
-    return this.groupsService.create(user.id, dto, token);
+    return this.groupsService.create(user.id, dto);
   }
 
   @Get('public')
@@ -111,14 +109,11 @@ export class GroupsController {
     @Param('id') id: string,
     @Query() pagination: PaginationQueryDto,
     @CurrentUser() user: JwtPayload,
-    @Headers('authorization') authorization: string,
   ): Promise<ResponseMembershipLogListDto> {
-    const token = authorization.replace(/^Bearer\s+/i, '');
     return this.groupMembershipService.listMembershipLog(
       id,
       user.id,
       pagination,
-      token,
     );
   }
 
@@ -133,10 +128,8 @@ export class GroupsController {
     @Param('id') id: string,
     @Query() query: GroupSearchQueryDto,
     @CurrentUser() user: JwtPayload,
-    @Headers('authorization') authorization: string,
   ): Promise<ResponseGroupMemberListDto> {
-    const token = authorization.replace(/^Bearer\s+/i, '');
-    return this.groupMembershipService.listMembers(id, user.id, query, token);
+    return this.groupMembershipService.listMembers(id, user.id, query);
   }
 
   @Get(':id/messages')
@@ -198,15 +191,12 @@ export class GroupsController {
     @Param('userId') userId: string,
     @Body() dto: UpdateGroupMemberRoleDto,
     @CurrentUser() user: JwtPayload,
-    @Headers('authorization') authorization: string,
   ): Promise<ResponseGroupMemberEnrichedDto> {
-    const token = authorization.replace(/^Bearer\s+/i, '');
     return this.groupMembershipService.updateMemberRole(
       id,
       user.id,
       userId,
       dto.role,
-      token,
     );
   }
 
@@ -254,10 +244,8 @@ export class GroupsController {
     @Param('id') id: string,
     @Body() dto: AddGroupMembersDto,
     @CurrentUser() user: JwtPayload,
-    @Headers('authorization') authorization: string,
   ): Promise<ResponseGroupDto> {
-    const token = authorization.replace(/^Bearer\s+/i, '');
-    return this.groupsService.addMembers(id, user.id, dto, token);
+    return this.groupsService.addMembers(id, user.id, dto);
   }
 
   @Post(':id/join')

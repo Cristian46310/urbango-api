@@ -52,14 +52,11 @@ export class MessagesService {
   async sendDirectMessage(
     senderId: string,
     dto: CreateDirectMessageDto,
-    token: string,
   ): Promise<ResponseMessageDto> {
     const conversation =
-      await this.conversationsService.findOrCreateDirectConversation(
-        senderId,
-        { recipientId: dto.recipientId },
-        token,
-      );
+      await this.conversationsService.findOrCreateDirectConversation(senderId, {
+        recipientId: dto.recipientId,
+      });
 
     const message = this.messageRepository.create({
       conversationId: conversation.id,
@@ -111,7 +108,7 @@ export class MessagesService {
         messageType: MessageType.GROUP,
         groupId: group.id,
         groupName: group.name,
-        memberCount: group.members?.length ?? 0,
+        ...this.buildGroupContext(group),
       });
 
       this.realtimeEmitter.emitNewMessage(response);
@@ -164,13 +161,11 @@ export class MessagesService {
       relations: ['readReceipts'],
     });
 
-    const activeMembers = (group.members ?? []).filter((m) => m.leftAt == null);
-
     const items = await this.enrichMessages(messages, userId, token, {
       messageType: MessageType.GROUP,
       groupId: group.id,
       groupName: group.name,
-      memberCount: activeMembers.length,
+      ...this.buildGroupContext(group),
     });
 
     return this.toListDto(items, page, limit, totalItems);
@@ -334,7 +329,7 @@ export class MessagesService {
       groupId: group.id,
       groupName: group.name,
       readBy,
-      totalMembers: group.members?.length ?? 0,
+      totalMembers: memberIds.size,
       readCount: readBy.length,
     });
   }
@@ -394,7 +389,7 @@ export class MessagesService {
           messageType: MessageType.GROUP,
           groupId: group.id,
           groupName: group.name,
-          memberCount: group.members?.length ?? 0,
+          ...this.buildGroupContext(group),
         }
       : { messageType: MessageType.DIRECT };
 
@@ -430,6 +425,14 @@ export class MessagesService {
       conversationId: message.conversationId,
       groupId: group.id,
     });
+  }
+
+  private buildGroupContext(group: Group): {
+    memberCount: number;
+    activeMemberIds: Set<string>;
+  } {
+    const activeMemberIds = new Set(this.groupsService.getMemberUserIds(group));
+    return { memberCount: activeMemberIds.size, activeMemberIds };
   }
 
   private async getActiveMessage(
@@ -509,6 +512,7 @@ export class MessagesService {
       groupId?: string;
       groupName?: string;
       memberCount?: number;
+      activeMemberIds?: Set<string>;
     },
   ): Promise<ResponseMessageDto[]> {
     const groupByConversation = new Map<string, Group>();
@@ -540,7 +544,7 @@ export class MessagesService {
           messageType: MessageType.GROUP,
           groupId: group.id,
           groupName: group.name,
-          memberCount: group.members?.length ?? 0,
+          ...this.buildGroupContext(group),
         });
       }
 
@@ -554,7 +558,7 @@ export class MessagesService {
     }
 
     const senderIds = [...new Set(messages.map((message) => message.senderId))];
-    const senders = await this.resolveSenders(senderIds, token);
+    const senders = await this.resolveSenders(senderIds);
 
     return items.map((item) => {
       const sender = senders.get(item.senderId);
@@ -572,17 +576,13 @@ export class MessagesService {
 
   private async resolveSenders(
     senderIds: string[],
-    token: string,
   ): Promise<Map<string, ResponseUserSummaryDto>> {
     const result = new Map<string, ResponseUserSummaryDto>();
 
     await Promise.all(
       senderIds.map(async (senderId) => {
         try {
-          const user = await this.securityUserClient.getUserById(
-            senderId,
-            token,
-          );
+          const user = await this.securityUserClient.getUserById(senderId);
           result.set(senderId, user);
         } catch {
           // omit sender info when lookup fails
@@ -609,6 +609,7 @@ export class MessagesService {
       groupId?: string;
       groupName?: string;
       memberCount?: number;
+      activeMemberIds?: Set<string>;
     },
   ): ResponseMessageDto {
     const isGroup = context.messageType === MessageType.GROUP;
@@ -626,7 +627,12 @@ export class MessagesService {
     if (isGroup) {
       const memberCount = context.memberCount ?? 0;
       totalRecipients = Math.max(memberCount - 1, 0);
-      readCount = receipts.length;
+      const activeReceipts = context.activeMemberIds
+        ? receipts.filter((receipt) =>
+            context.activeMemberIds!.has(receipt.userId),
+          )
+        : receipts;
+      readCount = activeReceipts.length;
 
       if (message.senderId === viewerId) {
         isRead = readCount > 0;

@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { Route } from './entities/route.entity';
 import { CreateRouteNodesDto } from './dto/create-route-nodes.dto';
 import { Stop } from '@/stop/entities/stop.entity';
@@ -23,6 +23,7 @@ export class RouteService {
     private readonly nodeRepository: Repository<Node>,
     @InjectRepository(Stop)
     private readonly stopRepository: Repository<Stop>,
+    private readonly dataSource: DataSource,
   ) {}
 
   private toResponseRouteDto(route: Route): ResponseRouteDto {
@@ -153,28 +154,34 @@ export class RouteService {
     const stops = await this.validateStopsExist(stopIds);
     const code = await this.generateRouteCode();
 
-    const route = this.routeRepository.create({
-      code,
-      name,
-      description,
-      price,
-    });
-    const savedRoute = await this.routeRepository.save(route);
+    const savedRouteId = await this.dataSource.transaction(async (manager) => {
+      const routeRepo = manager.getRepository(Route);
+      const nodeRepo = manager.getRepository(Node);
 
-    const createdNodes = nodes.map((nodeDto) => {
-      const stop = stops.find((s) => s.id === nodeDto.stopId);
-      return this.nodeRepository.create({
-        route: savedRoute,
-        stop: stop!,
-        order: nodeDto.order,
-        estimatedTimeMinutes: nodeDto.estimatedTimeMinutes,
+      const route = routeRepo.create({
+        code,
+        name,
+        description,
+        price,
       });
-    });
+      const savedRoute = await routeRepo.save(route);
 
-    await this.nodeRepository.save(createdNodes);
+      const createdNodes = nodes.map((nodeDto) => {
+        const stop = stops.find((s) => s.id === nodeDto.stopId);
+        return nodeRepo.create({
+          route: savedRoute,
+          stop: stop!,
+          order: nodeDto.order,
+          estimatedTimeMinutes: nodeDto.estimatedTimeMinutes,
+        });
+      });
+
+      await nodeRepo.save(createdNodes);
+      return savedRoute.id;
+    });
 
     const createdRoute = await this.routeRepository.findOne({
-      where: { id: savedRoute.id },
+      where: { id: savedRouteId },
       relations: ['nodes', 'nodes.stop'],
     });
     if (!createdRoute) {
@@ -243,25 +250,30 @@ export class RouteService {
     if (description !== undefined) updateData.description = description;
     if (price !== undefined) updateData.price = price;
 
-    if (Object.keys(updateData).length > 0) {
-      await this.routeRepository.update(id, updateData);
-    }
+    await this.dataSource.transaction(async (manager) => {
+      const routeRepo = manager.getRepository(Route);
+      const nodeRepo = manager.getRepository(Node);
 
-    if (nodes !== undefined) {
-      await this.nodeRepository.delete({ route: { id } });
+      if (Object.keys(updateData).length > 0) {
+        await routeRepo.update(id, updateData);
+      }
 
-      const createdNodes = nodes.map((nodeDto) => {
-        const stop = validatedStops.find((s) => s.id === nodeDto.stopId);
-        return this.nodeRepository.create({
-          route,
-          stop: stop!,
-          order: nodeDto.order,
-          estimatedTimeMinutes: nodeDto.estimatedTimeMinutes,
+      if (nodes !== undefined) {
+        await nodeRepo.delete({ route: { id } });
+
+        const createdNodes = nodes.map((nodeDto) => {
+          const stop = validatedStops.find((s) => s.id === nodeDto.stopId);
+          return nodeRepo.create({
+            route,
+            stop: stop!,
+            order: nodeDto.order,
+            estimatedTimeMinutes: nodeDto.estimatedTimeMinutes,
+          });
         });
-      });
 
-      await this.nodeRepository.save(createdNodes);
-    }
+        await nodeRepo.save(createdNodes);
+      }
+    });
 
     const updatedRoute = await this.routeRepository.findOne({
       where: { id },
@@ -278,6 +290,6 @@ export class RouteService {
     if (!route) {
       throw new BadRequestException('Ruta no encontrada');
     }
-    return await this.routeRepository.delete(id);
+    return await this.routeRepository.softDelete(id);
   }
 }

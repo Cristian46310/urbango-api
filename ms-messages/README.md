@@ -11,11 +11,21 @@ Microservicio NestJS de mensajería (UCaldas). Puerto **3001**.
 - **HU-ENTR-3-009**: directorio de grupos públicos, búsqueda, detalle, unirse con notificación de bienvenida vía WebSocket.
 - **HU-ENTR-3-010**: administración de miembros (listar, buscar, promover, remover, bloquear, log de auditoría).
 
+## Modelo de producto (grupos)
+
+Los grupos **no** son un chat bidireccional ciudadano↔ciudadano:
+
+| Acción | Quién |
+|--------|--------|
+| Crear / unirse / administrar miembros | Ciudadano (`persons.type=citizen`) |
+| Publicar mensajes grupales | Conductor (`persons.type=driver`) y miembro del grupo |
+| Conductor unirse solo | No: debe ser invitado por un admin del grupo |
+
 ## Requisitos
 
 - Node 22 + pnpm
-- PostgreSQL (base dedicada `ms_messages`)
-- ms-security en `:8080`
+- PostgreSQL: **la misma base que ms-business** (esquema compartido). Las tablas de mensajería se crean con las migraciones de este servicio; perfiles y alertas por ruta/zona leen `persons`, `tickets`, `routes`, etc.
+- ms-security en `:8080` con `MS_SECURITY_INTERNAL_KEY` alineada
 
 ## Variables de entorno
 
@@ -23,40 +33,74 @@ Copia `.env.example` a `.env`:
 
 ```env
 PORT=3001
-DB_URL=postgresql://user:password@localhost:5432/ms_messages
+NODE_ENV=development
+DB_URL=postgresql://user:password@localhost:5432/postgres
 MS_SECURITY_URL=http://localhost:8080
+MS_SECURITY_INTERNAL_KEY=<generate_random_32+_chars>
+# CORS_ALLOWED_ORIGINS=http://localhost:5173
 ```
+
+| Variable | Obligatoria | Notas |
+|----------|-------------|--------|
+| `DB_URL` | Sí | Misma Postgres que ms-business |
+| `MS_SECURITY_URL` | Sí | Sin fallback a localhost en código |
+| `MS_SECURITY_INTERNAL_KEY` | Sí | Header `X-Internal-Key` para `/api/internal/users` |
+| `CORS_ALLOWED_ORIGINS` | En producción | Lista separada por comas; en development se puede omitir |
+| `PORT` | No | Default `3001` |
 
 ## Desarrollo
 
 ```bash
 cd ms-messages
 pnpm install
+pnpm run migration:run
 pnpm run start:dev
 ```
 
+Verificación rápida: `pnpm run verify` (lint + build).
+
 Swagger: `http://localhost:3001/docs`
 
-## WebSocket (Socket.IO) — actualización en tiempo real
+## WebSocket (Socket.IO) — tiempo real
 
-Al conectar, el servidor une al usuario a todas sus conversaciones (`conversation:{id}`).
-**No hace falta polling ni fetch repetido**: escucha eventos y actualiza el estado local.
+- **Namespace:** `/messages`
+- **Path:** `/messages/ws`
+- **Auth:** `auth: { token: '<jwt>' }` o header `Authorization: Bearer …` (solo en handshake)
+- **Réplicas:** una sola instancia por ahora (conexiones en memoria). Proxies deben permitir WebSocket upgrade.
+
+Al conectar, el servidor une al usuario a `user:{id}` y a todas sus conversaciones (`conversation:{id}`).
+
+**Reconnect:** Socket.IO re-ejecuta el handshake y re-une rooms. Tras reconnect, **vuelve a cargar historial por REST** (no hay sync incremental aún). El servidor puede emitir `sync:required`.
 
 ### Conexión
 
 ```javascript
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:3001', {
+const socket = io('http://localhost:3001/messages', {
+  path: '/messages/ws',
   auth: { token: '<jwt>' },
 });
 
-// Carga inicial UNA sola vez (REST)
-const history = await fetch('/groups/{id}/messages', { headers: { Authorization: `Bearer ${token}` } });
+socket.on('connect_error', (err) => {
+  console.error('WS auth/connect failed', err.message);
+});
 
-// Tiempo real: append/update sin refetch
+socket.on('error', (payload) => {
+  // e.g. { code: 'UNAUTHORIZED', message: '...' }
+  console.error(payload);
+});
+
+socket.on('sync:required', () => {
+  // Refetch inbox / open conversation history via REST
+});
+
+// Carga inicial UNA sola vez (REST), luego escucha eventos
+const history = await fetch('/groups/{id}/messages', {
+  headers: { Authorization: `Bearer ${token}` },
+});
+
 socket.on('message:new', (message) => {
-  // message.conversationId, message.messageType, message.groupId, message.groupName...
   appendToChat(message);
   updateInboxPreview(message);
 });
@@ -71,10 +115,11 @@ socket.on('message:deleted', ({ messageId, conversationId }) => {
 
 socket.on('group:member_added', ({ conversationId, welcomeMessage }) => {
   if (welcomeMessage) showToast(welcomeMessage);
+  // Fallback si el auto-join del servidor falló
   socket.emit('conversation:join', { conversationId });
 });
 
-socket.on('group:member_removed', ({ groupId, groupName, reason }) => {
+socket.on('group:member_removed', ({ groupId, groupName }) => {
   showToast(`Fuiste removido de ${groupName}`);
   removeGroupFromUI(groupId);
 });
@@ -82,11 +127,12 @@ socket.on('group:member_removed', ({ groupId, groupName, reason }) => {
 socket.on('group:member_promoted', ({ groupId, role }) => {
   if (role === 'admin') showToast('Fuiste promovido a administrador');
 });
+
+socket.on('alert:new', (alert) => { /* bandeja */ });
+socket.on('alert:push', (alert) => { /* urgente */ });
 ```
 
 ### Unirse a una conversación abierta en UI
-
-Si abres un chat nuevo antes de reconectar el socket:
 
 ```javascript
 socket.emit('conversation:join', { conversationId: '<uuid>' });
@@ -96,113 +142,61 @@ socket.emit('conversation:join', { conversationId: '<uuid>' });
 
 | Evento | Cuándo |
 |--------|--------|
-| `message:new` | Mensaje directo o grupal (todos los miembros de la conversación) |
+| `message:new` | Mensaje directo o grupal |
 | `message:read` | Alguien marca leído |
 | `message:deleted` | Admin elimina mensaje grupal |
-| `group:member_added` | Te agregan o te unes a un grupo (`welcomeMessage?` opcional) |
-| `group:member_left` | Un admin recibe aviso de que alguien salió o fue removido |
-| `group:member_removed` | Fuiste removido (y opcionalmente bloqueado) de un grupo |
-| `group:member_promoted` | Tu rol en el grupo cambió (p. ej. promovido a admin) |
-| `alert:new` | Alerta masiva no urgente (bandeja del usuario) |
-| `alert:push` | Alerta masiva **urgente** — push inmediato al usuario conectado |
+| `group:member_added` | Te agregan o te unes |
+| `group:member_left` | Aviso a admins de salida/remoción |
+| `group:member_removed` | Fuiste removido |
+| `group:member_promoted` | Cambio de rol (incluye demote) |
+| `alert:new` | Alerta no urgente |
+| `alert:push` | Alerta urgente |
+| `sync:required` | Tras connect/reconnect: refetch REST recomendado |
+| `error` | Fallo de auth u otro error WS antes de disconnect |
 
 ## Endpoints principales (HU-004)
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| GET | `/users/search?q=` | Buscar personas (proxy a ms-security `GET /api/public/users?q=`) |
+| GET | `/users/search?q=` | Buscar personas (ms-security `GET /api/internal/users` + `X-Internal-Key`) |
 | POST | `/conversations/direct` | Obtener/crear hilo directo |
 | POST | `/messages/direct` | Enviar mensaje directo |
 | GET | `/inbox` | Mensajes recibidos |
+| GET | `/inbox/unread-count` | No leídos de chat |
 | GET | `/messages/sent` | Mensajes enviados |
 | PATCH | `/messages/:id/read` | Marcar como leído |
+| GET | `/conversations/:id/messages` | Historial de conversación |
 
-## Endpoints grupos (HU-006)
+## Endpoints grupos (HU-006 / HU-009 / HU-010)
 
-| Método | Ruta | Descripción | Restricción |
-|--------|------|-------------|-------------|
-| POST | `/groups` | Crear grupo (≥2 miembros + creador admin) | Ciudadano registrado |
-| GET | `/groups` | Listar grupos públicos y propios | JWT |
-| POST | `/groups/:id/members` | Agregar miembros (admin) | Ciudadano registrado |
-| POST | `/groups/:id/join` | Unirse a grupo público | Ciudadano registrado |
-| POST | `/groups/:id/icon` | Actualizar ícono (admin) | Ciudadano registrado |
+Ver tablas anteriores en Swagger `/docs`. Resumen:
 
-**Ciudadano registrado** = fila en `persons` con `type=citizen` y `user_id` = id del JWT (misma BD que ms-business). Conductores u otros perfiles reciben **403**.
+- Ciudadano: crear, join públicos, agregar miembros, ícono
+- Admin del grupo: roles, remove/block, membership-log
+- JWT: listar, detalle, `GET /groups/me`, historial `GET /groups/:id/messages`
+- Conductor: `POST /messages/group`
 
-## Endpoints grupos públicos (HU-009)
-
-| Método | Ruta | Descripción | Restricción |
-|--------|------|-------------|-------------|
-| GET | `/groups/public?q=&page=&limit=` | Directorio de grupos **solo públicos** con búsqueda por nombre/descripción y `memberCount` | JWT |
-| GET | `/groups/:id` | Detalle del grupo (descripción completa, `isMember`, `myRole`, `memberCount`) | JWT; privados solo si eres miembro |
-| POST | `/groups/:id/join` | Unirse a grupo público (existente HU-006; ahora valida bloqueos y emite `welcomeMessage`) | Ciudadano registrado |
-
-Respuesta resumen pública (`GET /groups/public`):
-
-```json
-{
-  "items": [
-    {
-      "id": "uuid",
-      "name": "Transporte zona norte",
-      "description": "...",
-      "memberCount": 12,
-      "iconUrl": null,
-      "isMember": false
-    }
-  ],
-  "meta": { "page": 1, "limit": 10, "totalItems": 1, "totalPages": 1, "hasNextPage": false, "hasPreviousPage": false }
-}
-```
-
-## Endpoints administración de miembros (HU-010)
-
-Solo **administradores del grupo** (`role=admin` en `group_members`).
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/groups/:id/members?q=&page=&limit=` | Lista miembros con nombre, email, rol y fecha de unión |
-| PATCH | `/groups/:id/members/:userId/role` | Promover/degradar (`{ "role": "admin" \| "member" }`) |
-| DELETE | `/groups/:id/members/:userId?block=true&reason=` | Remover miembro; `block=true` impide reingreso |
-| GET | `/groups/:id/membership-log?page=&limit=` | Log de auditoría (joined, left, added, removed, promoted, demoted, blocked) |
-
-Acciones registradas en `group_membership_logs`. Usuarios bloqueados en `group_blocked_users` no pueden usar `POST /groups/:id/join`.
-
-## Endpoints mensajes grupales (HU-005)
-
-| Método | Ruta | Descripción | Restricción |
-|--------|------|-------------|-------------|
-| GET | `/groups/me` | Grupos donde soy miembro | JWT |
-| POST | `/messages/group` | Enviar a 1 o N grupos | Conductor registrado + miembro del grupo |
-| GET | `/groups/:id/messages` | Historial del grupo | Miembro del grupo |
-| GET | `/messages/:id/reads` | Quién leyó (grupal) | Remitente o admin |
-| DELETE | `/messages/:id` | Eliminar mensaje grupal | Admin del grupo |
-
-**Conductor registrado** = fila en `persons` con `type=driver`.
-
-Todos los endpoints anteriores usan `@Authenticated()` (JWT válido, sin RBAC por ruta aún).
+**Ciudadano registrado** = `persons.type=citizen` y `user_id` = JWT. **Conductor** = `persons.type=driver`.
 
 ## Endpoints alertas masivas (HU-008)
 
-Solo usuarios con rol **`ADMIN`** en el claim `roles` del JWT (validado vía ms-security `validate-token`). Los endpoints `/alerts` son para cualquier usuario autenticado.
+Solo JWT con rol **`ADMIN`**. Usuario autenticado: `/alerts/*`.
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| POST | `/mass-alerts/preview-recipients` | Contador de destinatarios antes de enviar |
-| POST | `/mass-alerts` | Crear y enviar (inmediato) o programar alerta |
-| GET | `/mass-alerts` | Listar alertas (admin) |
-| GET | `/mass-alerts/:id` | Detalle de alerta |
-| GET | `/mass-alerts/:id/stats` | Estadísticas entrega/lectura |
-| GET | `/alerts` | Bandeja de alertas del usuario |
-| GET | `/alerts/unread-count` | Contador sin leer |
-| PATCH | `/alerts/:id/read` | Marcar alerta como leída |
+| POST | `/mass-alerts/preview-recipients` | Contador de destinatarios |
+| POST | `/mass-alerts` | Crear / programar |
+| GET | `/mass-alerts` | Listar (admin) |
+| GET | `/mass-alerts/:id` | Detalle |
+| GET | `/mass-alerts/:id/stats` | Stats |
+| GET | `/alerts` | Bandeja usuario |
+| GET | `/alerts/unread-count` | Contador alertas |
+| PATCH | `/alerts/:id/read` | Marcar leída |
 
 ## Migraciones
-
-Ejecutar migraciones:
 
 ```bash
 pnpm run migration:run
 ```
 
-Incluye `1749571200000-InitDirectMessages`, `1749571300000-InitGroups`, `1749571400000-AddMessageSoftDelete`, `1749571500000-InitMassAlerts`, `1749571600000-NormalizeMassAlertScope` y `1749571700000-GroupMembershipAdmin` (bloqueos + log de membresía).
+Incluye init DM/groups, soft-delete, mass-alerts, membership admin, uuid extension, DM uniqueness e índices.

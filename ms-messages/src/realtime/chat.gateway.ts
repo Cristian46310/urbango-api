@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import {
   ConnectedSocket,
   MessageBody,
@@ -8,13 +9,14 @@ import {
   WebSocketServer,
   WsException,
 } from '@nestjs/websockets';
-import { Logger } from '@nestjs/common';
+import { ForbiddenException, Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JwtValidationService } from '@/auth/services/jwt-validation.service';
 import { ConversationsService } from '@/conversations/conversations.service';
+import { resolveCorsOrigins } from '@/config/env.validation';
 import { ConnectionManagerService } from './services/connection-manager.service';
-import { RealtimeEmitterService } from './services/realtime-emitter.service';
 import { ChatEvent } from './chat-events.enum';
+import type { ChatRealtimePort } from './chat-realtime.port';
 
 interface AuthenticatedSocket extends Socket {
   data: {
@@ -26,13 +28,20 @@ interface JoinConversationPayload {
   conversationId?: string;
 }
 
+const WS_HANDSHAKE_TIMEOUT_MS = 5000;
+
 @WebSocketGateway({
+  namespace: '/messages',
+  path: '/messages/ws',
+  transports: ['websocket'],
   cors: {
-    origin: true,
+    origin: resolveCorsOrigins(),
     credentials: true,
   },
 })
-export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class ChatGateway
+  implements OnGatewayConnection, OnGatewayDisconnect, ChatRealtimePort
+{
   private readonly logger = new Logger(ChatGateway.name);
 
   @WebSocketServer()
@@ -42,15 +51,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly jwtValidationService: JwtValidationService,
     private readonly connectionManager: ConnectionManagerService,
     private readonly conversationsService: ConversationsService,
-    private readonly realtimeEmitter: RealtimeEmitterService,
-  ) {
-    this.realtimeEmitter.setGateway(this);
-  }
+  ) {}
 
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
     try {
       const token = this.extractToken(client);
-      const user = await this.jwtValidationService.validateToken(token);
+      const user = await this.jwtValidationService.validateToken(token, {
+        timeoutMs: WS_HANDSHAKE_TIMEOUT_MS,
+      });
       client.data.userId = user.id;
       await client.join(this.userRoom(user.id));
       this.connectionManager.register(user.id, client);
@@ -59,11 +67,21 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         await this.conversationsService.getConversationIdsForUser(user.id);
       await this.joinSocketToConversations(client, conversationIds);
 
+      client.emit(ChatEvent.SYNC_REQUIRED, {
+        reason: 'connected',
+        conversationCount: conversationIds.length,
+      });
+
       this.logger.debug(
         `User ${user.id} connected (${conversationIds.length} conversations)`,
       );
-    } catch {
-      this.logger.warn(`Rejected socket connection ${client.id}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unauthorized';
+      this.logger.warn(`Rejected socket connection ${client.id}: ${message}`);
+      client.emit(ChatEvent.ERROR, {
+        code: 'UNAUTHORIZED',
+        message: 'Invalid or missing token',
+      });
       client.disconnect(true);
     }
   }
@@ -91,7 +109,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       throw new WsException('conversationId is required');
     }
 
-    await this.conversationsService.assertMember(conversationId, userId);
+    try {
+      await this.conversationsService.assertMember(conversationId, userId);
+    } catch (error) {
+      if (error instanceof ForbiddenException) {
+        throw new WsException('Not a member of this conversation');
+      }
+      throw error;
+    }
+
     await client.join(this.conversationRoom(conversationId));
 
     return { conversationId };

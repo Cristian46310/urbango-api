@@ -7,16 +7,18 @@ import {
 import { CreateCitizenDto } from './dto/create-citizen.dto';
 import { UpdateCitizenDto } from './dto/update-citizen.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Citizen } from './entities/citizen.entity';
 import { Address } from '@/address/entities/address.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponseCitizenDto } from './dto/response-citizen.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
+import { SecurityProfileRole } from '@/auth/services/security-role-client.service';
+import { ProfileRoleOutboxService } from '@/auth/services/profile-role-outbox.service';
 import {
-  SecurityProfileRole,
-  SecurityRoleClientService,
-} from '@/auth/services/security-role-client.service';
+  UserPhotoStorageFile,
+  UserPhotoStorageService,
+} from '@/user-photo/user-photo-storage.service';
 
 export type CreateCitizenInput = CreateCitizenDto & { userId: string };
 
@@ -25,9 +27,9 @@ export class CitizenService {
   constructor(
     @InjectRepository(Citizen)
     private readonly citizenRepository: Repository<Citizen>,
-    @InjectRepository(Address)
-    private readonly addressRepository: Repository<Address>,
-    private readonly securityRoleClient: SecurityRoleClientService,
+    private readonly profileRoleOutbox: ProfileRoleOutboxService,
+    private readonly dataSource: DataSource,
+    private readonly userPhotoStorage: UserPhotoStorageService,
   ) {}
 
   private async assertUniqueCitizenFields(
@@ -68,38 +70,64 @@ export class CitizenService {
     }
   }
 
+  private assertSingleAddressInput(input: {
+    addressId?: string;
+    address?: unknown;
+  }): void {
+    if (input.addressId && input.address) {
+      throw new BadRequestException(
+        'No se puede enviar address y addressId al mismo tiempo',
+      );
+    }
+  }
+
   async create(input: CreateCitizenInput) {
+    this.assertSingleAddressInput(input);
     await this.assertUniqueCitizenFields({
       userId: input.userId,
       document: input.document,
       email: input.email,
     });
 
-    if (input.addressId) {
-      const addr = await this.addressRepository.findOne({
-        where: { id: input.addressId },
-      });
-      if (!addr) throw new BadRequestException('Address not found');
-    }
+    const { saved, outboxId } = await this.dataSource.transaction(
+      async (manager) => {
+        const addressRepository = manager.getRepository(Address);
+        const citizenRepository = manager.getRepository(Citizen);
+        let address: Address | undefined;
 
-    const citData: Partial<Citizen> = {
-      name: input.name,
-      document: input.document,
-      email: input.email,
-      phone: input.phone,
-      userId: input.userId,
-      birthDate: input.birthDate ? new Date(input.birthDate) : undefined,
-      address: input.addressId
-        ? ({ id: input.addressId } as Address)
-        : undefined,
-    };
-    const cit = this.citizenRepository.create(citData);
-    const saved = await this.citizenRepository.save(cit);
-    await this.securityRoleClient.assignProfileRole(
-      input.userId,
-      SecurityProfileRole.CITIZEN,
+        if (input.addressId) {
+          address =
+            (await addressRepository.findOne({
+              where: { id: input.addressId },
+            })) ?? undefined;
+          if (!address) throw new BadRequestException('Address not found');
+        } else if (input.address) {
+          address = await addressRepository.save(
+            addressRepository.create(input.address),
+          );
+        }
+
+        const cit = citizenRepository.create({
+          name: input.name,
+          document: input.document,
+          email: input.email,
+          phone: input.phone,
+          userId: input.userId,
+          birthDate: input.birthDate ? new Date(input.birthDate) : undefined,
+          address,
+        });
+        const savedCitizen = await manager.getRepository(Citizen).save(cit);
+        const outbox = await this.profileRoleOutbox.enqueue(manager, {
+          userId: input.userId,
+          profileId: savedCitizen.id,
+          profileType: 'citizen',
+          role: SecurityProfileRole.CITIZEN,
+        });
+        return { saved: savedCitizen, outboxId: outbox.id };
+      },
     );
-    return plainToInstance(ResponseCitizenDto, saved);
+    await this.profileRoleOutbox.tryProcessSoon(outboxId);
+    return this.toResponse(saved);
   }
 
   async findByUserId(userId: string) {
@@ -110,7 +138,54 @@ export class CitizenService {
     if (!cit) {
       throw new NotFoundException('Citizen profile not found for this user');
     }
-    return plainToInstance(ResponseCitizenDto, cit);
+    return this.toResponse(cit);
+  }
+
+  async upsertPhotoForUser(
+    userId: string,
+    file: UserPhotoStorageFile,
+  ): Promise<ResponseCitizenDto> {
+    const cit = await this.citizenRepository.findOne({ where: { userId } });
+    if (!cit) {
+      throw new BadRequestException(
+        'Debe registrar su perfil de ciudadano antes de subir foto',
+      );
+    }
+
+    const previousPath = cit.photoUrl
+      ? this.userPhotoStorage.pathFromPublicUrl(cit.photoUrl)
+      : undefined;
+    const stored = await this.userPhotoStorage.upload(userId, file);
+    cit.photoUrl = stored.publicUrl;
+    const saved = await this.citizenRepository.save(cit);
+    if (previousPath) {
+      await this.userPhotoStorage.delete(previousPath);
+    }
+    return this.toResponse(saved);
+  }
+
+  async removePhotoForUser(userId: string): Promise<ResponseCitizenDto> {
+    const cit = await this.citizenRepository.findOne({ where: { userId } });
+    if (!cit) {
+      throw new NotFoundException('Citizen profile not found for this user');
+    }
+    const previousPath = cit.photoUrl
+      ? this.userPhotoStorage.pathFromPublicUrl(cit.photoUrl)
+      : undefined;
+    cit.photoUrl = undefined;
+    const saved = await this.citizenRepository.save(cit);
+    if (previousPath) {
+      await this.userPhotoStorage.delete(previousPath);
+    }
+    return this.toResponse(saved);
+  }
+
+  private toResponse(citizen: Citizen): ResponseCitizenDto {
+    const response = plainToInstance(ResponseCitizenDto, citizen, {
+      excludeExtraneousValues: true,
+    });
+    response.addressId = citizen.address?.id;
+    return response;
   }
 
   private buildPaginationMeta(page: number, limit: number, totalItems: number) {
@@ -137,7 +212,7 @@ export class CitizenService {
     });
 
     return {
-      items: plainToInstance(ResponseCitizenDto, items),
+      items: items.map((item) => this.toResponse(item)),
       meta: this.buildPaginationMeta(page, limit, totalItems),
     };
   }
@@ -148,10 +223,11 @@ export class CitizenService {
       relations: ['address'],
     });
     if (!cit) throw new NotFoundException(`Citizen ${id} not found`);
-    return plainToInstance(ResponseCitizenDto, cit);
+    return this.toResponse(cit);
   }
 
   async update(id: string, updateCitizenDto: UpdateCitizenDto) {
+    this.assertSingleAddressInput(updateCitizenDto);
     await this.assertUniqueCitizenFields(
       {
         document: updateCitizenDto.document,
@@ -160,29 +236,60 @@ export class CitizenService {
       id,
     );
 
-    if (updateCitizenDto.addressId) {
-      const addr = await this.addressRepository.findOne({
-        where: { id: updateCitizenDto.addressId },
+    const saved = await this.dataSource.transaction(async (manager) => {
+      const citizenRepository = manager.getRepository(Citizen);
+      const addressRepository = manager.getRepository(Address);
+      const cit = await citizenRepository.findOne({
+        where: { id },
+        relations: ['address'],
       });
-      if (!addr) throw new BadRequestException('Address not found');
-    }
-    const preloadData: Partial<Citizen> = {
-      id,
-      name: updateCitizenDto.name,
-      document: updateCitizenDto.document,
-      email: updateCitizenDto.email,
-      phone: updateCitizenDto.phone,
-      birthDate: updateCitizenDto.birthDate
-        ? new Date(updateCitizenDto.birthDate)
-        : undefined,
-      address: updateCitizenDto.addressId
-        ? ({ id: updateCitizenDto.addressId } as Address)
-        : undefined,
-    };
-    const cit = await this.citizenRepository.preload(preloadData);
-    if (!cit) throw new NotFoundException(`Citizen ${id} not found`);
-    const saved = await this.citizenRepository.save(cit);
-    return plainToInstance(ResponseCitizenDto, saved);
+      if (!cit) throw new NotFoundException(`Citizen ${id} not found`);
+
+      if (updateCitizenDto.addressId) {
+        const address = await addressRepository.findOne({
+          where: { id: updateCitizenDto.addressId },
+        });
+        if (!address) throw new BadRequestException('Address not found');
+        cit.address = address;
+      } else if (updateCitizenDto.address) {
+        if (!cit.address) {
+          cit.address = await addressRepository.save(
+            addressRepository.create(updateCitizenDto.address),
+          );
+        } else {
+          const references = await citizenRepository.count({
+            where: { address: { id: cit.address.id } },
+          });
+          if (references > 1) {
+            cit.address = await addressRepository.save(
+              addressRepository.create(updateCitizenDto.address),
+            );
+          } else {
+            addressRepository.merge(cit.address, updateCitizenDto.address);
+            cit.address = await addressRepository.save(cit.address);
+          }
+        }
+      }
+
+      if (updateCitizenDto.name !== undefined) {
+        cit.name = updateCitizenDto.name;
+      }
+      if (updateCitizenDto.document !== undefined) {
+        cit.document = updateCitizenDto.document;
+      }
+      if (updateCitizenDto.email !== undefined) {
+        cit.email = updateCitizenDto.email;
+      }
+      if (updateCitizenDto.phone !== undefined) {
+        cit.phone = updateCitizenDto.phone;
+      }
+      if (updateCitizenDto.birthDate !== undefined) {
+        cit.birthDate = new Date(updateCitizenDto.birthDate);
+      }
+
+      return citizenRepository.save(cit);
+    });
+    return this.toResponse(saved);
   }
 
   async remove(id: string) {

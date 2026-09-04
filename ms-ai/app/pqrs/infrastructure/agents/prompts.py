@@ -44,6 +44,7 @@ CATEGORY_LABELS = {
     "bus": "Bus",
     "route": "Ruta",
     "card": "Tarjeta",
+    "technical_support": "Soporte Técnico",
     "other": "Otro",
 }
 

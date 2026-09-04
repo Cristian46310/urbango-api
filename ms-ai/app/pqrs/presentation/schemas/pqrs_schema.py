@@ -25,7 +25,10 @@ class CreatePqrsImageRequest(BaseModel):
 
 class CreatePqrsRequest(BaseModel):
     type: PqrsType
-    category: PqrsCategory
+    category: PqrsCategory | None = Field(
+        default=None,
+        description="Si se omite, LangGraph clasifica contra el enum (whitelist).",
+    )
     description: str = Field(default="", max_length=500)
     user_id: str
     user_email: str

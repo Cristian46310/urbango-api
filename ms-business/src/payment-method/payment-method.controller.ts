@@ -23,6 +23,7 @@ import {
 import { ResponsePaymentMethodDto } from './dto/response-payment-method.dto';
 import { ResponsePaymentMethodListDto } from './dto/response-payment-method-list.dto';
 import { Authenticated } from '@/auth/decorators/authenticated.decorator';
+import { Roles } from '@/auth/decorators/roles.decorator';
 
 @ApiTags('payment-method')
 @Controller('payment-method')
@@ -31,9 +32,11 @@ export class PaymentMethodController {
 
   @Post()
   @Authenticated()
+  @Roles('ADMIN')
   @ApiBearerAuth('bearer')
   @ApiOperation({
-    summary: 'Create payment method (solo JWT; catálogo en desarrollo)',
+    summary:
+      'Crear método de pago en catálogo (ADMIN). Preferir el seed: CASH, SYSTEM_CARD, EXTERNAL_CARD',
   })
   @ApiCreatedResponse({ type: ResponsePaymentMethodDto })
   create(@Body() createPaymentMethodDto: CreatePaymentMethodDto) {
@@ -54,7 +57,7 @@ export class PaymentMethodController {
   @Get()
   @Authenticated()
   @ApiBearerAuth('bearer')
-  @ApiOperation({ summary: 'List payment methods (paginated)' })
+  @ApiOperation({ summary: 'Listar métodos de pago (paginado, JWT)' })
   @ApiOkResponse({ type: ResponsePaymentMethodListDto })
   findAll(@Query() pagination: PaginationQueryDto) {
     return this.paymentMethodService.findAll(pagination);
@@ -70,6 +73,10 @@ export class PaymentMethodController {
   }
 
   @Put(':id')
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Actualizar método de pago (ADMIN)' })
   update(
     @Param('id') id: string,
     @Body() updatePaymentMethodDto: UpdatePaymentMethodDto,
@@ -78,6 +85,10 @@ export class PaymentMethodController {
   }
 
   @Delete(':id')
+  @Authenticated()
+  @Roles('ADMIN')
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Eliminar método de pago (ADMIN)' })
   remove(@Param('id') id: string) {
     return this.paymentMethodService.remove(id);
   }

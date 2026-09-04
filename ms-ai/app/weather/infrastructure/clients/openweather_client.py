@@ -72,9 +72,13 @@ class OpenWeatherClient(IWeatherProvider):
             timezone_offset,
         )
 
+        wind = best_entry.get("wind", {})
+
         return WeatherForecast(
             temperature_c=round(float(main.get("temp", 0)), 1),
             feels_like_c=round(float(main.get("feels_like", main.get("temp", 0))), 1),
+            humidity_percent=int(main.get("humidity", 0) or 0),
+            wind_speed_ms=round(float(wind.get("speed", 0) or 0), 1),
             rain_probability=int(round(float(pop) * 100)),
             condition=weather.get("main", ""),
             description=weather.get("description", ""),

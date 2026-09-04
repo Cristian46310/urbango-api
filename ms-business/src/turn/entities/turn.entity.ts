@@ -4,6 +4,7 @@ import {
   Column,
   ManyToOne,
   CreateDateColumn,
+  DeleteDateColumn,
 } from 'typeorm';
 import { Bus } from '@/bus/entities/bus.entity';
 import { Driver } from '@/driver/entities/driver.entity';
@@ -51,4 +52,7 @@ export class Turn {
 
   @CreateDateColumn()
   createdAt!: Date;
+
+  @DeleteDateColumn()
+  deletedAt?: Date | null;
 }

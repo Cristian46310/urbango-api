@@ -1,0 +1,1 @@
+export const CHAT_REALTIME_PORT = Symbol('CHAT_REALTIME_PORT');

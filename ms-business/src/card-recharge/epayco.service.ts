@@ -45,7 +45,7 @@ export class EpaycoService {
   }
 
   isTestMode(): boolean {
-    return this.configService.get<string>('EPAYCO_TEST_MODE') !== 'false';
+    return this.configService.get<string>('EPAYCO_TEST_MODE') === 'true';
   }
 
   getFeePercent(): number {
@@ -210,7 +210,11 @@ export class EpaycoService {
       this.logger.warn(
         'Webhook ePayco sin firma validable (faltan EPAYCO_CUSTOMER_ID, EPAYCO_P_KEY o x_signature)',
       );
-      return this.configService.get<string>('EPAYCO_SKIP_SIGNATURE') === 'true';
+      // Bypass solo permitido en sandbox explícito; nunca en producción.
+      return (
+        this.isTestMode() &&
+        this.configService.get<string>('EPAYCO_SKIP_SIGNATURE') === 'true'
+      );
     }
 
     const expected = createHash('sha256')

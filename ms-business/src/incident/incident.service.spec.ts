@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { IncidentService } from './incident.service';
 import { Incident } from './entities/incident.entity';
 import { IncidentBus } from './entities/incident-bus.entity';
@@ -32,6 +33,13 @@ describe('IncidentService', () => {
         provideMockRepo(Driver),
         { provide: IncidentPhotoService, useValue: mockPhotoService },
         { provide: IncidentNotificationService, useValue: mockNotification },
+        {
+          provide: DataSource,
+          useValue: {
+            transaction: jest.fn(),
+            query: jest.fn().mockResolvedValue([]),
+          },
+        },
       ],
     }).compile();
 

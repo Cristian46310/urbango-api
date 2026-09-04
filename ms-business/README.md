@@ -57,6 +57,34 @@ SUPABASE_BUS_BUCKET=bus-photo
 
 Create the bucket `bus-photo` in Supabase and mark it **public** (or adjust URL signing) so `photoUrl` returned by the API is reachable. Objects are stored under `buses/YYYY-MM-DD/<timestamp>-<uuid>.<ext>`.
 
+## User profile photos
+
+```env
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+SUPABASE_USER_BUCKET=user-photo
+```
+
+Create the bucket `user-photo` in Supabase Storage and mark it **public**.
+
+| Endpoint | Notes |
+|----------|--------|
+| `POST /citizen/me/photo` | multipart field `photo`; JWT; requires citizen profile |
+| `DELETE /citizen/me/photo` | JWT |
+| `POST /driver/me/photo` | multipart field `photo`; JWT; requires driver profile |
+| `DELETE /driver/me/photo` | JWT |
+
+JPEG/PNG/WebP, max 5 MB. Objects under `users/<userId>/...`. Response DTOs include `photoUrl`.
+
+## Administrative driver creation
+
+`POST /driver/admin` requires an `ADMIN` JWT. Its JSON body contains the
+regular driver fields plus `userId`, the UUID of an existing ms-security user.
+ms-business verifies that user before creating anything. The profile and a
+durable role-assignment event are committed together;
+ms-business immediately attempts to assign `DRIVER` through ms-security and
+retries transient failures from the outbox.
+
 ## Compile and run the project
 
 ```bash

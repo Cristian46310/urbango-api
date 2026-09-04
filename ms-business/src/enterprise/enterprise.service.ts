@@ -89,7 +89,6 @@ export class EnterpriseService {
   async remove(id: string): Promise<void> {
     const ent = await this.enterpriseRepository.findOne({ where: { id } });
     if (!ent) throw new NotFoundException(`Enterprise ${id} not found`);
-    await this.enterpriseRepository.delete(id);
-    return;
+    await this.enterpriseRepository.softDelete(id);
   }
 }

@@ -72,10 +72,14 @@ export class CardRechargeService {
 
     let paymentMethodId = dto.paymentMethodId;
     if (!paymentMethodId) {
-      const defaultMethod = await this.paymentMethodRepository.findOne({
-        where: { isRechargeable: true },
-        order: { createdAt: 'ASC' },
-      });
+      const defaultMethod =
+        (await this.paymentMethodRepository.findOne({
+          where: { code: 'SYSTEM_CARD' },
+        })) ??
+        (await this.paymentMethodRepository.findOne({
+          where: { isRechargeable: true },
+          order: { createdAt: 'ASC' },
+        }));
       if (!defaultMethod) {
         throw new BadRequestException(
           'No hay método de pago recargable en el catálogo. Ejecute la migración de seed o cree uno con isRechargeable: true',
@@ -346,7 +350,9 @@ export class CardRechargeService {
   }
 
   /**
-   * Retorno del navegador tras pago ePayco (query params). En sandbox acredita sin firma.
+   * Retorno del navegador tras pago ePayco (query params).
+   * Nunca acredita saldo: solo informa estado. La acreditación es vía webhook
+   * (producción) o confirm-local-test / sync autenticado (sandbox).
    */
   async confirmFromEpaycoReturn(
     payload: EpaycoWebhookPayload,
@@ -381,16 +387,7 @@ export class CardRechargeService {
       return { reference, status: 'approved' };
     }
 
-    if (this.epaycoService.isTestMode()) {
-      await this.creditApprovedTransaction(
-        transaction,
-        payload.x_transaction_id ?? 'sandbox',
-      );
-      return { reference, status: 'approved' };
-    }
-
-    await this.handleWebhookConfirmation(payload);
-    return { reference, status: 'approved' };
+    return { reference, status: 'pending' };
   }
 
   /**
@@ -448,16 +445,17 @@ export class CardRechargeService {
     transaction: CardRechargeTransaction,
     epaycoTransactionId: string,
   ): Promise<void> {
-    const sandboxMode = this.epaycoService.isTestMode();
-
     await this.dataSource.transaction(async (manager) => {
       const txRepo = manager.getRepository(CardRechargeTransaction);
       const pmcRepo = manager.getRepository(PaymentMethodCitizen);
 
+      // No cargar relaciones con FOR UPDATE: el ManyToOne eager hace LEFT JOIN
+      // y Postgres responde "FOR UPDATE cannot be applied to the nullable side
+      // of an outer join".
       const lockedTx = await txRepo.findOne({
         where: { id: transaction.id },
-        relations: ['paymentMethodCitizen'],
-        ...(sandboxMode ? {} : { lock: { mode: 'pessimistic_write' } }),
+        lock: { mode: 'pessimistic_write' },
+        loadEagerRelations: false,
       });
 
       if (
@@ -467,9 +465,7 @@ export class CardRechargeService {
         return;
       }
 
-      const paymentMethodCitizenId =
-        lockedTx.paymentMethodCitizen?.id ??
-        transaction.paymentMethodCitizen?.id;
+      const paymentMethodCitizenId = transaction.paymentMethodCitizen?.id;
 
       if (!paymentMethodCitizenId) {
         throw new BadRequestException(

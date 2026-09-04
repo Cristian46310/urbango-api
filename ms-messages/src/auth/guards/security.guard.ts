@@ -90,9 +90,16 @@ export class SecurityGuard implements CanActivate {
 
     const method = request.method;
     const url = this.getRequestPath(request);
-    const msSecurityUrl =
-      this.configService.get<string>('MS_SECURITY_URL') ??
-      'http://localhost:8080';
+    const msSecurityUrl = this.configService
+      .get<string>('MS_SECURITY_URL')
+      ?.trim()
+      ?.replace(/\/$/, '');
+    if (!msSecurityUrl) {
+      throw new HttpException(
+        { allowed: false, reason: 'MS_SECURITY_URL is not configured' },
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
 
     try {
       const response: AxiosResponse<AuthorizationResponse> =

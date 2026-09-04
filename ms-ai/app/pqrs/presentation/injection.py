@@ -3,6 +3,7 @@ from functools import lru_cache
 import psycopg2.extensions
 from fastapi import Depends
 
+from app.pqrs.application.use_cases.classify_pqrs_category import ClassifyPqrsCategoryUseCase
 from app.pqrs.application.use_cases.create_pqrs import CreatePqrsUseCase
 from app.pqrs.application.use_cases.create_pqrs_update import CreatePqrsUpdateUseCase
 from app.pqrs.application.use_cases.delete_pqrs import DeletePqrsUseCase
@@ -30,6 +31,11 @@ def _get_storage_adapter() -> SupabaseStorageAdapter:
     return SupabaseStorageAdapter()
 
 
+@lru_cache
+def _get_category_classifier() -> ClassifyPqrsCategoryUseCase:
+    return ClassifyPqrsCategoryUseCase()
+
+
 def get_create_pqrs(
     conn: psycopg2.extensions.connection = Depends(get_db),
 ) -> CreatePqrsUseCase:
@@ -39,6 +45,7 @@ def get_create_pqrs(
         updates_repo=PqrsUpdatesRepository(conn),
         storage_port=_get_storage_adapter(),
         notification_orchestrator=_get_notification_orchestrator(),
+        category_classifier=_get_category_classifier(),
     )
 
 

@@ -7,6 +7,9 @@ import {
   Param,
   Delete,
   Query,
+  ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
@@ -19,7 +22,6 @@ import {
 import { NodeService } from './node.service';
 import { CreateNodeDto } from './dto/create-node.dto';
 import { UpdateNodeDto } from './dto/update-node.dto';
-import { Node } from './entities/node.entity';
 import { ResponseNodeDto } from './dto/response-node.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
 import { ResponseNodeListDto } from './dto/response-node-list.dto';
@@ -35,8 +37,8 @@ export class NodeController {
   @ApiParam({ name: 'stopId', description: 'Id de la parada', format: 'uuid' })
   @ApiCreatedResponse({ type: ResponseNodeDto })
   async create(
-    @Param('routeId') routeId: string,
-    @Param('stopId') stopId: string,
+    @Param('routeId', ParseUUIDPipe) routeId: string,
+    @Param('stopId', ParseUUIDPipe) stopId: string,
     @Body() createNodeDto: CreateNodeDto,
   ) {
     return await this.nodeService.create(routeId, stopId, createNodeDto);
@@ -53,7 +55,7 @@ export class NodeController {
   @ApiOperation({ summary: 'Obtener un nodo por id' })
   @ApiParam({ name: 'id', description: 'Id del nodo', format: 'uuid' })
   @ApiOkResponse({ type: ResponseNodeDto })
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return await this.nodeService.findOne(id);
   }
 
@@ -61,15 +63,19 @@ export class NodeController {
   @ApiOperation({ summary: 'Actualizar un nodo por id' })
   @ApiParam({ name: 'id', description: 'Id del nodo', format: 'uuid' })
   @ApiOkResponse({ type: ResponseNodeDto })
-  async update(@Param('id') id: string, @Body() updateNodeDto: UpdateNodeDto) {
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateNodeDto: UpdateNodeDto,
+  ) {
     return await this.nodeService.update(id, updateNodeDto);
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Eliminar un nodo por id' })
   @ApiParam({ name: 'id', description: 'Id del nodo', format: 'uuid' })
   @ApiNoContentResponse({ description: 'Nodo eliminado' })
-  async remove(@Param('id') id: string) {
-    return await this.nodeService.remove(id);
+  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    await this.nodeService.remove(id);
   }
 }

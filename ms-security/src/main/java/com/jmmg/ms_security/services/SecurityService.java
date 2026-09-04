@@ -21,6 +21,7 @@ import com.jmmg.ms_security.DTOs.password.ForgotPasswordDTO;
 import com.jmmg.ms_security.DTOs.password.ResetPasswordDTO;
 import com.jmmg.ms_security.DTOs.user.GetUserDetailDTO;
 import com.jmmg.ms_security.infra.config.PasswordResetProperties;
+import com.jmmg.ms_security.infra.exception.InvalidCredentials;
 import com.jmmg.ms_security.models.AuthFactor;
 import com.jmmg.ms_security.models.User;
 import com.jmmg.ms_security.repositories.IUserRepository;
@@ -69,7 +70,7 @@ public class SecurityService {
                     User user = this.userRepository.findByEmail(email);
 
                     if (user == null) {
-                        return Mono.error(new IllegalArgumentException("Invalid credentials"));
+                        return Mono.error(new InvalidCredentials());
                     }
 
                     if (user.getPassword() == null || user.getPassword().isBlank()) {
@@ -78,7 +79,7 @@ public class SecurityService {
                     }
 
                     if (!this.theEncryptionService.matches(loginUser.password(), user.getPassword())) {
-                        return Mono.error(new IllegalArgumentException("Invalid credentials"));
+                        return Mono.error(new InvalidCredentials());
                     }
 
                     AuthFactor authFactor = this.authFactorService.createPendingFactor(user);
@@ -98,10 +99,12 @@ public class SecurityService {
                                 "Codigo de autenticacion",
                                 emailContent));
                     } catch (Exception e) {
-                        log.warn(
-                                "2FA email failed for user {}; challenge still issued: {}",
+                        log.error(
+                                "2FA email failed for user {}: {}",
                                 user.getIdAsString(),
                                 e.getMessage());
+                        return Mono.error(new IllegalStateException(
+                                "Could not send authentication code. Try again later."));
                     }
 
                     return Mono.just(new LoginChallengeDTO(

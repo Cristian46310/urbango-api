@@ -39,13 +39,7 @@ import { ResponseIncidentDto } from '@/incident/dto/response-incident.dto';
 import { CreateArrivalNotificationDto } from './dto/create-arrival-notification.dto';
 import { DashboardPeriodMonths } from './enums/dashboard-period-months.enum';
 
-const SUPERVISOR_ROLES = [
-  'ADMIN',
-  'ADMIN_BUS',
-  'BUSINESS_ADMIN',
-  'SUPERVISER',
-  'SUPERVISOR',
-] as const;
+const SUPERVISOR_ROLES = ['ADMIN', 'BUSINESS_ADMIN', 'SUPERVISOR'] as const;
 
 const REALTIME_ROLES = ['CITIZEN', ...SUPERVISOR_ROLES] as const;
 
@@ -131,17 +125,17 @@ export class DashboardController {
   @ApiOperation({
     summary: 'Crear notificación de llegada para un bus o ruta',
     description:
-      'Registra una suscripción y envía la alerta cuando el bus está dentro de los minutos de anticipación configurados.',
+      'Registra una suscripción usando el email del JWT y envía la alerta cuando el bus está dentro de los minutos de anticipación configurados.',
   })
   @ApiOkResponse({ type: Object })
   sendArrivalNotification(
     @Body() payload: CreateArrivalNotificationDto,
     @CurrentUser() currentUser: JwtPayload,
   ) {
-    const email = payload.email ?? currentUser.email;
+    const email = currentUser.email;
     if (!email) {
       throw new BadRequestException(
-        'Se requiere email en el cuerpo o en el token JWT',
+        'El token JWT no incluye email; no se puede crear la alerta',
       );
     }
 

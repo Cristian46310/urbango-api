@@ -1,7 +1,7 @@
 package com.jmmg.ms_security.services;
 
 import java.security.SecureRandom;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,12 +29,12 @@ public class AuthFactorService {
     public AuthFactor createPendingFactor(User user) {
         this.cancelPendingFactorsByType(user.getId(), AuthFactorType.TWO_FA);
 
-        Date now = new Date();
+        Instant now = Instant.now();
         AuthFactor authFactor = new AuthFactor();
         authFactor.setUser(user);
         authFactor.setCode(this.generateNumericCode());
         authFactor.setToken(UUID.randomUUID().toString());
-        authFactor.setExpiration(new Date(now.getTime() + this.authFactorProperties.getExpiration()));
+        authFactor.setExpiration(now.plusMillis(this.authFactorProperties.getExpiration()));
         authFactor.setStatus(AuthFactorStatus.PENDING);
         authFactor.setType(AuthFactorType.TWO_FA);
         authFactor.setCreatedAt(now);
@@ -49,11 +49,11 @@ public class AuthFactorService {
     public AuthFactor createPasswordResetFactor(User user) {
         this.cancelPendingFactorsByType(user.getId(), AuthFactorType.PASSWORD_RESET);
 
-        Date now = new Date();
+        Instant now = Instant.now();
         AuthFactor authFactor = new AuthFactor();
         authFactor.setUser(user);
         authFactor.setToken(UUID.randomUUID().toString());
-        authFactor.setExpiration(new Date(now.getTime() + PASSWORD_RESET_EXPIRATION_MS));
+        authFactor.setExpiration(now.plusMillis(PASSWORD_RESET_EXPIRATION_MS));
         authFactor.setStatus(AuthFactorStatus.PENDING);
         authFactor.setType(AuthFactorType.PASSWORD_RESET);
         authFactor.setCreatedAt(now);
@@ -68,8 +68,8 @@ public class AuthFactorService {
             return null;
         }
 
-        Date now = new Date();
-        if (authFactor.getExpiration() == null || authFactor.getExpiration().before(now)) {
+        Instant now = Instant.now();
+        if (authFactor.getExpiration() == null || authFactor.getExpiration().isBefore(now)) {
             this.markAsCanceled(authFactor);
             return null;
         }
@@ -87,8 +87,8 @@ public class AuthFactorService {
             return null;
         }
 
-        Date now = new Date();
-        if (authFactor.getExpiration() == null || authFactor.getExpiration().before(now)) {
+        Instant now = Instant.now();
+        if (authFactor.getExpiration() == null || authFactor.getExpiration().isBefore(now)) {
             this.markAsCanceled(authFactor);
             return null;
         }
@@ -116,7 +116,7 @@ public class AuthFactorService {
             return;
         }
 
-        Date now = new Date();
+        Instant now = Instant.now();
         pendingFactors.forEach(factor -> {
             factor.setStatus(AuthFactorStatus.CANCELED);
             factor.setUpdatedAt(now);
@@ -127,13 +127,13 @@ public class AuthFactorService {
 
     private void markAsUsed(AuthFactor authFactor) {
         authFactor.setStatus(AuthFactorStatus.USED);
-        authFactor.setUpdatedAt(new Date());
+        authFactor.setUpdatedAt(Instant.now());
         this.authFactorRepository.save(authFactor);
     }
 
     private void markAsCanceled(AuthFactor authFactor) {
         authFactor.setStatus(AuthFactorStatus.CANCELED);
-        authFactor.setUpdatedAt(new Date());
+        authFactor.setUpdatedAt(Instant.now());
         this.authFactorRepository.save(authFactor);
     }
 

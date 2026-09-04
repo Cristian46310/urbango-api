@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsUUID, IsNotEmpty, IsNumber, IsOptional, Min } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsUUID, IsNotEmpty } from 'class-validator';
 
 export class CreatePaymentMethodCitizenDto {
   @ApiProperty({ example: 'citizen-uuid' })
@@ -11,10 +11,4 @@ export class CreatePaymentMethodCitizenDto {
   @IsUUID()
   @IsNotEmpty()
   paymentMethodId!: string;
-
-  @ApiProperty({ example: 15000, required: false })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  balance?: number;
 }

@@ -17,6 +17,7 @@ class PqrsCategory(str, Enum):
     BUS = "bus"
     ROUTE = "route"
     CARD = "card"
+    TECHNICAL_SUPPORT = "technical_support"
     OTHER = "other"
 
 

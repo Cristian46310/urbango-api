@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { BusPhoto } from './entities/bus-photo.entity';
@@ -9,11 +9,7 @@ import { BusPhotoStorageService } from './bus-photo-storage.service';
 import { BusModule } from '@/bus/bus.module';
 
 @Module({
-  imports: [
-    ConfigModule,
-    TypeOrmModule.forFeature([BusPhoto, Bus]),
-    forwardRef(() => BusModule),
-  ],
+  imports: [ConfigModule, TypeOrmModule.forFeature([BusPhoto, Bus]), BusModule],
   controllers: [BusPhotoController],
   providers: [BusPhotoService, BusPhotoStorageService],
   exports: [BusPhotoService, TypeOrmModule],

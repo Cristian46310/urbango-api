@@ -106,56 +106,43 @@ export class PassengerAgeDistributionService {
     routeId?: string,
   ): Promise<Record<AgeBucketKey, number>> {
     const counts = this.emptyCounts();
-    const queryBuilder = this.ticketRepository
+    const qb = this.ticketRepository
       .createQueryBuilder('ticket')
-      .leftJoinAndSelect('ticket.citizen', 'citizen')
+      .leftJoin('ticket.citizen', 'citizen')
       .leftJoin('ticket.scheduler', 'scheduler')
       .leftJoin('scheduler.route', 'route')
+      .select(
+        `
+        CASE
+          WHEN citizen."birthDate" IS NULL THEN 'unknown'
+          WHEN EXTRACT(YEAR FROM AGE(ticket."createdAt", citizen."birthDate")) < 18 THEN 'minors'
+          WHEN EXTRACT(YEAR FROM AGE(ticket."createdAt", citizen."birthDate")) <= 25 THEN 'young'
+          WHEN EXTRACT(YEAR FROM AGE(ticket."createdAt", citizen."birthDate")) <= 40 THEN 'youngAdults'
+          WHEN EXTRACT(YEAR FROM AGE(ticket."createdAt", citizen."birthDate")) <= 60 THEN 'adults'
+          ELSE 'olderAdults'
+        END
+        `,
+        'bucket',
+      )
+      .addSelect('COUNT(*)', 'count')
       .where('ticket.createdAt BETWEEN :startDate AND :endDate', {
         startDate: range.start,
         endDate: range.end,
-      });
+      })
+      .groupBy('bucket');
 
     if (routeId) {
-      queryBuilder.andWhere('route.id = :routeId', { routeId });
+      qb.andWhere('route.id = :routeId', { routeId });
     }
 
-    const tickets = await queryBuilder.getMany();
-
-    for (const ticket of tickets) {
-      const bucketKey = this.getBucketKey(
-        ticket.citizen?.birthDate,
-        ticket.createdAt,
-      );
-      counts[bucketKey] += 1;
+    const rows = await qb.getRawMany<{ bucket: AgeBucketKey; count: string }>();
+    for (const row of rows) {
+      if (row.bucket in counts) {
+        counts[row.bucket] = Number.parseInt(row.count, 10) || 0;
+      }
     }
 
     return counts;
-  }
-
-  private getBucketKey(birthDate?: Date, travelDate?: Date): AgeBucketKey {
-    if (!birthDate || !travelDate) return 'unknown';
-
-    const age = this.calculateAge(new Date(birthDate), new Date(travelDate));
-
-    if (age < 18) return 'minors';
-    if (age <= 25) return 'young';
-    if (age <= 40) return 'youngAdults';
-    if (age <= 60) return 'adults';
-    return 'olderAdults';
-  }
-
-  private calculateAge(birthDate: Date, referenceDate: Date): number {
-    let age = referenceDate.getUTCFullYear() - birthDate.getUTCFullYear();
-    const monthDifference =
-      referenceDate.getUTCMonth() - birthDate.getUTCMonth();
-    const dayDifference = referenceDate.getUTCDate() - birthDate.getUTCDate();
-
-    if (monthDifference < 0 || (monthDifference === 0 && dayDifference < 0)) {
-      age -= 1;
-    }
-
-    return Math.max(age, 0);
   }
 
   private buildSegment(

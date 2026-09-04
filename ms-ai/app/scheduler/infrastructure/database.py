@@ -6,7 +6,11 @@ from app.config.settings import settings
 
 
 def get_connection() -> connection:
-    return psycopg2.connect(settings.DATABASE_URL, cursor_factory=RealDictCursor)
+    conn = psycopg2.connect(settings.DATABASE_URL, cursor_factory=RealDictCursor)
+    with conn.cursor() as cur:
+        cur.execute("SET search_path TO ai, public")
+    conn.commit()
+    return conn
 
 
 def get_db():

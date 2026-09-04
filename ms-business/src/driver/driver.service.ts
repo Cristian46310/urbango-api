@@ -7,7 +7,7 @@ import {
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Driver } from './entities/driver.entity';
 import { Enterprise } from '@/enterprise/entities/enterprise.entity';
 import { plainToInstance } from 'class-transformer';
@@ -17,6 +17,11 @@ import {
   SecurityProfileRole,
   SecurityRoleClientService,
 } from '@/auth/services/security-role-client.service';
+import { ProfileRoleOutboxService } from '@/auth/services/profile-role-outbox.service';
+import {
+  UserPhotoStorageFile,
+  UserPhotoStorageService,
+} from '@/user-photo/user-photo-storage.service';
 
 export type CreateDriverInput = CreateDriverDto & { userId: string };
 
@@ -28,6 +33,9 @@ export class DriverService {
     @InjectRepository(Enterprise)
     private readonly enterpriseRepository: Repository<Enterprise>,
     private readonly securityRoleClient: SecurityRoleClientService,
+    private readonly profileRoleOutbox: ProfileRoleOutboxService,
+    private readonly dataSource: DataSource,
+    private readonly userPhotoStorage: UserPhotoStorageService,
   ) {}
 
   private async assertUniqueDriverFields(
@@ -69,6 +77,18 @@ export class DriverService {
   }
 
   async create(input: CreateDriverInput) {
+    return this.createProfile(input, false);
+  }
+
+  async createByAdmin(input: CreateDriverInput) {
+    await this.securityRoleClient.assertUserExists(input.userId);
+    return this.createProfile(input, true);
+  }
+
+  private async createProfile(
+    input: CreateDriverInput,
+    assignDriverRole: boolean,
+  ) {
     const ent = await this.enterpriseRepository.findOne({
       where: { id: input.enterpriseId },
     });
@@ -96,11 +116,25 @@ export class DriverService {
     };
 
     const drv = this.driverRepository.create(drvData);
-    const saved = await this.driverRepository.save(drv);
-    await this.securityRoleClient.assignProfileRole(
-      input.userId,
-      SecurityProfileRole.DRIVER,
+    if (!assignDriverRole) {
+      const saved = await this.driverRepository.save(drv);
+      // En autorregistro el JWT ya debe incluir DRIVER.
+      return this.toResponse(saved);
+    }
+
+    const { saved, outboxId } = await this.dataSource.transaction(
+      async (manager) => {
+        const savedDriver = await manager.getRepository(Driver).save(drv);
+        const outbox = await this.profileRoleOutbox.enqueue(manager, {
+          userId: input.userId,
+          profileId: savedDriver.id,
+          profileType: 'driver',
+          role: SecurityProfileRole.DRIVER,
+        });
+        return { saved: savedDriver, outboxId: outbox.id };
+      },
     );
+    await this.profileRoleOutbox.tryProcessSoon(outboxId);
     return this.toResponse(saved);
   }
 
@@ -113,6 +147,51 @@ export class DriverService {
       throw new NotFoundException('Driver profile not found for this user');
     }
     return this.toResponse(drv);
+  }
+
+  async upsertPhotoForUser(
+    userId: string,
+    file: UserPhotoStorageFile,
+  ): Promise<ResponseDriverDto> {
+    const drv = await this.driverRepository.findOne({
+      where: { userId },
+      relations: ['enterprise'],
+    });
+    if (!drv) {
+      throw new BadRequestException(
+        'Debe registrar su perfil de conductor antes de subir foto',
+      );
+    }
+
+    const previousPath = drv.photoUrl
+      ? this.userPhotoStorage.pathFromPublicUrl(drv.photoUrl)
+      : undefined;
+    const stored = await this.userPhotoStorage.upload(userId, file);
+    drv.photoUrl = stored.publicUrl;
+    const saved = await this.driverRepository.save(drv);
+    if (previousPath) {
+      await this.userPhotoStorage.delete(previousPath);
+    }
+    return this.toResponse(saved);
+  }
+
+  async removePhotoForUser(userId: string): Promise<ResponseDriverDto> {
+    const drv = await this.driverRepository.findOne({
+      where: { userId },
+      relations: ['enterprise'],
+    });
+    if (!drv) {
+      throw new NotFoundException('Driver profile not found for this user');
+    }
+    const previousPath = drv.photoUrl
+      ? this.userPhotoStorage.pathFromPublicUrl(drv.photoUrl)
+      : undefined;
+    drv.photoUrl = undefined;
+    const saved = await this.driverRepository.save(drv);
+    if (previousPath) {
+      await this.userPhotoStorage.delete(previousPath);
+    }
+    return this.toResponse(saved);
   }
 
   private buildPaginationMeta(page: number, limit: number, totalItems: number) {

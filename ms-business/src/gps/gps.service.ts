@@ -70,7 +70,6 @@ export class GpsService {
       existing.longitude = longitude;
       existing.updatedAt = new Date();
       const saved = await this.gpsRepository.save(existing);
-      await this.attachGpsToBus(busId, saved.id);
       return this.toResponse(saved);
     }
 
@@ -100,13 +99,9 @@ export class GpsService {
       bus,
     });
 
+    // Ownership is on gps.busId only (buses.gps_id was dropped).
     const saved = await this.gpsRepository.save(gps);
-    await this.attachGpsToBus(busId, saved.id);
     return this.toResponse(saved);
-  }
-
-  private async attachGpsToBus(busId: string, gpsId: string): Promise<void> {
-    await this.busRepository.update(busId, { gps: { id: gpsId } });
   }
 
   async findAll(

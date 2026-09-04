@@ -31,6 +31,10 @@ import type { JwtPayload } from '@/auth/types';
 
 const incidentUploadOptions = {
   storage: memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5 MB per file
+    files: 5,
+  },
   fileFilter: (
     _: Express.Request,
     file: Express.Multer.File,

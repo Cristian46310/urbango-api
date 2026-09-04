@@ -78,6 +78,36 @@ export class BusPhotoStorageService {
     };
   }
 
+  async delete(path: string): Promise<void> {
+    if (!this.supabaseUrl || !this.supabaseKey || !path) {
+      return;
+    }
+
+    const deleteUrl = `${this.supabaseUrl}/storage/v1/object/${this.bucket}/${path}`;
+    try {
+      await fetch(deleteUrl, {
+        method: 'DELETE',
+        headers: {
+          apikey: this.supabaseKey,
+          Authorization: `Bearer ${this.supabaseKey}`,
+        },
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch {
+      // Best-effort cleanup.
+    }
+  }
+
+  pathFromPublicUrl(publicUrl: string): string | undefined {
+    if (!this.supabaseUrl || !publicUrl) {
+      return undefined;
+    }
+    const prefix = `${this.supabaseUrl}/storage/v1/object/public/${this.bucket}/`;
+    return publicUrl.startsWith(prefix)
+      ? publicUrl.slice(prefix.length)
+      : undefined;
+  }
+
   private extensionFromMime(file: BusPhotoStorageFile) {
     const subtype = file.mimetype.split('/')[1];
     return subtype ? `.${subtype}` : '';

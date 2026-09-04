@@ -3,7 +3,10 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
+  ParseUUIDPipe,
   Post,
   UploadedFile,
   UseGuards,
@@ -78,7 +81,7 @@ export class BusPhotoController {
   @ApiParam({ name: 'busId', format: 'uuid' })
   @ApiCreatedResponse({ type: ResponseBusPhotoDto })
   async upload(
-    @Param('busId') busId: string,
+    @Param('busId', ParseUUIDPipe) busId: string,
     @UploadedFile() file: Express.Multer.File,
     @CurrentUser() user: JwtPayload,
   ): Promise<ResponseBusPhotoDto> {
@@ -91,7 +94,7 @@ export class BusPhotoController {
   @ApiOperation({ summary: 'Obtener foto de un bus por id del bus' })
   @ApiParam({ name: 'busId', format: 'uuid' })
   @ApiOkResponse({ type: ResponseBusPhotoDto })
-  findByBus(@Param('busId') busId: string) {
+  findByBus(@Param('busId', ParseUUIDPipe) busId: string) {
     return this.busPhotoService.findByBusId(busId);
   }
 
@@ -99,17 +102,21 @@ export class BusPhotoController {
   @ApiOperation({ summary: 'Obtener foto de bus por id' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ type: ResponseBusPhotoDto })
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.busPhotoService.findOne(id);
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(SecurityGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Eliminar foto de un bus (requiere autenticación)' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiNoContentResponse({ description: 'Foto eliminada' })
-  async remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: JwtPayload,
+  ): Promise<void> {
     const photo = await this.busPhotoService.findOne(id);
     const enterpriseId = await this.resolveEnterpriseId(user);
     await this.busService.assertBusBelongsToEnterprise(

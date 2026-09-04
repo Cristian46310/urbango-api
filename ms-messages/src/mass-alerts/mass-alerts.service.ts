@@ -78,22 +78,26 @@ export class MassAlertsService {
     dto: CreateMassAlertDto,
     token: string,
   ): Promise<ResponseMassAlertDto> {
-    const recipientUserIds =
-      await this.recipientResolver.resolveRecipientUserIds({
+    const scheduledAt = dto.scheduledAt ? new Date(dto.scheduledAt) : null;
+    const sendImmediately = !scheduledAt || scheduledAt.getTime() <= Date.now();
+
+    // Scheduled alerts only store the scope/criteria; recipients are
+    // resolved again at send time so the audience reflects reality then.
+    let recipientUserIds: string[] = [];
+    if (sendImmediately) {
+      recipientUserIds = await this.recipientResolver.resolveRecipientUserIds({
         scope: dto.scope,
         routeIds: dto.routeIds,
         zoneNames: dto.zoneNames,
         token,
       });
 
-    if (recipientUserIds.length === 0) {
-      throw new BadRequestException(
-        'No se encontraron destinatarios para el alcance seleccionado.',
-      );
+      if (recipientUserIds.length === 0) {
+        throw new BadRequestException(
+          'No se encontraron destinatarios para el alcance seleccionado.',
+        );
+      }
     }
-
-    const scheduledAt = dto.scheduledAt ? new Date(dto.scheduledAt) : null;
-    const sendImmediately = !scheduledAt || scheduledAt.getTime() <= Date.now();
 
     const alert = this.massAlertRepository.create({
       senderId,
@@ -102,20 +106,19 @@ export class MassAlertsService {
       scope: dto.scope,
       isUrgent: dto.isUrgent ?? false,
       scheduledAt: sendImmediately ? null : scheduledAt,
-      status: sendImmediately
-        ? MassAlertStatus.SCHEDULED
-        : MassAlertStatus.SCHEDULED,
+      status: MassAlertStatus.SCHEDULED,
       recipientCount: recipientUserIds.length,
     });
 
     const savedAlert = await this.massAlertRepository.save(alert);
     await this.saveScopeTargets(savedAlert.id, dto);
-    await this.insertRecipients(savedAlert.id, recipientUserIds);
 
     if (sendImmediately) {
-      await this.emitAlertToRecipients(savedAlert, recipientUserIds, token);
+      const sentAt = new Date();
+      await this.insertRecipients(savedAlert.id, recipientUserIds, sentAt);
+      await this.emitAlertToRecipients(savedAlert, recipientUserIds);
       savedAlert.status = MassAlertStatus.SENT;
-      savedAlert.sentAt = new Date();
+      savedAlert.sentAt = sentAt;
       await this.massAlertRepository.save(savedAlert);
     }
 
@@ -163,6 +166,8 @@ export class MassAlertsService {
   async processDueScheduledAlerts(): Promise<number> {
     const dueAlerts = await this.massAlertRepository
       .createQueryBuilder('alert')
+      .leftJoinAndSelect('alert.routes', 'routes')
+      .leftJoinAndSelect('alert.zones', 'zones')
       .where('alert.status = :status', { status: MassAlertStatus.SCHEDULED })
       .andWhere('alert.scheduledAt IS NOT NULL')
       .andWhere('alert.scheduledAt <= :now', { now: new Date() })
@@ -171,20 +176,27 @@ export class MassAlertsService {
     let processed = 0;
 
     for (const alert of dueAlerts) {
-      const recipientUserIds = await this.recipientRepository
-        .find({
-          where: { massAlertId: alert.id },
-          select: ['userId'],
-        })
-        .then((rows) => rows.map((row) => row.userId));
+      const recipientUserIds =
+        await this.recipientResolver.resolveRecipientUserIds({
+          scope: alert.scope,
+          routeIds: alert.routes?.map((route) => route.routeId),
+          zoneNames: alert.zones?.map((zone) => zone.zoneName),
+          token: '',
+        });
 
       if (recipientUserIds.length === 0) {
+        alert.status = MassAlertStatus.CANCELLED;
+        await this.massAlertRepository.save(alert);
         continue;
       }
 
+      const sentAt = new Date();
+      await this.insertRecipients(alert.id, recipientUserIds, sentAt);
       await this.emitAlertToRecipients(alert, recipientUserIds);
+
+      alert.recipientCount = recipientUserIds.length;
       alert.status = MassAlertStatus.SENT;
-      alert.sentAt = new Date();
+      alert.sentAt = sentAt;
       await this.massAlertRepository.save(alert);
       processed += 1;
     }
@@ -195,16 +207,13 @@ export class MassAlertsService {
   async emitAlertToRecipients(
     alert: MassAlert,
     recipientUserIds: string[],
-    token?: string,
   ): Promise<void> {
     const uniqueUserIds = [...new Set(recipientUserIds.filter(Boolean))];
 
-    const senderName = token
-      ? await this.securityUserClient
-          .getUserById(alert.senderId, token)
-          .then((user) => user.name)
-          .catch(() => undefined)
-      : undefined;
+    const senderName = await this.securityUserClient
+      .getUserById(alert.senderId)
+      .then((user) => user.name)
+      .catch(() => undefined);
 
     for (const userId of uniqueUserIds) {
       const payload = this.toUserAlertDto(alert, userId, {
@@ -283,7 +292,6 @@ export class MassAlertsService {
   async listUserAlerts(
     userId: string,
     query: AlertsQueryDto,
-    token: string,
   ): Promise<ResponseUserAlertListDto> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
@@ -312,7 +320,7 @@ export class MassAlertsService {
       ),
     ];
 
-    const senderNames = await this.resolveSenderNames(senderIds, token);
+    const senderNames = await this.resolveSenderNames(senderIds);
 
     const items = recipients.map((recipient) => {
       const alert = recipient.massAlert!;
@@ -342,7 +350,6 @@ export class MassAlertsService {
   async markUserAlertAsRead(
     alertId: string,
     userId: string,
-    token: string,
   ): Promise<ResponseUserAlertDto> {
     const recipient = await this.recipientRepository.findOne({
       where: { massAlertId: alertId, userId },
@@ -359,7 +366,7 @@ export class MassAlertsService {
     }
 
     const senderName = await this.securityUserClient
-      .getUserById(recipient.massAlert.senderId, token)
+      .getUserById(recipient.massAlert.senderId)
       .then((user) => user.name)
       .catch(() => undefined);
 
@@ -373,7 +380,6 @@ export class MassAlertsService {
   async getUserAlertById(
     alertId: string,
     userId: string,
-    token: string,
   ): Promise<ResponseUserAlertDto> {
     const recipient = await this.recipientRepository.findOne({
       where: { massAlertId: alertId, userId },
@@ -385,7 +391,7 @@ export class MassAlertsService {
     }
 
     const senderName = await this.securityUserClient
-      .getUserById(recipient.massAlert.senderId, token)
+      .getUserById(recipient.massAlert.senderId)
       .then((user) => user.name)
       .catch(() => undefined);
 
@@ -399,6 +405,7 @@ export class MassAlertsService {
   private async insertRecipients(
     alertId: string,
     userIds: string[],
+    deliveredAt: Date,
   ): Promise<void> {
     for (
       let index = 0;
@@ -410,6 +417,7 @@ export class MassAlertsService {
         this.recipientRepository.create({
           massAlertId: alertId,
           userId,
+          deliveredAt,
         }),
       );
       await this.recipientRepository.save(rows);
@@ -418,15 +426,11 @@ export class MassAlertsService {
 
   private async resolveSenderNames(
     senderIds: string[],
-    token: string,
   ): Promise<Map<string, string>> {
     const entries = await Promise.all(
       senderIds.map(async (senderId) => {
         try {
-          const user = await this.securityUserClient.getUserById(
-            senderId,
-            token,
-          );
+          const user = await this.securityUserClient.getUserById(senderId);
           return [senderId, user.name] as const;
         } catch {
           return [senderId, undefined] as const;

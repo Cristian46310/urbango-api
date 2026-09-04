@@ -8,7 +8,8 @@ export interface ResolveRecipientsInput {
   scope: MassAlertScope;
   routeIds?: string[];
   zoneNames?: string[];
-  token: string;
+  /** @deprecated Unused; internal users API uses MS_SECURITY_INTERNAL_KEY */
+  token?: string;
 }
 
 @Injectable()
@@ -26,7 +27,7 @@ export class MassAlertRecipientResolverService {
   ): Promise<string[]> {
     switch (input.scope) {
       case MassAlertScope.ALL:
-        return this.resolveAllUsers(input.token);
+        return this.resolveAllUsers();
       case MassAlertScope.ROUTE:
         return this.resolveByRoutes(input.routeIds ?? []);
       case MassAlertScope.ZONE:
@@ -36,8 +37,8 @@ export class MassAlertRecipientResolverService {
     }
   }
 
-  private async resolveAllUsers(token: string): Promise<string[]> {
-    return this.securityUserClient.getAllUserIds(token);
+  private async resolveAllUsers(): Promise<string[]> {
+    return this.securityUserClient.getAllUserIds();
   }
 
   private async resolveByRoutes(routeIds: string[]): Promise<string[]> {

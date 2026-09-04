@@ -21,6 +21,15 @@ export class Conversation {
   })
   type!: ConversationType;
 
+  /** Sorted "userA:userB" for direct chats; unique when set. */
+  @Column({
+    name: 'direct_pair_key',
+    type: 'varchar',
+    length: 130,
+    nullable: true,
+  })
+  directPairKey?: string | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt!: Date;
 

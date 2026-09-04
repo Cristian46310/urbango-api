@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { RouteService } from './route.service';
 import { Route } from './entities/route.entity';
 import { Node } from '@/node/entities/node.entity';
@@ -22,6 +23,9 @@ describe('RouteService', () => {
   };
   let stopRepository: {
     findBy: jest.Mock;
+  };
+  let dataSource: {
+    transaction: jest.Mock;
   };
 
   const stops = [
@@ -46,6 +50,17 @@ describe('RouteService', () => {
     stopRepository = {
       findBy: jest.fn(),
     };
+    dataSource = {
+      transaction: jest.fn(async (cb: (manager: unknown) => unknown) =>
+        cb({
+          getRepository: (entity: unknown) => {
+            if (entity === Route) return routeRepository;
+            if (entity === Node) return nodeRepository;
+            return stopRepository;
+          },
+        }),
+      ),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -61,6 +76,10 @@ describe('RouteService', () => {
         {
           provide: getRepositoryToken(Stop),
           useValue: stopRepository,
+        },
+        {
+          provide: DataSource,
+          useValue: dataSource,
         },
       ],
     }).compile();

@@ -4,6 +4,7 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  DeleteDateColumn,
   ManyToOne,
   OneToMany,
   OneToOne,
@@ -53,8 +54,7 @@ export class Bus {
   schedulers?: Scheduler[];
 
   @OneToOne(() => Gps, (gps) => gps.bus, { onDelete: 'CASCADE', eager: true })
-  @JoinColumn({ name: 'gps_id' })
-  gps!: Gps;
+  gps?: Gps;
 
   @OneToMany(() => BusPhoto, (photo) => photo.bus, {
     onDelete: 'CASCADE',
@@ -67,4 +67,7 @@ export class Bus {
 
   @CreateDateColumn()
   createdAt!: Date;
+
+  @DeleteDateColumn()
+  deletedAt?: Date | null;
 }

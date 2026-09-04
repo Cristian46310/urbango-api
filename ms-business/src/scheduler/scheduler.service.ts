@@ -181,39 +181,118 @@ export class SchedulerService {
     });
     if (!route) throw new BadRequestException('Route not found');
 
-    const departureTime = this.parseDepartureTime(
-      createSchedulerDto.departureTime,
-      createSchedulerDto.date,
-    );
-    const endTime = this.computeEndTime(departureTime, route);
+    const recurrenceType =
+      createSchedulerDto.recurrenceType ?? RecurrenceType.NONE;
     const toleranceMinutes = createSchedulerDto.toleranceMinutes ?? 0;
-
-    await this.validateBusAvailability(
-      bus.id,
+    const dates = this.expandRecurrenceDates(
       createSchedulerDto.date,
-      departureTime,
-      endTime,
-      toleranceMinutes,
-    );
-    await this.validateDriverAssignment(
-      bus.id,
-      departureTime,
-      endTime,
-      toleranceMinutes,
+      recurrenceType,
     );
 
-    const scheduler = this.schedulerRepository.create({
-      bus: { id: bus.id } as Bus,
-      route: { id: route.id } as Route,
-      date: createSchedulerDto.date,
-      startTime: departureTime,
-      endTime,
-      status: SchedulerStatus.SCHEDULED,
-      toleranceMinutes,
-      recurrenceType: createSchedulerDto.recurrenceType ?? RecurrenceType.NONE,
-    });
-    const saved = await this.schedulerRepository.save(scheduler);
-    return this.toResponseDto(saved);
+    const toSave: Scheduler[] = [];
+
+    for (let i = 0; i < dates.length; i++) {
+      const date = dates[i];
+      const isSeed = i === 0;
+      const departureTime = this.parseDepartureTime(
+        createSchedulerDto.departureTime,
+        date,
+      );
+      const endTime = this.computeEndTime(departureTime, route);
+
+      try {
+        await this.validateBusAvailability(
+          bus.id,
+          date,
+          departureTime,
+          endTime,
+          toleranceMinutes,
+        );
+      } catch (error) {
+        if (isSeed || !(error instanceof ConflictException)) {
+          throw error;
+        }
+        // Skip later recurrence days that collide with an existing schedule.
+        continue;
+      }
+
+      if (isSeed) {
+        await this.validateDriverAssignment(
+          bus.id,
+          departureTime,
+          endTime,
+          toleranceMinutes,
+        );
+      }
+
+      toSave.push(
+        this.schedulerRepository.create({
+          bus: { id: bus.id } as Bus,
+          route: { id: route.id } as Route,
+          date,
+          startTime: departureTime,
+          endTime,
+          status: SchedulerStatus.SCHEDULED,
+          toleranceMinutes,
+          recurrenceType,
+        }),
+      );
+    }
+
+    const saved = await this.schedulerRepository.save(toSave);
+    return this.toResponseDto(Array.isArray(saved) ? saved[0] : saved);
+  }
+
+  /**
+   * Materializes recurrence over a 28-day horizon (inclusive of the seed date).
+   * NONE → only the seed date. The seed date is always included even if it
+   * would not match the recurrence mask (user-selected start).
+   */
+  private expandRecurrenceDates(
+    seedDate: string,
+    recurrenceType: RecurrenceType,
+    horizonDays = 28,
+  ): string[] {
+    if (recurrenceType === RecurrenceType.NONE) {
+      return [seedDate];
+    }
+
+    const dates: string[] = [seedDate];
+    for (let offset = 1; offset < horizonDays; offset++) {
+      const date = this.addDays(seedDate, offset);
+      if (this.matchesRecurrence(date, recurrenceType)) {
+        dates.push(date);
+      }
+    }
+    return dates;
+  }
+
+  private matchesRecurrence(
+    date: string,
+    recurrenceType: RecurrenceType,
+  ): boolean {
+    const day = this.dayOfWeekUtc(date);
+    switch (recurrenceType) {
+      case RecurrenceType.DAILY:
+        return true;
+      case RecurrenceType.WEEKDAYS:
+        return day >= 1 && day <= 5;
+      case RecurrenceType.WEEKENDS:
+        return day === 0 || day === 6;
+      default:
+        return false;
+    }
+  }
+
+  private dayOfWeekUtc(date: string): number {
+    const [y, m, d] = date.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  }
+
+  private addDays(date: string, days: number): string {
+    const [y, m, d] = date.split('-').map(Number);
+    const next = new Date(Date.UTC(y, m - 1, d + days));
+    return next.toISOString().slice(0, 10);
   }
 
   private buildPaginationMeta(page: number, limit: number, totalItems: number) {
@@ -307,20 +386,24 @@ export class SchedulerService {
       : existing.startTime;
     const endTime = this.computeEndTime(departureTime, route);
 
-    await this.validateBusAvailability(
-      busId,
-      date,
-      departureTime,
-      endTime,
-      toleranceMinutes,
-      id,
-    );
-    await this.validateDriverAssignment(
-      busId,
-      departureTime,
-      endTime,
-      toleranceMinutes,
-    );
+    const cancelling = updateSchedulerDto.status === SchedulerStatus.CANCELLED;
+
+    if (!cancelling) {
+      await this.validateBusAvailability(
+        busId,
+        date,
+        departureTime,
+        endTime,
+        toleranceMinutes,
+        id,
+      );
+      await this.validateDriverAssignment(
+        busId,
+        departureTime,
+        endTime,
+        toleranceMinutes,
+      );
+    }
 
     existing.bus = { id: busId } as Bus;
     existing.route = { id: routeId } as Route;
@@ -343,6 +426,6 @@ export class SchedulerService {
   async remove(id: string): Promise<void> {
     const scheduler = await this.schedulerRepository.findOne({ where: { id } });
     if (!scheduler) throw new NotFoundException(`Scheduler ${id} not found`);
-    await this.schedulerRepository.delete(id);
+    await this.schedulerRepository.softDelete(id);
   }
 }

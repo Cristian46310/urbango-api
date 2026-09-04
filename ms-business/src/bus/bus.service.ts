@@ -8,11 +8,16 @@ import {
 import { CreateBusDto } from './dto/create-bus.dto';
 import { UpdateBusDto } from './dto/update-bus.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Bus } from './entities/bus.entity';
 import { Gps } from '@/gps/entities/gps.entity';
 import { Enterprise } from '@/enterprise/entities/enterprise.entity';
 import { Driver } from '@/driver/entities/driver.entity';
+import { Turn, TurnStatus } from '@/turn/entities/turn.entity';
+import {
+  Scheduler,
+  SchedulerStatus,
+} from '@/scheduler/entities/scheduler.entity';
 import { plainToInstance } from 'class-transformer';
 import { ResponseBusDto } from './dto/response-bus.dto';
 import { PaginationQueryDto } from '@/shared/dto/pagination-query.dto';
@@ -29,6 +34,10 @@ export class BusService {
     private readonly enterpriseRepository: Repository<Enterprise>,
     @InjectRepository(Driver)
     private readonly driverRepository: Repository<Driver>,
+    @InjectRepository(Turn)
+    private readonly turnRepository: Repository<Turn>,
+    @InjectRepository(Scheduler)
+    private readonly schedulerRepository: Repository<Scheduler>,
   ) {}
 
   async resolveEnterpriseIdForUser(userId: string): Promise<string> {
@@ -113,44 +122,92 @@ export class BusService {
   async findAllWithGpsAndSchedules(enterpriseId?: string) {
     const qb = this.busRepository
       .createQueryBuilder('bus')
-      .leftJoinAndMapOne(
-        'bus.gps',
-        Gps,
-        'gps',
-        'gps.id = bus.gps_id OR gps."busId" = bus.id',
-      )
-      .leftJoinAndSelect('bus.turns', 'turns')
-      .leftJoinAndSelect('bus.schedulers', 'schedulers')
-      .leftJoinAndSelect('schedulers.route', 'route')
-      .leftJoinAndSelect('route.nodes', 'nodes')
-      .leftJoinAndSelect('nodes.stop', 'stop');
+      .leftJoinAndMapOne('bus.gps', Gps, 'gps', 'gps."busId" = bus.id');
 
     if (enterpriseId) {
       qb.andWhere('bus.enterprise_id = :enterpriseId', { enterpriseId });
     }
 
-    return qb.getMany();
+    const buses = await qb.getMany();
+    return this.attachRealtimeRelations(buses);
   }
 
   async findOneWithGpsAndSchedules(id: string) {
     const bus = await this.busRepository
       .createQueryBuilder('bus')
-      .leftJoinAndMapOne(
-        'bus.gps',
-        Gps,
-        'gps',
-        'gps.id = bus.gps_id OR gps."busId" = bus.id',
-      )
-      .leftJoinAndSelect('bus.turns', 'turns')
-      .leftJoinAndSelect('bus.schedulers', 'schedulers')
-      .leftJoinAndSelect('schedulers.route', 'route')
-      .leftJoinAndSelect('route.nodes', 'nodes')
-      .leftJoinAndSelect('nodes.stop', 'stop')
+      .leftJoinAndMapOne('bus.gps', Gps, 'gps', 'gps."busId" = bus.id')
       .where('bus.id = :id', { id })
       .getOne();
 
     if (!bus) throw new NotFoundException(`Bus ${id} not found`);
-    return bus;
+    const [enriched] = await this.attachRealtimeRelations([bus]);
+    return enriched;
+  }
+
+  /**
+   * Loads turns/schedulers/routes in separate queries to avoid Cartesian explosion
+   * (turns × schedulers × nodes) from a single multi-collection join.
+   */
+  private async attachRealtimeRelations(buses: Bus[]): Promise<Bus[]> {
+    if (!buses.length) {
+      return buses;
+    }
+
+    const busIds = buses.map((bus) => bus.id);
+    const today = this.getLocalDateString(new Date());
+
+    const [turns, schedulers] = await Promise.all([
+      this.turnRepository.find({
+        where: {
+          bus: { id: In(busIds) },
+          status: In([TurnStatus.SCHEDULED, TurnStatus.IN_PROGRESS]),
+        },
+        relations: ['bus'],
+      }),
+      this.schedulerRepository.find({
+        where: {
+          bus: { id: In(busIds) },
+          status: SchedulerStatus.SCHEDULED,
+          date: today,
+        },
+        relations: ['bus', 'route', 'route.nodes', 'route.nodes.stop'],
+      }),
+    ]);
+
+    const turnsByBus = new Map<string, Turn[]>();
+    for (const turn of turns) {
+      const key = turn.bus?.id;
+      if (!key) continue;
+      const list = turnsByBus.get(key) ?? [];
+      list.push(turn);
+      turnsByBus.set(key, list);
+    }
+
+    const schedulersByBus = new Map<string, Scheduler[]>();
+    for (const scheduler of schedulers) {
+      const key = scheduler.bus?.id;
+      if (!key) continue;
+      const list = schedulersByBus.get(key) ?? [];
+      list.push(scheduler);
+      schedulersByBus.set(key, list);
+    }
+
+    for (const bus of buses) {
+      bus.turns = turnsByBus.get(bus.id) ?? [];
+      bus.schedulers = schedulersByBus.get(bus.id) ?? [];
+    }
+
+    return buses;
+  }
+
+  private getLocalDateString(date: Date): string {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Bogota',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    return formatter.format(date);
   }
 
   async update(
@@ -181,7 +238,7 @@ export class BusService {
   async remove(id: string): Promise<void> {
     const bus = await this.busRepository.findOne({ where: { id } });
     if (!bus) throw new NotFoundException(`Bus ${id} not found`);
-    await this.busRepository.delete(id);
+    await this.busRepository.softDelete(id);
   }
 
   async assertBusBelongsToEnterprise(

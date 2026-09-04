@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayMaxSize,
   ArrayMinSize,
   IsArray,
   IsEnum,
@@ -34,9 +35,11 @@ export class CreateGroupDto {
     description: 'IDs de ms-security de al menos 2 personas además del creador',
     example: ['665f1c2e9a1b2c3d4e5f6789', '665f1c2e9a1b2c3d4e5f6790'],
     minItems: 2,
+    maxItems: 50,
   })
   @IsArray()
   @ArrayMinSize(2)
+  @ArrayMaxSize(50)
   @IsString({ each: true })
   memberIds!: string[];
 }
